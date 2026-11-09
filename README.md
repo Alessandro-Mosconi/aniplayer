@@ -1,203 +1,347 @@
-﻿# Revisione grafica Samsung S90F (CSS/Tizen)
+# AniPlayer — Angular per Samsung Smart TV
 
-Questa versione corregge la Home estremamente piccola, la sidebar senza layout e le copertine enormi
-viste sulla TV. La build Angular ottimizzata poteva differire il CSS con `media=print` e
-un attributo `onload` inline, che viene bloccato dalla CSP della web app Tizen.
+<img src="src/assets/images/aniplayer-icon-512.png" alt="Icona AniPlayer" width="128" />
 
-Correzioni:
-- `optimization.styles.inlineCritical=false` in produzione, senza cambiare la CSP degli script.
-- CSS completo incorporato in `tizen/index.html` durante il packaging, con controllo del WGT.
-- Viewport TV impostato a 1920 px, come la precedente app funzionante.
-- Deploy: stop dell'app prima di backup, installazione e restore; non disattivare il backup.
+Client per Samsung Tizen TV progettato per il telecomando: catalogo anime, riproduzione, cronologia, preferiti, esplorazione e integrazione con MyAnimeList.
 
-**Per usare la correzione, ricompilare sempre il WGT**: il vecchio pacchetto installato non cambia modificando solo i sorgenti.
+Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWorld. MAL è facoltativo: puoi usare l’app senza collegare un account.
 
-```powershell
-npm install
-npm run typecheck
-npm test
-npm run tizen:pack
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\deploy-tizen.ps1 -TvIp 192.168.1.84
+**Stato:** progetto in sviluppo, con test automatici e packaging Tizen. Il dispositivo di riferimento è Samsung S90F; il manifest richiede **Tizen 9.0**. La compatibilità con altri modelli e firmware non è garantita. Non è un’app ufficiale Samsung, MyAnimeList o dei provider.
+
+## Indice
+
+- [Funzioni](#funzioni)
+- [Requisiti](#requisiti)
+- [Avvio sul PC](#avvio-sul-pc)
+- [Preparare TV e certificati](#preparare-tv-e-certificati)
+- [Compilare il pacchetto](#compilare-il-pacchetto)
+- [Installazione e aggiornamenti](#installazione-e-aggiornamenti)
+- [Telecomando e navigazione](#telecomando-e-navigazione)
+- [MyAnimeList](#myanimelist)
+- [Sigle e prossimo episodio](#sigle-e-prossimo-episodio)
+- [Impostazioni e dati locali](#impostazioni-e-dati-locali)
+- [Problemi comuni](#problemi-comuni)
+- [Sviluppo e struttura](#sviluppo-e-struttura)
+- [Contributi e licenze](#contributi-e-licenze)
+
+## Funzioni
+
+- **Home:** continua a guardare, ultimi episodi, titoli in evidenza e anime già esplorati.
+- **Catalogo:** ricerca, audio Tutti / SUB ITA / DUB ITA, generi multipli, tipo, stato, filtri sui visti e sulle scelte di esplorazione.
+- **Ordinamento:** titolo, popolarità, valutazione, uscita crescente/decrescente e casuale con rimescolamento.
+- **Esplora:** scheda grande con trama e informazioni, mi piace, non mi interessa, preferiti, salta e annullamento dell’ultima azione. Disattivabile nelle impostazioni.
+- **Player:** Samsung AVPlay o HTML5, ripresa, timeline, comandi multimediali, salto intro e prossimo episodio con focus automatico.
+- **Visti:** spunta manuale e completamento basato sulle parti effettivamente guardate, conservate tra sessioni.
+- **MAL:** lettura da username pubblico oppure collegamento autorizzato per inviare i progressi; dashboard e lista personale con ricerca e filtri.
+- **Personalizzazione:** voci e ordine del menu, interruttori per le opzioni, gestione delle copie locali e dell’account ricordato.
+
+Il funzionamento dipende dalla disponibilità dei provider, dai domini e dalle restrizioni di rete/CORS. AniPlayer non include file video e non ospita i contenuti.
+
+## Requisiti
+
+### Sviluppo nel browser
+
+- Git, Node.js e npm.
+- Versioni Node ammesse da `package.json`: `^22.22.3`, `^24.15.0` oppure `>=26.0.0`. Per questa guida puoi usare Node 24 da 24.15.0 in poi.
+- Browser moderno. AVPlay è disponibile solo sulla TV; nel browser si usa HTML5.
+
+### Installazione sulla TV
+
+- PC Windows e PowerShell: gli script inclusi sono scritti per questo ambiente.
+- Samsung Tizen SDK / estensione Tizen per Visual Studio Code, strumenti Samsung TV, SDB e gestione certificati.
+- Profilo di firma Samsung valido per la TV.
+- TV con Developer Mode attivo e raggiungibile dal PC nella stessa rete.
+
+Gli script cercano gli strumenti qui:
+
+```text
+%USERPROFILE%\.tizen-extension-platform\server\sdktools\data\tools\sdb.exe
+%USERPROFILE%\.tizen-extension-platform\server\sdktools\data\tools\tizen-core\tz.exe
 ```
 
-Prima del deploy archiviare separatamente il backup `tools/local-private/` della versione precedente.
-Se l'app è già installata, eseguire `sdb shell 0 kill tOIM55JMUl` se il backup incontra ancora timeout.
+Se il tuo SDK è installato altrove, aggiorna `$tz` in [build-tizen.ps1](tools/build-tizen.ps1) e `$toolRoot` in [deploy-tizen.ps1](tools/deploy-tizen.ps1). Per il solo backup puoi impostare `SDB_PATH` al percorso di `sdb.exe`.
 
-**Stato verifiche:** i test statici controllano la configurazione e gli script; nessuna compilazione Angular o prova TV eseguita qui.
+## Avvio sul PC
 
----
-
-# AniPlayer Angular 22 — Samsung Tizen S90F
-
-**Stato: anteprima tecnica / migrazione in corso, non release verificata sulla TV.**
-
-Versione Angular: **22.2.5** (ultima stabile verificata l'8 novembre 2026). TypeScript 6.0, SCSS, componenti standalone e servizi DI.
-
-## Che cosa c'è
-
-- Un'app Angular con **11 pagine standalone distinte** (`src/app/pages/`), ciascuna con `*.page.ts`, `*.page.html` e `*.page.scss`; player e schede sono componenti riutilizzabili. Nessuna dipendenza da `js/main.js`.
-- Home e catalogo da AnimeUnity, ricerca con filtri, dati dei dettagli e titoli collegati.
-- Ricerca corrispondenze AnimeWorld per ID MAL/AniList quando disponibili, sorgenti MP4 HTTPS, scelta della lingua audio se abbinata.
-- Player con Samsung AVPlay e fallback HTML5; pausa/play, seek ±30s, timeline con anteprima da telecomando, resume, successivo e avanzamento video.
-- Telecomando Samsung: frecce, OK, Return, tasti Play/Pausa, Stop, avanti/indietro; focus spaziale.
-- Preferiti, cronologia, episodi visti e dati persistenti nelle chiavi `autv.*`.
-- AniSkip v2, verifica della durata, riconoscimento AAC/FFT per confronto tra episodi, impronte audio persistenti, preanalisi dei preferiti e fallback manuale (richiede WebCodecs/HTTP Range per il riconoscimento audio).
-- MyAnimeList: OAuth PKCE, configurazione Client ID, callback, sincronizzazione lista, aggiornamenti progressivi senza voti. **Non collaudato con account reale in questa versione.**
-- Script PowerShell per build Tizen, firma col profilo `SamsungS90F`, installazione SDB e backup/ripristino LocalStorage via CDP.
-
-## Cosa NON è ancora equivalente all'app originale
-
-I moduli AniSkip, lettura MP4, riconoscimento AAC/FFT e preanalisi dei preferiti sono stati portati in servizi Angular e verificati con test sintetici, ma **non sono ancora stati provati su MP4 reali della Samsung S90F**. Non risultano ancora portati o verificati integralmente: laboratorio VixCloud, diagnostica estesa, gestione avanzata degli episodi/range e tutte le correzioni MAL dell'app originale. Il CSS e i loghi sono adattati allo stile originale, ma **non è stato verificato che siano pixel-identici**. La compatibilità reale AVPlay, il focus su S90F, l'OAuth MAL e la build Angular richiedono test reali. **Non sostituire l'app originale prima di averli conclusi.**
-
-## Requisiti PC Windows
-
-- Node.js compatibile con Angular 22: `^22.22.3` o `^24.15.0` o `^26.0.0` (seguire anche angular.dev/reference/versions).
-- npm e strumenti Samsung Tizen SDK con Samsung TV Extension.
-- Profilo certificati Tizen `SamsungS90F`, già usato per firmare il progetto originale.
-- Samsung S90F con Developer Mode e SDB raggiungibile in rete.
-
-## Sviluppo browser
+Clona il repository usando il suo URL GitHub, apri PowerShell nella cartella del progetto ed esegui:
 
 ```powershell
-npm install
-npm run typecheck
-npm test
+node --version
+npm --version
+npm ci
 npm start
 ```
 
-Nel browser viene usato `<video>` HTML5. L'accesso ai provider reali dipende da rete e CORS. Nessun video fittizio viene mostrato come funzionante.
+Apri **http://localhost:4200**. Il server ascolta su tutte le interfacce: da un altro dispositivo della LAN puoi usare `http://IP_DEL_PC:4200`, se il firewall lo permette.
 
-## Generare il pacchetto Samsung
+Per verificare i sorgenti e compilare:
+
+```powershell
+npm run test:all
+```
+
+Esegue controllo TypeScript, test e build di produzione. L’output web è in `dist/aniplayer/browser/`: non è ancora un pacchetto installabile sulla TV.
+
+Nel browser, CORS o formati video non supportati possono impedire alcune funzioni. Il comportamento del browser non certifica quello di AVPlay sulla TV.
+
+## Preparare TV e certificati
+
+1. Installa gli strumenti Samsung TV e il gestore certificati: [TV SDK](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/installing-tv-sdk.html), [certificati Samsung](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/creating-certificates.html).
+2. Crea un profilo di firma con certificato autore e distributore. Registra il DUID della TV tra i dispositivi autorizzati seguendo il gestore certificati.
+3. Sulla TV apri Apps e abilita Developer Mode. Su molti modelli il pannello si apre digitando `12345` nella schermata Apps; la procedura può variare con il firmware.
+4. In Developer Mode inserisci l’**IP del PC**, non quello della TV, e riavvia la TV come richiesto.
+5. Annota l’**IP della TV**: servirà per SDB e deploy.
+6. Collegati con Device Manager e autorizza l’installazione sul dispositivo, se richiesto. Vedi la [guida Samsung per la TV](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html).
+
+Verifica la connessione sostituendo l’IP dell’esempio con quello della TV:
+
+```powershell
+$sdb = Join-Path $env:USERPROFILE '.tizen-extension-platform/server/sdktools/data/tools/sdb.exe'
+& $sdb connect 192.168.1.50:26101
+& $sdb devices
+```
+
+La TV deve comparire tra i dispositivi connessi. Evita reti ospiti con isolamento tra dispositivi; PC e TV devono potersi raggiungere.
+
+## Compilare il pacchetto
+
+Il profilo predefinito è `SamsungS90F`. **I certificati non sono inclusi:** usa il nome del tuo profilo, ad esempio:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\build-tizen.ps1 -Profile 'IlMioProfilo'
+```
+
+Se il tuo profilo si chiama esattamente `SamsungS90F`:
 
 ```powershell
 npm run tizen:pack
 ```
 
-Lo script `tools/build-tizen.ps1` esegue controlli, build Angular, copia gli asset compilati in `tizen/`, compila e firma tramite `tz.exe` e genera `Release/AnimePlayer.wgt`.
+Lo script verifica TypeScript e test, compila Angular, prepara `tizen/`, incorpora il CSS globale per la CSP Samsung, firma e verifica il pacchetto. Il risultato è:
 
-Se lavori manualmente:
+```text
+Release/AnimePlayer.wgt
+```
+
+`-SkipChecks` salta typecheck e test, ma ricompila comunque Angular: usalo solo dopo le verifiche sulla stessa versione dei sorgenti.
+
+`tizen/` è anche un’area di staging: i contenuti generati vengono sostituiti a ogni build. Modifica l’interfaccia in `src/`, non nei file compilati di `tizen/` o `dist/`.
+
+## Installazione e aggiornamenti
+
+Gli IP negli esempi vanno sostituiti con quello della tua TV.
+
+### Prima installazione
+
+Dopo aver creato il WGT con il tuo profilo:
 
 ```powershell
-./tools/build-tizen.ps1 -Profile SamsungS90F
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\deploy-tizen.ps1 -TvIp 192.168.1.50 -SkipBackup
 ```
 
-Il certificato non è incluso nell'archivio. Usa lo stesso certificato e Application ID dell'installazione originale per mantenere aggiornabilità e dati.
+**Usa `-SkipBackup` solo per la prima installazione, senza dati preesistenti da conservare.** Il backup richiede un’app già installata: su una TV nuova può fallire prima del deploy.
 
-## Installare sulla TV
+### Aggiornamento con conservazione dei dati
 
-Collega PC e TV, attiva Developer Mode sulla Samsung, controlla che SDB la veda, poi:
+Compila con lo **stesso certificato autore**, conserva l’identità dell’app e poi esegui:
 
 ```powershell
-./tools/deploy-tizen.ps1 -TvIp 192.168.1.84 -Port 26101
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\deploy-tizen.ps1 -TvIp 192.168.1.50
 ```
 
-L'IP è soltanto il valore predefinito dell'installazione originale: sostituiscilo con quello attuale. Per compilare e installare in una sola operazione:
+Il deploy ferma l’app, salva le chiavi `autv.*`, installa, ripristina i dati e riapre AniPlayer. Se il backup fallisce, interrompe l’installazione. Non usare `-SkipBackup` per aggirare un errore quando hai dati da conservare.
+
+Il backup è in `tools/local-private/tv-userdata.json`. Prima di aggiornare, conserva separatamente una copia del backup precedente: il nuovo backup usa lo stesso nome di file.
+
+Identità corrente, condivisa da manifest e script:
+
+```text
+Application ID: tOIM55JMUl.AnimePlayer
+Package ID:     tOIM55JMUl
+```
+
+Cambiare identità o disinstallare può interrompere la continuità dei dati. Per una tua distribuzione, se cambi questi ID aggiorna insieme `tizen/config.xml`, `tools/deploy-tizen.ps1` e `tools/tv-storage.mjs`.
+
+È disponibile anche `-Build` sul deploy, ma compila con il profilo predefinito `SamsungS90F`. Con un profilo diverso, esegui prima il packaging con `-Profile`, poi il deploy senza `-Build`.
+
+### Backup e ripristino manuali
+
+Con app installata e TV connessa:
 
 ```powershell
-./tools/deploy-tizen.ps1 -TvIp 192.168.1.84 -Build
+node tools/tv-storage.mjs backup 192.168.1.50:26101
+node tools/tv-storage.mjs restore 192.168.1.50:26101
 ```
 
-Il deploy salva e ripristina le sole chiavi `autv.*` via debugger. Se il backup non riesce, si interrompe prima dell'installazione. Il file `tools/local-private/tv-userdata.json` contiene **anche gli eventuali token MAL**: è escluso da Git e va mantenuto privato. L'operazione è da verificare sul modello S90F prima dell'uso su dati importanti.
+Questi comandi avviano una sessione di debug. Chiudi eventuali altri debugger; lo script di deploy gestisce automaticamente arresto e riapertura dell’app.
 
-## Struttura
+## Telecomando e navigazione
 
-```
+| Comando | Azione |
+| --- | --- |
+| Frecce | Sposta il focus tra menu, schede e pulsanti; nei filtri Destra/Sinistra segue la riga. |
+| OK | Attiva il comando. Su un input entra in modifica e apre la tastiera. |
+| Su/Giù durante la modifica di un input | Esce dalla modifica per continuare la navigazione. |
+| Return / Indietro | Chiude input, pannelli o dialoghi; dai dettagli torna indietro. Dalle schermate principali chiede conferma per uscire. |
+| Play/Pausa | Controlla la riproduzione. |
+| Avanti/Indietro multimediale | Sposta la riproduzione di 30 secondi. |
+| Stop | Chiude il player e salva il progresso. |
+
+Nel player, Return annulla prima lo spostamento sulla timeline o chiude un pannello; poi nasconde i comandi e, premuto ancora, chiude il player. Sulla timeline, Sinistra/Destra prepara uno spostamento e OK lo conferma.
+
+### Ricerca e filtri
+
+1. Apri **Catalogo**, raggiungi il campo di ricerca e premi OK per scrivere.
+2. Scegli i filtri. I generi permettono selezione multipla; premi **Fatto** per chiudere il pannello.
+3. Premi **Applica filtri e cerca** o **Cerca**.
+
+I filtri dei visti sono **Tutti**, **Mai visti**, **Con episodi da vedere**. Quelli di esplorazione distinguono già esplorati, mi piace, non mi interessa e mai esplorati.
+
+L’ordine casuale resta stabile tra pagine fino a **Rimescola**. Per l’uscita, l’app prova a recuperare date complete da AniList tramite gli ID MAL e le conserva in cache; senza date complete o in caso di errore usa anno e stagione. La data visibile sulla scheda permette di verificare la precisione disponibile.
+
+### Esplora
+
+Con il focus sulla scheda grande:
+
+| Tasto | Scelta |
+| --- | --- |
+| Sinistra | Non mi interessa |
+| Destra | Mi piace |
+| Su | Aggiunge o rimuove dai preferiti |
+| Giù | Salta |
+| OK | Apre il dettaglio |
+
+Le scelte sono locali e non modificano MAL. Mi piace e preferiti sono indipendenti. Puoi annullare l’ultima azione; nel dettaglio trovi **Elimina scelta** per riportare il titolo tra i mai esplorati. Per sfogliare le scelte salvate usa i filtri del catalogo.
+
+## MyAnimeList
+
+### Visti da username, senza login
+
+Apri **Impostazioni → Visti da username MAL → Allinea i visti · Senza login**, inserisci lo username e importa. La lista MAL deve essere pubblica.
+
+Questa modalità mostra i progressi in AniPlayer e abilita **I miei anime**, con dashboard e lista personale. Non modifica MAL. Per aggiornare la copia locale, ripeti l’allineamento.
+
+### Collegare l’account per inviare i progressi
+
+Apri **Impostazioni → Aggiorna MAL automaticamente**. Dopo il consenso puoi attivare o mettere in pausa gli invii con lo switch.
+
+Il percorso consigliato usa telefono e PC, evitando i limiti del browser TV e il taglio degli URL lunghi da parte di SmartThings:
+
+1. Sul PC esegui `npm run mal:relay` dalla cartella del progetto e lascia aperto il terminale.
+2. Sulla TV inserisci l’indirizzo LAN del PC stampato dal comando, per esempio `http://192.168.1.10:8766`.
+3. Premi **Collega dal telefono** e scansiona il QR con il telefono sulla stessa rete.
+4. Dalla pagina sul telefono apri MAL, accedi e premi **Allow**.
+5. Dopo il reindirizzamento copia **tutto l’URL dalla barra del browser**, inclusi `code` e `state`, anche se la pagina locale non si apre.
+6. Torna alla pagina del relay sul telefono, incolla il link e premi **Invia alla TV**. AniPlayer completa il collegamento e mostra il risultato sulla TV.
+
+Il relay serve solo durante il collegamento e ascolta sulla porta **8766**. Autorizza il firewall sulla rete privata, se necessario; non esporlo su Internet. Il callback locale usa invece **8765**: non scambiare le due porte. Nessun server deve rispondere sul telefono a `127.0.0.1:8765`.
+
+### Configurare una propria applicazione MAL
+
+È incluso un Client ID pubblico preconfigurato. Per una tua distribuzione registra la tua applicazione su [MyAnimeList API Config](https://myanimelist.net/apiconfig):
+
+- **App Type:** `other`.
+- **App Redirect URL:** registra `http://127.0.0.1:8765/callback` per il percorso telefono/PC. Per il metodo con browser TV è previsto anche `aniplayer://mal/callback`.
+- In AniPlayer apri **Altri metodi e configurazione**, inserisci Client ID e Redirect URI corrispondente e salva.
+
+Se redistribuisci i sorgenti con un tuo ID predefinito, aggiorna anche `MAL_PUBLIC_CLIENT_ID` in `src/app/core/mal.service.ts`: la lettura da username usa questa costante; OAuth usa la configurazione salvata sulla TV. Il Client Secret non viene usato e non va inserito nel codice.
+
+Una richiesta dura circa 15 minuti. Non mescolare QR, callback e richieste diverse. I metodi alternativi con callback incollato sulla TV sono nella stessa pagina; per URL molto lunghi usa il relay.
+
+### Progressi, disconnessione e cancellazione
+
+- Il visto automatico richiede almeno il **75% di copertura effettiva** e l’arrivo vicino alla fine o all’ending riconosciuto. Saltare direttamente in fondo non basta.
+- Con account collegato, **Segna visto** aggiorna anche MAL. Togliere il visto richiede conferma.
+- MAL memorizza un numero progressivo: togliere il visto all’episodio N riporta il progresso al massimo a N−1, rendendo non visti anche i successivi. Non gestisce spunte indipendenti per episodio.
+- **Disconnetti · Ricorda account** conserva l’autorizzazione locale. **Riconnetti** la riutilizza finché MAL permette il rinnovo.
+- **Dimentica account e autorizzazione** rimuove l’accesso locale e richiede un nuovo consenso al prossimo collegamento.
+- Eliminare le copie scaricate non cancella la lista sul sito MAL. Username pubblico e account autorizzato si gestiscono separatamente.
+
+Approfondimenti: [Login MAL](docs/MAL_LOGIN.md) e [libreria personale](docs/LIBRARY_DISCOVERY.md).
+
+## Sigle e prossimo episodio
+
+L’app combina AniSkip, verifica della durata, confronto audio tra episodi e impronte locali. Il riconoscimento audio richiede WebCodecs con AAC compatibile e risposte HTTP Range utilizzabili dal server.
+
+La preanalisi dei preferiti si attiva dalle impostazioni, lavora una serie alla volta e si sospende durante la visione. **Salta intro** riceve il focus quando compare. Dal comando **Sigla** del player puoi correggere inizio/fine, disabilitare lo skip per l’episodio o ricalcolarlo.
+
+Se esiste un episodio successivo disponibile, **Prossimo episodio** compare già selezionato:
+
+- all’inizio dell’ending AniSkip, se compatibile;
+- usando lo stesso offset dell’intro riconosciuta tramite audio/impronta rispetto ad AniSkip, quando gli intervalli sono coerenti;
+- in assenza di dati utilizzabili, negli ultimi **180 secondi o nell’ultimo 10%**, scegliendo il periodo più breve.
+
+L’offset dell’ending è una stima: tagli dopo l’intro possono renderlo impreciso. Il pulsante richiede OK; lo switch **Episodio successivo** controlla invece l’avanzamento automatico alla fine del video.
+
+Dettagli dell’algoritmo e dei requisiti: [INTRO_AUDIO.md](docs/INTRO_AUDIO.md).
+
+## Impostazioni e dati locali
+
+Gli interruttori mostrano **Attivo/Disattivo** e si azionano con OK. Puoi cambiare ordine e visibilità del menu; **Impostazioni** resta accessibile. **I miei anime** compare con un account MAL attivo o un allineamento pubblico.
+
+Preferiti, cronologia, copertura video, scelte, impostazioni e accesso MAL sono nel LocalStorage della TV, con prefisso `autv.`. Non esiste un account AniPlayer che sincronizzi questi dati tra dispositivi.
+
+**I backup possono contenere token MAL.** Non pubblicare `tools/local-private/`, callback OAuth, certificati `.p12`/`.pfx`, password o copie del profilo utente. I backup, i pacchetti WGT e le principali directory generate sono già esclusi da Git. Una build firmata può essere distribuita separatamente tramite GitHub Releases, se appropriato alla propria distribuzione.
+
+## Problemi comuni
+
+| Problema | Cosa controllare |
+| --- | --- |
+| Node incompatibile durante `npm ci` | Verifica `node --version` e i requisiti di `package.json`. |
+| SDK, `tz.exe` o SDB non trovati | Controlla i percorsi nei requisiti e adatta gli script alla tua installazione. |
+| Profilo di firma mancante / installazione non autorizzata | Usa il tuo `-Profile`, verifica certificati e DUID della TV. |
+| TV non visibile in SDB | Developer Mode, IP del PC configurato sulla TV, riavvio, IP della TV e comunicazione sulla LAN. |
+| Backup fallito alla prima installazione | Solo se non ci sono dati preesistenti, segui il percorso con `-SkipBackup`. |
+| Backup in timeout su app già installata | Chiudi altri debugger, ferma l’app e riprova. Conserva il backup precedente; non aggirare la protezione per aggiornare dati importanti. |
+| Provider HTTP 403/500 o non raggiungibili | Controlla indicatori in alto e diagnostica. Può essere un errore o una verifica lato provider. |
+| Catalogo presente ma nessun video | Serve una corrispondenza AnimeWorld verificata. Controlla rete, versione audio e motore video. |
+| Richieste/video bloccati nel browser | CORS e formati supportati possono differire dalla TV. |
+| MAL 400 dopo il consenso | Verifica Client ID e Redirect URI, crea una nuova richiesta e usa il callback del suo QR. Prova il percorso telefono/PC. |
+| SmartThings tronca il callback | Incollalo nel relay sul telefono anziché sulla TV. |
+| Telefono non raggiunge il relay | Processo aperto, IP del PC corretto e porta 8766 consentita dal firewall sulla LAN. |
+| Sigla non riconosciuta | Verifica WebCodecs/AAC, AniSkip, HTTP Range e CORS; usa la correzione manuale. |
+| Modifiche ai sorgenti non visibili sulla TV | Ricompila e reinstalla il WGT: cambiare `src/` non aggiorna l’app già installata. |
+
+## Sviluppo e struttura
+
+Stack: **Angular 22.2.5**, TypeScript 6, componenti standalone, Signals e SCSS. Non serve un backend per il normale uso; il relay MAL è opzionale e temporaneo.
+
+| Comando | Uso |
+| --- | --- |
+| `npm ci` | Dipendenze dal lockfile. |
+| `npm start` | Server di sviluppo sulla porta 4200. |
+| `npm run typecheck` | Controllo TypeScript. |
+| `npm test` | Test di struttura, logica, navigazione, MAL, relay e impronte audio. |
+| `npm run build` | Build web di produzione. |
+| `npm run build:dev` | Build web di sviluppo. |
+| `npm run test:all` | Typecheck, test e build web. |
+| `npm run tizen:pack` | Build e firma col profilo predefinito. |
+| `npm run tizen:deploy -- -TvIp 192.168.1.50` | Deploy con backup dell’app esistente. |
+| `npm run mal:relay` | Relay temporaneo per il collegamento MAL. |
+
+```text
 src/app/
-  app.component.{ts,html}               shell, sidebar, outlet per pagina
-  pages/home/                           home.page.{ts,html,scss}
-  pages/catalog/                        catalog.page.{ts,html,scss}
-  pages/anime-detail/                   anime-detail.page.{ts,html,scss}
-  pages/related/                        related.page.{ts,html,scss}
-  pages/favorites/                      favorites.page.{ts,html,scss}
-  pages/history/                        history.page.{ts,html,scss}
-  pages/settings/                       settings.page.{ts,html,scss}
-  pages/mal/                            mal.page.{ts,html,scss}
-  pages/diagnostics/                    diagnostics.page.{ts,html,scss}
-  core/app-facade.service.ts            caricamento e stato condiviso tra pagine
-  core/page-base.ts                     binding comune, navigazione e azioni condivise
-  components/anime-card.component.ts    scheda anime
-  components/player.component.*        controlli e overlay video
-  core/catalog.service.ts              AnimeUnity
-  core/animeworld.service.ts            AnimeWorld
-  core/playback.service.ts             AVPlay/HTML5 e progressi
-  core/remote.service.ts               telecomando e focus
-  core/intro.service.ts                AniSkip v2, correzioni, stato disponibilità
-  core/mp4-duration.ts                 durata video MP4 via Range
-  core/audio-fingerprint.ts            parser audio AAC, FFT, matching, inferenza
-  core/intro-detector.service.ts       consenso episodi, impronte, cache
-  core/intro-prefetch.service.ts       preanalisi favoriti e cancellazione
-  core/storage.service.ts              LocalStorage compatibile
-  core/mal.service.ts                  OAuth MAL e sincronizzazione
-  core/navigation.service.ts           navigazione
-  core/tizen.service.ts                device API
-src/styles.scss                         stile
-src/assets/images                      icone e logo
-src/index.html                          entry point
-
-tizen/config.xml                        identità Tizen conservata
-tools/build-tizen.ps1                   packaging + firma
-tools/deploy-tizen.ps1                  SDB + aggiornamento
-tools/tv-storage.mjs                    salvataggio dati privati
+  app.component.*       Shell, menu e dialogo di uscita
+  pages/                Home, catalogo, dettaglio, Esplora, MAL, impostazioni…
+  components/           Player, schede, switch, QR e loader
+  core/                 Provider, navigazione, player, storage, MAL e analisi audio
+  frasi-caricamento.ts  Testi personalizzabili del caricamento
+src/assets/             Icone, logo, font e dipendenze statiche
+src/styles.scss         Stili globali e overlay
+tizen/config.xml       Manifest, identità, privilegi e CSP
+tools/                 Packaging, installazione, backup e relay
+tests/                 Test automatici Node
+docs/                  Approfondimenti tecnici
 ```
 
-## Test essenziali sulla S90F prima della sostituzione
+In VS Code verifica `.vscode/settings.json`: il percorso del progetto Tizen deve corrispondere al tuo checkout.
 
-1. Su ogni pagina naviga con tutte le frecce; OK apre e Return torna senza perdere il focus.
-2. Avvia Naruto DUB episodio 7 via AnimeWorld e verifica video, audio, durata, pause, seek e chiusura.
-3. Con video pulito, OK mostra i comandi; Return li nasconde; Return di nuovo chiude il player.
-4. Apri la timeline: frecce mostrano l'anteprima, OK esegue il seek, Return annulla.
-5. Lascia il video 10 secondi, chiudi e riapri per verificare resume e cronologia; prova stop e standby TV.
-6. Verifica i video SUB con sottotitoli, il percorso MAL OAuth sul browser Samsung e la sincronizzazione.
-7. Verifica l'installazione di aggiornamento senza perdita di preferiti, token e cronologia.
+I test automatici non sostituiscono prove hardware. Dopo modifiche al player o alla navigazione verifica sulla TV video/audio, focus, timeline, ripresa, standby, MAL e aggiornamento con conservazione dei dati.
 
-I test Node inclusi controllano contratti e struttura, **non sostituiscono test hardware o una vera build Angular**.
+## Contributi e licenze
 
-## Correzione dipendenze (rev. 2)
+Per segnalare un problema indica modello e firmware TV, schermata, passi per riprodurlo, risultato atteso e messaggio di errore. Per problemi video aggiungi versione audio, numero episodio e motore usato. Evita token, callback, password e backup personali.
 
-Lo ZIP precedente ometteva `@angular/forms`: questa revisione lo include in `package.json` (22.2.5), con un test che verifica la dipendenza. Su un checkout precedente eseguire `npm install @angular/forms@22.2.5 --save-exact`. Per Angular 22.2.5 occorre Node >=22.22.3 (serie 22), >=24.15.0 (serie 24) oppure >=26.
+Per una modifica esegui `npm run test:all` e descrivi le verifiche effettuate, distinguendo test automatici, browser e TV reale.
 
-## Revisione modulare 3 — fix WGT e pagine
-
-- Ogni pagina ha un componente Angular standalone, template HTML e foglio SCSS dedicati. Le azioni di ricerca/filtri del catalogo, episodi del dettaglio, impostazioni, MAL e diagnostica sono dentro i relativi file TypeScript.
-- `app.component` ora gestisce solo shell, menu, errori globali e il componente player; `AppFacadeService` coordina le chiamate dei provider, lo stato e la navigazione condivisa.
-- La navigazione torna a selezionare un elemento del contenuto **dopo** il termine dei caricamenti asincroni, evitando di anticipare il focus mentre la pagina non è ancora pronta.
-- `tools/build-tizen.ps1` ora riconosce `tizen/Release/tizen.wgt` (il nome effettivo mostrato dall'SDK), verifica che il WGT contenga `index.html`, `config.xml` e le firme, e lo copia come `Release/AnimePlayer.wgt`. Se vengono prodotti più WGT interrompe l'esecuzione per non distribuire quello sbagliato.
-- Questo cambio non altera l'Application ID originale (`tOIM55JMUl.AnimePlayer`) né il profilo di firma (`SamsungS90F`).
-- 11 test strutturali passati; controllo TypeScript eseguito con stub di tipi Angular. Non è stato possibile eseguire `ng build` in questo ambiente per mancato accesso al registro npm. Sul PC dell'utente la versione precedente aveva già superato `ng build`, ma **la nuova versione richiede un nuovo collaudo locale**.
-
-### Compilazione e installazione revisione 3
-
-```powershell
-npm install
-npm run typecheck
-npm test
-npm run tizen:pack
-# Verifica il file Release/AnimePlayer.wgt prima del deploy
-./tools/deploy-tizen.ps1 -TvIp <INDIRIZZO_IP_DELLA_TV>
-```
-
-**Per conservare la grafica attuale**, le regole esistenti sono inizialmente rimaste in `src/styles.scss`, mentre ogni pagina possiede un proprio file SCSS per gli interventi futuri. L'esatta equivalenza visiva rispetto alla vecchia app non è certificata.
-
-
-## Revisione video/loader/Home
-
-- Video AVPlay: quando il player è aperto, `html` e `body` diventano trasparenti
-  e la shell Angular viene nascosta per consentire al piano video nativo di
-  apparire dietro i controlli. **Da verificare sulla S90F** (audio/timeline
-  funzionavano, schermo nero sulla build precedente).
-- Home: banner hero ripristinato, usando il primo anime in evidenza
-  oppure il primo anime del catalogo come fallback.
-- Telecomando: quando non esiste un pulsante più in alto nella pagina,
-  la freccia Su scorre fino all'inizio per mostrare anche il contenuto
-  non focalizzabile, senza saltare verso la sidebar.
-- Caricamento: componente `AnimeLoaderComponent` riproduce il loader
-  shuriken/stellina con scintille dell'originale. Frasi originali in
-  **`src/app/frasi-caricamento.ts`**; modificabili come semplice elenco,
-  cambio ogni **5 secondi** durante il caricamento.
-- Backup: `tools/tv-storage.mjs` usa l'Application ID completo
-  `tOIM55JMUl.AnimePlayer` per l'avvio CDP.
-
-I moduli avanzati di riconoscimento audio, impronte e preanalisi sono stati **implementati** come sorgenti Angular, ma il loro funzionamento con WebCodecs e server Range deve essere collaudato sulla TV. Consultare `docs/INTRO_AUDIO.md`.
-Prima dell'installazione, conservare il backup `tools/local-private/tv-userdata.json`
-(se presente) fuori dalla cartella progetto e non condividere i token MAL.
-
+Riconoscimenti e licenze delle componenti incluse o derivate: [THIRD_PARTY.md](THIRD_PARTY.md) e [LICENSE.ani-cli-it](LICENSE.ani-cli-it). Al momento manca un file `LICENSE` generale del progetto: pubblicare il repository non assegna automaticamente una licenza ai sorgenti e agli asset; prima di redistribuirli verifica le rispettive condizioni.
