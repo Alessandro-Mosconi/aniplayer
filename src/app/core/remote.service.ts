@@ -2,6 +2,10 @@ import {Injectable, signal} from '@angular/core';
 import {TizenService} from './tizen.service';
 
 export type RemoteDirection='up'|'down'|'left'|'right';
+export function remoteKey(event:KeyboardEvent):string {
+ const code=event.keyCode||event.which;
+ return ({37:'ArrowLeft',38:'ArrowUp',39:'ArrowRight',40:'ArrowDown',13:'Enter',23:'Enter',66:'Enter',65376:'Enter',65385:'Escape',10009:'Back',461:'Back',4:'Back',8:'Backspace',27:'Escape',415:'MediaPlay',19:'MediaPause',10252:'MediaPlayPause',85:'MediaPlayPause',179:'MediaPlayPause',413:'MediaStop',86:'MediaStop',417:'MediaFastForward',90:'MediaFastForward',412:'MediaRewind',89:'MediaRewind'} as Record<number,string>)[code]||event.key;
+}
 @Injectable({providedIn:'root'})
 export class RemoteService {
   readonly lastKey=signal('');
@@ -21,8 +25,7 @@ export class RemoteService {
     this.listener=handlers.player;this.backHandler=handlers.back;this.playerActive=handlers.playerActive;
   }
   private key(e:KeyboardEvent):string {
-    const code=e.keyCode||e.which;
-    return ({37:'ArrowLeft',38:'ArrowUp',39:'ArrowRight',40:'ArrowDown',13:'Enter',65376:'Enter',65385:'Escape',10009:'Back',8:'Backspace',27:'Escape',415:'MediaPlay',19:'MediaPause',10252:'MediaPlayPause',413:'MediaStop',417:'MediaFastForward',412:'MediaRewind'} as Record<number,string>)[code]||e.key;
+    return remoteKey(e);
   }
   private onKey(e:KeyboardEvent){
     const key=this.key(e);this.lastKey.set(key);

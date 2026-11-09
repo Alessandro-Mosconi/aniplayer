@@ -1,18 +1,137 @@
-# AniPlayer — Angular per Samsung Smart TV
+# AniPlayer — Angular per Smart TV
 
 <img src="src/assets/images/aniplayer-icon-512.png" alt="Icona AniPlayer" width="128" />
 
-Client per Samsung Tizen TV progettato per il telecomando: catalogo anime, riproduzione, cronologia, preferiti, esplorazione e integrazione con MyAnimeList.
+Client per Smart TV progettato per il telecomando: catalogo anime, riproduzione, cronologia, preferiti, esplorazione e integrazione con MyAnimeList.
 
 Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWorld. MAL è facoltativo: puoi usare l’app senza collegare un account.
 
-**Stato:** progetto in sviluppo, con test automatici e packaging Tizen. Il dispositivo di riferimento è Samsung S90F; il manifest richiede **Tizen 9.0**. La compatibilità con altri modelli e firmware non è garantita. Non è un’app ufficiale Samsung, MyAnimeList o dei provider.
+**Stato:** progetto in sviluppo, con test automatici e packaging Samsung Tizen, LG webOS e Android TV / Fire OS. I nuovi port sono sperimentali e richiedono prove sui dispositivi. Il dispositivo di riferimento è Samsung S90F; il manifest Samsung richiede **Tizen 9.0**. La compatibilità con altri modelli e firmware non è garantita. Non è un’app ufficiale Samsung, MyAnimeList o dei provider.
 
 **Uso consentito:** utilizza AniPlayer esclusivamente con contenuti e servizi ai quali hai diritto di accedere. Consulta il [disclaimer su copyright e responsabilità](#disclaimer-copyright-e-uso-consentito).
+
+## Installa AniPlayer sulla tua Smart TV
+
+Scegli il **sistema operativo** della TV, non soltanto il marchio: per esempio, televisori dello stesso produttore possono usare Google TV oppure VIDAA. Lo trovi nelle informazioni del dispositivo.
+
+| La tua TV / dispositivo | Guida | File da installare |
+| --- | --- | --- |
+| Samsung con Tizen 9.0 o superiore | [Samsung](#samsung-tizen) | `.wgt`, firmato per la tua TV |
+| LG con webOS recente | [LG](#lg-webos) | `.ipk` |
+| Android TV / Google TV | [Android e Google TV](#android-tv-e-google-tv) | `.apk` |
+| Fire TV / Fire TV Stick con Fire OS compatibile | [Fire TV](#amazon-fire-tv-con-fire-os) | `.apk` |
+| Fire TV con Vega, VIDAA o Roku | [Piattaforme non ancora supportate](#piattaforme-non-ancora-supportate) | Nessun pacchetto nativo disponibile |
+
+**Prima di iniziare:** collega PC e TV alla stessa rete. Se nella pagina **Releases** del repository è presente il pacchetto per il tuo sistema, puoi scaricarlo; altrimenti scarica i sorgenti, apri un terminale nella cartella del progetto ed esegui `npm ci`, poi il comando di compilazione indicato sotto. La cartella `Release/` viene generata sul PC e non è inclusa nel repository.
+
+I comandi seguenti si eseguono dalla cartella del progetto. Gli IP sono esempi: sostituiscili con quelli dei tuoi dispositivi. Le versioni LG e Android/Fire OS sono **sperimentali**: il pacchetto è compilato, ma resta necessario provarlo sul proprio modello.
+
+### Samsung Tizen
+
+**Servono:** PC Windows, Node.js, strumenti Samsung TV/SDB e un certificato Samsung autorizzato per il DUID della tua TV. Un WGT firmato per un altro dispositivo potrebbe non installarsi.
+
+1. Installa gli strumenti Samsung e crea il tuo profilo di firma: [istruzioni per TV e certificati](#preparare-tv-e-certificati).
+2. Sulla TV apri **Apps**, abilita **Developer Mode** e inserisci l’**IP del PC**. Su molti modelli il pannello si apre digitando `12345`; riavvia la TV quando richiesto.
+3. Annota l’**IP della TV**, per esempio `192.168.1.50`.
+4. Compila con il nome del tuo profilo, sostituendo `IlMioProfilo`:
+
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\build-tizen.ps1 -Profile 'IlMioProfilo'
+   ```
+
+5. Per la **prima installazione**, quando non ci sono dati AniPlayer da conservare:
+
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\deploy-tizen.ps1 -TvIp 192.168.1.50 -SkipBackup
+   ```
+
+6. Lo script installa e avvia AniPlayer. In seguito la trovi tra le app della TV.
+
+**Per aggiornare:** ricompila con lo stesso certificato autore ed esegui il deploy **senza `-SkipBackup`**, così vengono salvati e ripristinati i dati. Non disinstallare l’app per un normale aggiornamento. [Dettagli e backup](#installazione-e-aggiornamenti).
+
+### LG webOS
+
+**Servono:** PC con Node.js, la CLI LG e l’app **Developer Mode** sulla TV. Non si installa copiando l’IPK su una chiavetta USB.
+
+1. Installa **Developer Mode** dallo store della TV, accedi con un account LG Developer e attiva **Dev Mode Status**. Riavvia se richiesto.
+2. Riapri Developer Mode, attiva **Key Server** e annota IP e **Passphrase** mostrati sulla TV.
+3. Sul PC installa la CLI. Esegui anche `npm run webos:pack` se devi generare l’IPK:
+
+   ```powershell
+   npm install -g @webos-tools/cli@3.2.6
+   npm run webos:pack
+   ```
+
+4. Registra la TV nella CLI. Nell’esempio l’alias è `miaLG`:
+
+   ```powershell
+   ares-setup-device --add miaLG -i "host=192.168.1.50" -i "port=9922" -i "username=prisoner"
+   ares-novacom --device miaLG --getkey
+   ```
+
+   Quando viene richiesta, inserisci la Passphrase della TV.
+
+5. Installa il pacchetto e avvia l’app:
+
+   ```powershell
+   ares-install --device miaLG Release/org.aniplayer.tv_2.2.0_all.ipk
+   ares-launch --device miaLG org.aniplayer.tv
+   ```
+
+**Per aggiornare:** installa il nuovo IPK con lo stesso ID senza disinstallare prima. Non è incluso un backup automatico LG. Controlla la scadenza del Developer Mode nell’app LG e rinnova la sessione secondo le indicazioni del produttore. [Guida ufficiale LG](https://webostv.developer.lge.com/develop/getting-started/developer-mode-app).
+
+### Android TV e Google TV
+
+**Serve:** una TV con Android 8 / API 26 o superiore e un metodo consentito dal dispositivo per installare APK esterni.
+
+1. Procurati **`AniPlayer-AndroidTV-debug.apk`**. Per generarlo dal PC servono JDK 17 e Android SDK; esegui `npm run android:pack` e lo troverai in `Release/`.
+2. Trasferisci l’APK sulla TV, per esempio tramite una chiavetta USB o un’app di trasferimento file.
+3. Apri l’APK con un gestore file sulla TV. Se richiesto, autorizza l’installazione da quella sorgente e conferma **Installa**. I menu e i metodi disponibili variano tra modelli.
+4. Apri **AniPlayer** dall’elenco delle app. Il PC non deve restare acceso per usare l’app.
+
+**Alternativa dal PC con ADB:** abilita le opzioni sviluppatore e il debug sulla TV. Collega e autorizza il dispositivo seguendo la procedura indicata dalla TV; il debug wireless può richiedere pairing e porte diverse. Poi esegui:
+
+```powershell
+adb devices
+adb -s INDIRIZZO_DISPOSITIVO install -r Release/AniPlayer-AndroidTV-debug.apk
+adb -s INDIRIZZO_DISPOSITIVO shell am start -n org.aniplayer.tv/.MainActivity
+```
+
+Sostituisci `INDIRIZZO_DISPOSITIVO` con l’identificativo riportato da `adb devices`, ad esempio `192.168.1.50:5555` se il dispositivo usa quella porta. Non presumere che tutte le TV usino `5555`.
+
+**Per aggiornare:** reinstalla l’APK sopra la versione precedente usando la stessa firma. Questa è una build debug per prove, non una release pubblicata negli store. [Requisiti di compilazione e dettagli Android](docs/MULTIPLATFORM.md#android-tv-google-tv-e-fire-os).
+
+### Amazon Fire TV con Fire OS
+
+**Prima controlla il sistema:** questa procedura vale per **Fire OS basato su Android API 26 o superiore**, non per **Vega OS**. Serve inoltre che il modello permetta ADB/sideload.
+
+1. Procurati `AniPlayer-AndroidTV-debug.apk`, lo stesso file usato per Android TV. Per compilarlo usa `npm run fireos:pack`.
+2. Sulla Fire TV apri **Impostazioni → La mia Fire TV → Opzioni sviluppatore** e attiva **Debug ADB**, se disponibile. Annota l’IP del dispositivo dalle informazioni di rete.
+3. Sul PC, con Android Platform Tools/ADB installati, collegati e accetta l’autorizzazione sullo schermo della TV:
+
+   ```powershell
+   adb connect 192.168.1.50:5555
+   adb devices
+   ```
+
+4. Installa e avvia AniPlayer:
+
+   ```powershell
+   adb -s 192.168.1.50:5555 install -r Release/AniPlayer-AndroidTV-debug.apk
+   adb -s 192.168.1.50:5555 shell am start -n org.aniplayer.tv/.MainActivity
+   ```
+
+**Per aggiornare:** ripeti l’installazione con `-r` e la stessa firma, senza disinstallare prima. Se il dispositivo non espone le opzioni sviluppatore o non permette il sideload, questa procedura non è applicabile. [Guida ADB ufficiale Amazon](https://developer.amazon.com/docs/fire-tv/connecting-adb-to-device.html).
+
+### Piattaforme non ancora supportate
+
+**Vega OS, VIDAA e Roku:** non è disponibile un pacchetto nativo verificato. Non provare a installare l’APK Android su questi sistemi. Apple TV è esclusa. Per stato dei port e limiti consulta [MULTIPLATFORM.md](docs/MULTIPLATFORM.md).
 
 ## Indice
 
 - [Funzioni](#funzioni)
+- [Installazione per tipo di Smart TV](#installa-aniplayer-sulla-tua-smart-tv)
+- [Altre piattaforme TV](#altre-piattaforme-tv)
 - [Requisiti](#requisiti)
 - [Avvio sul PC](#avvio-sul-pc)
 - [Preparare TV e certificati](#preparare-tv-e-certificati)
@@ -41,6 +160,10 @@ Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWor
 
 Il funzionamento dipende dalla disponibilità dei provider, dai domini e dalle restrizioni di rete/CORS. AniPlayer non include file video e non ospita i contenuti.
 
+## Altre piattaforme TV
+
+Per installare scegli la tua piattaforma nella [guida rapida in cima al README](#installa-aniplayer-sulla-tua-smart-tv). Per architettura, strumenti di compilazione e verifiche effettuate consulta [MULTIPLATFORM.md](docs/MULTIPLATFORM.md).
+
 ## Requisiti
 
 ### Sviluppo nel browser
@@ -49,7 +172,7 @@ Il funzionamento dipende dalla disponibilità dei provider, dai domini e dalle r
 - Versioni Node ammesse da `package.json`: `^22.22.3`, `^24.15.0` oppure `>=26.0.0`. Per questa guida puoi usare Node 24 da 24.15.0 in poi.
 - Browser moderno. AVPlay è disponibile solo sulla TV; nel browser si usa HTML5.
 
-### Installazione sulla TV
+### Strumenti per Samsung Tizen
 
 - PC Windows e PowerShell: gli script inclusi sono scritti per questo ambiente.
 - Samsung Tizen SDK / estensione Tizen per Visual Studio Code, strumenti Samsung TV, SDB e gestione certificati.
@@ -86,7 +209,7 @@ npm run test:all
 
 Esegue controllo TypeScript, test e build di produzione. L’output web è in `dist/aniplayer/browser/`: non è ancora un pacchetto installabile sulla TV.
 
-Nel browser, CORS o formati video non supportati possono impedire alcune funzioni. Il comportamento del browser non certifica quello di AVPlay sulla TV.
+Con `npm start`, le richieste ai provider e alle API configurate passano dal proxy di sviluppo Angular per evitare i blocchi CORS del browser. Dopo modifiche al proxy riavvia il server. Il proxy non disabilita TLS, non aggira verifiche o errori dei siti e non viene caricato dai pacchetti TV di produzione. Sorgenti video/CDN non configurati possono ancora avere limitazioni CORS. Il comportamento del browser non certifica quello di AVPlay sulla TV.
 
 ## Preparare TV e certificati
 
@@ -214,6 +337,8 @@ Con il focus sulla scheda grande:
 | Su | Aggiunge o rimuove dai preferiti |
 | Giù | Salta |
 | OK | Apre il dettaglio |
+
+In Esplora, **Return/Esc** porta al menu laterale; puoi anche premere il pulsante **Menu** in alto. La freccia Sinistra sulla scheda salva invece Non mi interessa. Dal menu, un ulteriore Indietro mostra la conferma di uscita.
 
 Le scelte sono locali e non modificano MAL. Mi piace e preferiti sono indipendenti. Puoi annullare l’ultima azione; nel dettaglio trovi **Elimina scelta** per riportare il titolo tra i mai esplorati. Per sfogliare le scelte salvate usa i filtri del catalogo.
 

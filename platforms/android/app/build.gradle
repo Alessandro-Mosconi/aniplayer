@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+android {
+ namespace 'org.aniplayer.tv'
+ compileSdk 35
+ defaultConfig {
+  applicationId 'org.aniplayer.tv'
+  minSdk 26
+  targetSdk 35
+  versionCode 220
+  versionName '2.2.0'
+ }
+ compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+ buildTypes { release { minifyEnabled false } }
+}

@@ -33,6 +33,7 @@ export class AppFacadeService {
   this.remote.configure({player:e=>this.playback.handleKey(e),back:()=>this.back(),playerActive:()=>this.playback.state().opened});
   this.playback.onClosed=()=>this.remote.restore();
   effect(()=>{const route=this.nav.route();untracked(()=>void this.load(route));});
+  window.addEventListener('aniplayer-suspend',()=>this.playback.pause());
   document.addEventListener('visibilitychange',()=>{if(document.hidden)this.playback.pause();});
  }
  readonly exitPrompt=signal(false);private exitFocus:HTMLElement|null=null;
@@ -47,7 +48,7 @@ export class AppFacadeService {
  }
  cancelExit(){this.exitPrompt.set(false);setTimeout(()=>{if(this.exitFocus?.isConnected)this.remote.focus(this.exitFocus);else this.remote.first(document.getElementById('view')||undefined);});}
  confirmExit(){
-  try{if(this.tv.exitApp())return;this.cancelExit();this.error.set('Nel browser puoi chiudere la scheda. Sulla TV questo comando chiude AniPlayer.');}
+  try{if(this.tv.exitApp())return;this.cancelExit();this.error.set('Nel browser puoi chiudere la scheda. Sulle piattaforme supportate questo comando chiude AniPlayer.');}
   catch(error){this.cancelExit();this.error.set('Impossibile chiudere l’app: '+cleanError(error));}
  }
  go(name:RouteState['name']){if(name==='explore'&&this.storage.settings()['exploreEnabled']===false)return;this.nav.open(name);}

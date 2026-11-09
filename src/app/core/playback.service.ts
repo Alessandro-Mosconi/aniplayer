@@ -6,7 +6,7 @@ import {AnimeWorldService} from './animeworld.service';
 import {TizenService} from './tizen.service';
 import {IntroService,IntroWindow,IntroContext} from './intro.service';
 import {IntroDetectorService} from './intro-detector.service';
-import {RemoteService} from './remote.service';
+import {RemoteService,remoteKey} from './remote.service';
 import {MalService} from './mal.service';
 const initial:PlaybackState={playing:false,position:0,duration:0,opened:false,buffering:false,title:'',episode:0,error:''};
 @Injectable({providedIn:'root'})
@@ -45,7 +45,8 @@ export class PlaybackService {
  }
  private async prepare(url:string,resume:number,id:number){this.patch({buffering:true,error:''});
   const av=this.tv.getAvplay();const pref=this.local.settings()['engine']||'auto';
-  if(pref==='avplay'&&!av)throw Error('AVPlay non è disponibile sul dispositivo.');
+  // A Samsung preference may be imported on another TV: use its HTML5 engine.
+  if(pref==='avplay'&&!av&&this.tv.platform==='tizen')throw Error('AVPlay non disponibile sul dispositivo.');
   this.engine=av&&pref!=='html5'?'avplay':'html5';this.html5.set(this.engine==='html5');
   if(this.engine==='avplay'){
    this.av=av;try{av.close();}catch{}
@@ -168,7 +169,7 @@ export class PlaybackService {
  clearIntro(){if(this.detail&&this.episode){this.introService.clear(this.detail.anime,this.episode,this.state().duration);this.detector.forget(this.detail.anime,this.episode);this.intro.set(null);void this.loadIntro(this.generation);}}
  showControls(){this.controls.set(true);clearTimeout(this.controlTimer);if(!this.selectMenu())this.controlTimer=setTimeout(()=>this.controls.set(false),7000);}
  hideControls(){this.controls.set(false);this.selectMenu.set(null);clearTimeout(this.controlTimer);}
- handleKey(e:KeyboardEvent):boolean{if(!this.state().opened)return false;const key=({10009:'Back',27:'Escape',8:'Backspace',13:'Enter',37:'ArrowLeft',39:'ArrowRight',38:'ArrowUp',40:'ArrowDown',415:'MediaPlay',19:'MediaPause',10252:'MediaPlayPause',413:'MediaStop',417:'MediaFastForward',412:'MediaRewind'} as Record<number,string>)[e.keyCode]||e.key;
+ handleKey(e:KeyboardEvent):boolean{if(!this.state().opened)return false;const key=remoteKey(e);
   if(['MediaPlayPause','MediaPlay','MediaPause'].includes(key)){if(key==='MediaPause')this.pause();else if(key==='MediaPlay'&&!this.state().playing)this.toggle();else if(key==='MediaPlayPause')this.toggle();return true;}
   if(key==='MediaFastForward'){this.seekBy(30);return true;}if(key==='MediaRewind'){this.seekBy(-30);return true;}if(key==='MediaStop'){this.close();return true;}
   if(['Back','Escape','Backspace','BrowserBack'].includes(key)){if(this.scrub()!==null){this.scrub.set(null);this.showControls();}else if(this.selectMenu()){this.selectMenu.set(null);this.showControls();}else if(this.controls()){this.hideControls();}else this.close();return true;}

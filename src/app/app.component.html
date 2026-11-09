@@ -4,7 +4,7 @@
   <nav aria-label="Navigazione principale">
    @for(item of sidebar.items();track item.id){@if(item.visible && (item.id!=='explore'||vm.storage.settings()['exploreEnabled']!==false) && (item.id!=='my-anime'||malLibrary.available())){<button [attr.data-focus]="'nav-'+item.id" [class.active]="nav.route().name===item.id" [attr.aria-current]="nav.route().name===item.id?'page':null" (click)="go(item.id)"><span class="nav-symbol">{{item.icon}}</span> {{item.label}}</button>}}
   </nav>
-  <div class="sidebar-bottom"><span class="pill">SAMSUNG TV</span><p>Le tue storie.<br />Il tuo schermo.</p></div>
+  <div class="sidebar-bottom"><span class="pill">{{vm.tv.label}}</span><p>Le tue storie.<br />Il tuo schermo.</p></div>
  </aside>
  <div class="workspace">
   <header class="topbar"><div class="provider-status" role="status"><span [class.connected]="catalog.online()">{{catalog.online()?'AnimeUnity · connesso':'AnimeUnity · verifica connessione'}}</span><span [class.connected]="animeworld.online()" [class.disconnected]="animeworld.connectionStatus()==='offline'" [attr.title]="animeworld.connectionError() || null">AnimeWorld · {{animeworld.connectionStatus()==='online'?'connesso':animeworld.connectionStatus()==='checking'?'verifica in corso':animeworld.connectionStatus()==='offline'?'non raggiungibile':'da verificare'}}</span></div><span>Frecce per navigare · OK per scegliere · Return per tornare</span></header>

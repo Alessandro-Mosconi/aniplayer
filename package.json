@@ -12,10 +12,14 @@
     "build": "ng build --configuration production",
     "build:dev": "ng build --configuration development",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test": "node --test tests/integration.test.mjs tests/tv-navigation.test.mjs tests/mal-relay.test.mjs && node --experimental-strip-types --test tests/audio-fingerprint.test.mjs",
+    "test": "node --test tests/integration.test.mjs tests/tv-navigation.test.mjs tests/mal-relay.test.mjs tests/platform-runtime.test.mjs tests/platform-packaging.test.mjs tests/dev-proxy.test.mjs && node --experimental-strip-types --test tests/audio-fingerprint.test.mjs",
     "test:all": "npm run typecheck && npm run test && npm run build",
     "tizen:pack": "powershell -ExecutionPolicy Bypass -File ./tools/build-tizen.ps1",
-    "tizen:deploy": "powershell -ExecutionPolicy Bypass -File ./tools/deploy-tizen.ps1"
+    "tizen:deploy": "powershell -ExecutionPolicy Bypass -File ./tools/deploy-tizen.ps1",
+    "webos:pack": "node tools/build-webos.mjs",
+    "android:pack": "node tools/build-android.mjs",
+    "fireos:pack": "node tools/build-android.mjs",
+    "web:prepare": "node tools/prepare-platform.mjs web"
   },
   "dependencies": {
     "@angular/common": "22.2.5",

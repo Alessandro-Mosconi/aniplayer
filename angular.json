@@ -61,7 +61,8 @@
             "development": {
               "optimization": false,
               "sourceMap": true,
-              "outputHashing": "none"
+              "outputHashing": "none",
+              "index": "src/index.dev.html"
             }
           },
           "defaultConfiguration": "production"
@@ -76,7 +77,10 @@
               "buildTarget": "aniplayer:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "tools/dev-proxy.conf.mjs"
+          }
         }
       }
     }

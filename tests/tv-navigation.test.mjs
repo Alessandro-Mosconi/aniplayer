@@ -511,3 +511,16 @@ test('Audio-confirmed opening shifts AniSkip ending by the same offset and rejec
  service.fetchTimes=async()=>[op,{...ed,episodeLength:1450}];assert.equal(await service.loadEnding(ctx,{start:90,end:180,source:'audio'}),null);
  service.fetchTimes=async()=>[op,{...op,interval:{startTime:75,endTime:165}},ed];assert.equal(await service.loadEnding(ctx,{start:90,end:180,source:'audio'}),null);
 });
+
+test('TV platform detection distinguishes Samsung, LG, Android, Fire OS, Vega and browser',()=>{
+ const {detectTvPlatform}=load('src/app/core/tv-platform.service.ts');assert.equal(detectTvPlatform({tizen:{}},''),'tizen');assert.equal(detectTvPlatform({webOSSystem:{}},''),'webos');assert.equal(detectTvPlatform({},'Mozilla Web0S Chrome/108'),'webos');assert.equal(detectTvPlatform({AniPlayerNative:{}},'Android TV'),'android');assert.equal(detectTvPlatform({AniPlayerNative:{}},'Android AFTSSS'),'fireos');assert.equal(detectTvPlatform({},'Vega Kepler'),'vega');assert.equal(detectTvPlatform({},'VIDAA SmartTV'),'vidaa');assert.equal(detectTvPlatform({},'Chrome Linux'),'browser');
+});
+test('LG Back and Android media keys use the same player semantics as Samsung',()=>{
+ const {remoteKey}=load('src/app/core/remote.service.ts');for(const code of [461,4,10009])assert.equal(remoteKey({keyCode:code}),'Back');for(const code of [85,179,10252])assert.equal(remoteKey({keyCode:code}),'MediaPlayPause');assert.equal(remoteKey({keyCode:23}),'Enter');assert.equal(remoteKey({key:'ArrowRight'}),'ArrowRight');
+ const {player}=nextEpisodeFixture();let paused=0;player.pause=()=>paused++;assert.equal(player.handleKey({keyCode:461}),true);assert.equal(player.controls(),false);assert.equal(player.handleKey({keyCode:19}),true);assert.equal(paused,1);
+});
+test('LG adapter launches external browser through Luna and does not expose Samsung AVPlay',()=>{
+ const calls=[];class Bridge{call(uri,body){calls.push([uri,JSON.parse(body)]);this.onservicecallback();}}
+ const {TvPlatformService}=load('src/app/core/tv-platform.service.ts',{window:{webOSSystem:{},PalmServiceBridge:Bridge,webapis:{avplay:{}},addEventListener(){},close(){calls.push(['close']);}},navigator:{onLine:true,userAgent:'Web0S'}});
+ const platform=new TvPlatformService();assert.equal(platform.getAvplay(),null);platform.openExternal('https://myanimelist.net/');assert.equal(calls[0][0],'luna://com.webos.applicationManager/launch');assert.equal(calls[0][1].id,'com.webos.app.browser');assert.equal(platform.exitApp(),true);assert.throws(()=>platform.openExternal('javascript:alert(1)'),/non consentito/);
+});

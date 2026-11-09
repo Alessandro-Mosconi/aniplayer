@@ -14,3 +14,16 @@ tizen/icon.png
 tizen/tizen_web_project.yaml
 tools/local-private/
 *.wgt
+
+# Multi-platform build output and local SDK/signing configuration
+platforms/android/.gradle/
+platforms/android/build/
+platforms/android/app/build/
+platforms/android/local.properties
+platforms/android/app/src/main/assets/web/
+platforms/android/app/src/main/res/drawable/icon.png
+*.apk
+*.aab
+*.ipk
+*.keystore
+*.jks
