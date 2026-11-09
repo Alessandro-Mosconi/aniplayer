@@ -1,0 +1,31 @@
+﻿<section class="page-heading"><p class="eyebrow">ESPLORA</p><h1>Catalogo anime</h1><p class="muted">Scrivi un titolo, scegli i filtri e premi Cerca.</p></section>
+<div class="search-line" data-focus-row><input data-tv-input readonly #search class="search-input" type="search" aria-label="Cerca un anime" placeholder="Cerca un anime…" [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" (keydown.enter)="refreshCatalog()" data-focus="catalog-search" /><button class="primary" data-focus="catalog-submit" (click)="refreshCatalog()">Cerca</button></div>
+<p class="muted remote-help">↑ ↓ per cambiare riga · ← → tra i filtri · OK per scegliere</p>
+<div class="filter-bar" data-focus-row>
+ @for(group of groups;track group.key){<button [attr.data-focus]="'filter-'+(group.key==='dubbed'?'audio':group.key)" [attr.aria-expanded]="expanded()===group.key" aria-controls="filter-options" (click)="togglePanel(group.key)">{{group.label}}: {{filterLabel(group.key)}}</button>}
+ <button data-focus="filter-genres" [attr.aria-expanded]="expanded()==='genres'" aria-controls="filter-options" (click)="togglePanel('genres')">Generi: {{selectedGenres().length || 'Tutti'}}</button>
+</div>
+@if(expanded();as key){
+ <section id="filter-options" class="filter-panel">
+ @if(key==='genres'){
+  <h2>Generi · selezione multipla</h2><p class="muted">Seleziona i generi, poi premi Fatto e Cerca.</p>
+  <div class="genre-options"><button [attr.aria-pressed]="!selectedGenres().length" (click)="setFilter('genres',[])">Tutti i generi</button>
+  @for(genre of catalog.genres();track genre.id){<button [attr.aria-pressed]="selectedGenres().includes(genre.id)" (click)="toggleGenre(genre.id)">{{selectedGenres().includes(genre.id)?'✓ ':''}}{{genre.name}}</button>}</div>
+  @if(!catalog.genres().length){<p>Generi non disponibili. Riprova il caricamento del catalogo.</p>}
+ }@else{
+  @for(group of groups;track group.key){@if(group.key===key){<h2>{{group.label}}</h2><div class="option-row" data-focus-row>@for(option of group.options;track option.label){<button [attr.aria-pressed]="(filters()[group.key]??false)===option.value" (click)="setFilter(group.key,option.value)">{{option.label}}</button>}</div>}}
+ }
+ <button data-filter-close (click)="closePanel()">Fatto</button>
+ </section>
+}
+<div class="catalog-actions" data-focus-row>@if(filters().order==='random'){<button [disabled]="loading()" (click)="refreshCatalog()">Rimescola</button>}<button class="primary" [disabled]="loading()" (click)="refreshCatalog()">{{loading()?'Ricerca in corso…':'Applica filtri e cerca'}}</button><button (click)="resetFilters()">Azzera ricerca e filtri</button>@if(storage.settings()['exploreEnabled']!==false){<button class="explore-secondary" aria-label="Esplora questi anime" title="Esplora questi anime" (click)="openExplore()"><span aria-hidden="true">&#10023;</span> Esplora</button>}</div>
+@if(filters().order==='release_desc' || filters().order==='release_asc'){<p class="muted">Ordine per data di uscita. Le schede con solo anno o stagione hanno una data approssimativa.</p>}
+<p class="muted" role="status">{{loading()?'Ricerca in corso…':error()?'Ricerca non completata. Correggi i filtri o riprova.':total()+(catalogTotalExact()?' anime nel risultato':' risultati trovati finora · ricerca progressiva')}}</p>
+<div class="catalog-grid">@for(a of cards();track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div>
+@if(!loading() && !error() && !cards().length && !catalogHasMore()){<p class="empty">Nessun anime trovato. Modifica la ricerca o azzera i filtri.</p>}
+<div class="pager"><button [disabled]="loading() || page()===0" (click)="catalogPage(page()-1)">← Precedenti</button><span>Pagina {{page()+1}}</span><button [disabled]="loading() || !catalogHasMore()" (click)="catalogPage(page()+1)">{{!catalogTotalExact() && cards().length<30?'Continua ricerca':'Successivi →'}}</button><button (click)="remote.focus(search)">Torna alla ricerca</button></div>
+
+
+
+
+

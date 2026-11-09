@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/AnimePlayer" version="2.2.0" viewmodes="maximized">
+ <name>AniPlayer</name><icon src="icon.png"/><content src="index.html"/><feature name="http://tizen.org/feature/screen.size.all"/>
+ <tizen:application id="tOIM55JMUl.AnimePlayer" package="tOIM55JMUl" required_version="9.0"/><tizen:profile name="tv-samsung"/>
+ <tizen:privilege name="http://tizen.org/privilege/internet"/><tizen:privilege name="http://tizen.org/privilege/application.launch"/><tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+ <tizen:app-control><tizen:src name="index.html"/><tizen:operation name="http://tizen.org/appcontrol/operation/view"/><tizen:uri name="aniplayer"/></tizen:app-control>
+ <access origin="*" subdomains="true"/>
+ <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; connect-src https: http:; img-src 'self' https: data:; media-src https: blob:; object-src 'self'; base-uri 'none'; frame-src 'none'</tizen:content-security-policy>
+</widget>

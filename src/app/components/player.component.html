@@ -1,0 +1,54 @@
+<section id="player" [hidden]="!p.state().opened" aria-label="Riproduzione video">
+ <object #avObject id="av-player" type="application/avplayer" [hidden]="p.html5()"></object>
+ <video #htmlVideo id="html-player" playsinline [hidden]="!p.html5()" (timeupdate)="p.onHtmlTime()" (waiting)="p.onHtmlWaiting()" (playing)="p.onHtmlPlaying()" (ended)="p.onHtmlEnded()"></video>
+ @if(p.controls() || p.state().error){
+  <div class="player-heading">
+   <div><p class="eyebrow">EPISODIO {{p.state().episode}}</p><h1>{{p.state().title}}</h1></div>
+   <button id="p-close" data-focus="p-close" (click)="p.close()">✕ Chiudi player</button>
+  </div>
+ }
+ @if(p.state().buffering){<div class="player-buffer"><app-anime-loader variant="player" message="Preparazione video…" /></div>}
+ @if(p.state().error){<div class="player-error"><h2>Riproduzione non disponibile</h2><p>{{p.state().error}}</p><button data-focus="player-error-close" (click)="p.close()">Torna alla scheda</button></div>}
+ @if(p.intro() && p.state().position>=p.intro()!.start-5 && p.state().position<p.intro()!.end){<button #skipIntroButton class="skip-intro" data-focus="player-skip-intro" (click)="p.skipIntro()">Salta intro →</button>}
+ @if(p.showNextEpisode && !p.selectMenu() && p.scrub()===null){<button #nextEpisodeButton class="next-episode-prompt" data-focus="player-next-episode" (click)="p.next()">Prossimo episodio <span aria-hidden="true">→</span><small>Episodio {{p.nextEpisode!.number}} · Premi OK</small></button>}
+ @if(p.controls()){
+ <div id="p-controls" class="player-controls">
+  @if(p.introStatus()){<div class="intro-status" role="status">{{p.introStatus()}}</div>}
+  @if(p.aniSkipDuration() && !p.intro()){
+   <div class="intro-fallback toolbar" aria-label="Salto manuale in base alla lunghezza AniSkip">
+    <span>Durata sigla suggerita, posizione non verificata:</span>
+    <button data-focus="p-intro-forward" (click)="p.skipByAniSkip(0)">Avanza di {{clock(p.aniSkipDuration()!)}}</button>
+    <button data-focus="p-intro-forward-short" (click)="p.skipByAniSkip(5)">Avanza −5 secondi</button>
+   </div>
+  }
+  @if(p.intro()){<div class="intro-status">Sigla {{p.intro()!.source==='local'?'corretta sulla TV':p.intro()!.source==='aniskip'?'AniSkip':'verificata con audio'}} · {{clock(p.intro()!.start)}}–{{clock(p.intro()!.end)}}</div>}
+  @if(p.scrub()!==null){<div class="seek-preview">Vai a {{clock(p.scrub()!)}} · OK conferma · Return annulla</div>}
+  <div class="timeline" id="timeline" role="slider" tabindex="0" data-focus="p-timeline" aria-label="Timeline video: frecce per anteprima, OK conferma, Return annulla" [attr.aria-valuemax]="p.state().duration" [attr.aria-valuenow]="p.state().position" (click)="timeline($event)" (keydown)="onKey($event)">
+    <span class="timeline-progress" [style.width.%]="p.state().duration?100*(p.scrub()??p.state().position)/p.state().duration:0"></span>
+  </div>
+  <div class="player-controls-row">
+   <span class="player-clock">{{clock(p.state().position)}} / {{clock(p.state().duration)}}</span>
+   <div class="toolbar">
+    <button data-focus="p-back" (click)="p.seekBy(-30)">−30 s</button>
+    <button data-focus="p-toggle" (click)="p.toggle()">{{p.state().playing?'Ⅱ Pausa':'▶ Riprendi'}}</button>
+    <button data-focus="p-next" (click)="p.seekBy(30)">+30 s</button>
+    @if(p.nextEpisode){<button data-focus="p-episode-next" (click)="p.next()">Episodio successivo →</button>}
+    <button data-focus="p-intro" (click)="editIntro()">Sigla</button>
+    <button data-focus="p-subtitles" (click)="p.selectMenu.set(p.selectMenu()==='subtitles'?null:'subtitles')">Sottotitoli</button>
+   </div>
+  </div>
+  <p class="player-help">← → Timeline · OK conferma · Return nasconde i comandi · Play/Pausa · Posizione salvata automaticamente</p>
+  @if(p.selectMenu()==='intro'){
+   <div class="player-popup">
+    <h3>Correggi la sigla</h3>
+    <label>Inizio (secondi) <input type="number" min="0" [(ngModel)]="introStart"></label>
+    <label>Fine (secondi) <input type="number" min="0" [(ngModel)]="introEnd"></label>
+    <div class="toolbar"><button (click)="introStart=p.state().position">Usa posizione come inizio</button><button (click)="introEnd=p.state().position">Usa posizione come fine</button><button (click)="saveIntro()">Salva su questa TV</button><button (click)="p.clearIntro();p.selectMenu.set(null)">Rimuovi e ricalcola</button><button (click)="p.disableIntro();p.selectMenu.set(null)">Disattiva per episodio</button><button (click)="p.cancelIntroAnalysis()">Annulla analisi</button></div>
+   </div>
+  }
+  @if(p.selectMenu()==='subtitles'){
+   <div class="player-popup"><h3>Sottotitoli</h3><div class="toolbar"><button (click)="p.setSubtitleTrack(null)">Disattivati</button>@for(track of p.subtitles();track track.index){<button (click)="p.setSubtitleTrack(track.index)">{{track.label}}</button>}</div>@if(!p.subtitles().length){<p>Nessuna traccia di sottotitoli selezionabile.</p>}<button (click)="p.selectMenu.set(null)">Chiudi</button></div>
+  }
+ </div>
+ }
+</section>

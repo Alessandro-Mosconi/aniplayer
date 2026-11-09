@@ -1,0 +1,4 @@
+﻿<section class="page-heading"><p class="eyebrow">DIAGNOSTICA</p><h1>Verifica la connessione.</h1><p class="muted">Test diretti dalla TV senza proxy.</p></section>
+    <section class="setting-card form-card"><h2>Dominio AnimeUnity</h2><label>URL HTTPS<input data-tv-input readonly [ngModel]="domainField()" (ngModelChange)="domainField.set($event)"></label><div class="toolbar"><button class="primary" (click)="changeDomain()">Verifica e salva</button><button (click)="testNetwork()">Esegui test</button></div><p>Il dominio viene salvato soltanto dopo una richiesta di catalogo riuscita.</p></section>
+    <section class="setting-card"><h2>Dispositivo</h2><p>Tizen: {{tv.onTv?'rilevato':'non rilevato'}} · AVPlay: {{tv.getAvplay()?'disponibile':'non disponibile'}}</p><p>Connessione: {{tv.online()?'online':'offline'}}</p></section>
+

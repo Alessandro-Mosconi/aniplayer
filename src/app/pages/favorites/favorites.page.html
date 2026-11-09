@@ -1,0 +1,1 @@
+<section class="page-heading"><p class="eyebrow">LA TUA COLLEZIONE</p><h1>Preferiti</h1><p class="muted">Gli anime salvati su questa TV.</p></section><div class="catalog-grid">@for(a of allFavorites();track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div>@if(!allFavorites().length){<p class="empty">Aggiungi un anime ai preferiti per ritrovarlo qui.</p>}

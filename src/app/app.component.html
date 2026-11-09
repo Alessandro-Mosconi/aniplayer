@@ -1,0 +1,39 @@
+﻿<div id="shell" [hidden]="playback.state().opened">
+ <aside class="sidebar">
+  <div class="brand"><img class="brand-icon" src="assets/images/aniplayer-logo.png" alt="" /><span class="brand-word">ANI<span>PLAYER</span></span></div>
+  <nav aria-label="Navigazione principale">
+   @for(item of sidebar.items();track item.id){@if(item.visible && (item.id!=='explore'||vm.storage.settings()['exploreEnabled']!==false) && (item.id!=='my-anime'||malLibrary.available())){<button [attr.data-focus]="'nav-'+item.id" [class.active]="nav.route().name===item.id" [attr.aria-current]="nav.route().name===item.id?'page':null" (click)="go(item.id)"><span class="nav-symbol">{{item.icon}}</span> {{item.label}}</button>}}
+  </nav>
+  <div class="sidebar-bottom"><span class="pill">SAMSUNG TV</span><p>Le tue storie.<br />Il tuo schermo.</p></div>
+ </aside>
+ <div class="workspace">
+  <header class="topbar"><div class="provider-status" role="status"><span [class.connected]="catalog.online()">{{catalog.online()?'AnimeUnity · connesso':'AnimeUnity · verifica connessione'}}</span><span [class.connected]="animeworld.online()" [class.disconnected]="animeworld.connectionStatus()==='offline'" [attr.title]="animeworld.connectionError() || null">AnimeWorld · {{animeworld.connectionStatus()==='online'?'connesso':animeworld.connectionStatus()==='checking'?'verifica in corso':animeworld.connectionStatus()==='offline'?'non raggiungibile':'da verificare'}}</span></div><span>Frecce per navigare · OK per scegliere · Return per tornare</span></header>
+  <main id="view" [attr.aria-busy]="loading()">
+   @if(error()) {<section class="error-panel" role="status"><span>{{error()}}</span><button (click)="error.set('')">Chiudi</button></section>}
+   @if(loading() && nav.route().name!=='catalog') {<app-anime-loader message="Caricamento catalogo…" />}
+
+   @switch (nav.route().name) {
+    @case ('home') { <app-home-page /> }
+    @case ('catalog') { <app-catalog-page /> }
+    @case ('my-anime') { <app-my-anime-page /> }
+    @case ('explore') { <app-explore-page /> }
+    @case ('detail') { <app-anime-detail-page /> }
+    @case ('related') { <app-related-page /> }
+    @case ('favorites') { <app-favorites-page /> }
+    @case ('history') { <app-history-page /> }
+    @case ('settings') { <app-settings-page /> }
+    @case ('mal') { <app-mal-page /> }
+    @case ('diagnostics') { <app-diagnostics-page /> }
+   }
+  </main>
+ </div>
+</div>
+<app-player />
+@if(vm.exitPrompt()){
+ <div class="exit-overlay"><section class="exit-dialog" data-tv-dialog role="dialog" aria-modal="true" aria-labelledby="exit-title">
+  <h2 id="exit-title">Vuoi chiudere l’applicazione?</h2><p>Conferma per uscire da AniPlayer.</p>
+  <div class="toolbar" data-focus-row><button data-tv-click data-dialog-cancel data-exit-cancel (click)="vm.cancelExit()">Annulla</button><button data-tv-click class="primary" (click)="vm.confirmExit()">Chiudi app</button></div>
+ </section></div>
+}
+
+

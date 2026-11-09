@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.angular/
+Release/
+tizen/Build/
+tizen/Debug/
+tizen/Release/
+tizen/Test/
+tizen/index.html
+tizen/assets/
+tizen/*.js
+tizen/*.css
+tizen/icon.png
+tizen/tizen_web_project.yaml
+tools/local-private/
+*.wgt

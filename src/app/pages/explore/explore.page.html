@@ -1,0 +1,19 @@
+<section class="page-heading"><p class="eyebrow">UNA NUOVA SCOPERTA</p><h1>Esplora</h1><p class="muted">Un anime alla volta. Le tue scelte vengono salvate su questa TV.</p></section>
+<div class="explore-filter-summary" aria-label="Filtri attivi">@if(activeFilterChips().length){<span class="filter-summary-label">Filtri attivi</span><ul class="filter-chips">@for(chip of activeFilterChips();track chip){<li>{{chip}}</li>}</ul>}@else{<span class="filter-summary-label">Nessun filtro attivo</span>}<span class="explore-order">Ordine casuale</span></div>
+
+<p class="explore-help">Sulla scheda: ← Non mi interessa · → Mi piace · ↑ Preferiti · ↓ Salta · OK Dettagli · Return Indietro</p>
+@if(saved()){<p class="saved-message" role="status">{{saved()}}</p>}
+@if(message()){<p class="muted" role="status">{{message()}}</p>}
+@if(current();as anime){
+ <div class="explore-actions" data-focus-row><button [disabled]="busy()" (click)="react('dislike')">← Non mi interessa</button><button class="primary" [disabled]="busy()" (click)="react('like')">Mi piace →</button><button [disabled]="busy()" (click)="favorite()">{{isFavorite()?'★ Rimuovi dai preferiti':'☆ Aggiungi ai preferiti'}}</button><button [disabled]="busy()" (click)="skip()">Salta ↓</button><button (click)="openAnime(anime)">Apri dettagli</button></div>
+ <section class="explore-card" [class.exit-left]="transition()==='left'" [class.exit-right]="transition()==='right'" [class.exit-down]="transition()==='down'" [class.favorite-pulse]="favoritePulse()" [class.card-enter]="entering()" data-explore-card tabindex="0" aria-label="Scheda anime. Freccia sinistra non mi interessa, destra mi piace, su preferiti, giù salta, OK dettagli" [attr.aria-busy]="busy()">
+ <img class="explore-poster" [src]="anime.imageurl||anime.imageurl_cover||'assets/images/aniplayer-icon-512.png'" [alt]="viewTitle(anime)" (error)="fallback($event)">
+ <div class="explore-info"><p class="eyebrow">{{anime.type||'ANIME'}} · {{anime.date||'Anno non disponibile'}} · {{anime.dub?'DUB ITA':'SUB ITA'}}</p><h2>{{viewTitle(anime)}}</h2><p class="explore-genres">{{genreText(anime)}}</p><p class="explore-plot">{{plot()||'Descrizione non disponibile nel catalogo.'}}</p>@if(isFavorite()){<p class="favorite-note">★ Nei tuoi preferiti</p>}</div>
+ </section>
+
+}@else if(!busy()){
+ <div class="explore-actions" data-focus-row><button class="primary" (click)="next()">Continua ricerca</button><button (click)="restart()">Rivedi anche gli esplorati</button><button (click)="go('catalog')">Scegli filtri nel catalogo</button></div>
+}
+<p class="muted">{{exploration.stats().total}} esplorati · {{exploration.stats().liked}} mi piace · {{exploration.stats().disliked}} non mi interessa</p>
+
+<div class="explore-actions" data-focus-row>@if(undoAvailable()){<button (click)="undo()">Annulla ultima azione</button>}@if(current();as anime){@if(exploration.get(anime)?.feedback==='like'||exploration.get(anime)?.feedback==='dislike'){<button (click)="resetCurrent()">Elimina preferenza di questo anime</button>}}<button (click)="go('settings')">Gestisci scelte salvate</button></div>

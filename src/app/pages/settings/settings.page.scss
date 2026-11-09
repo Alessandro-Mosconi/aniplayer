@@ -1,0 +1,3 @@
+/* SettingsPage: layout and colors inherit the existing global AniPlayer theme. */
+
+.menu-settings{margin-bottom:30px}.menu-settings-list{display:flex;flex-direction:column;gap:12px;margin:24px 0}.menu-settings-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px;border:1px solid #35435f;border-radius:12px}.menu-item-label{font-size:23px;min-width:235px;flex:1}.menu-settings-row button{margin:0}.menu-settings-row button[aria-pressed="true"]{border-color:#78b6a0;color:#b8f0d6}

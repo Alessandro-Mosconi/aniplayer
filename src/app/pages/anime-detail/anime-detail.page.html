@@ -1,0 +1,23 @@
+﻿@if(details();as detail) {
+     <section class="detail-hero">
+      @if(detail.anime.imageurl_cover){<img class="detail-art" [src]="detail.anime.imageurl_cover" alt="" />}
+      <img class="detail-poster" [src]="detail.anime.imageurl||'assets/images/aniplayer-icon-512.png'" alt="Copertina" />
+      <div class="detail-info"><p class="eyebrow">LA TUA PROSSIMA STORIA</p><h1>{{viewTitle(detail.anime)}}</h1><p class="hero-meta">{{detail.anime.date}} · {{detail.anime.type}} · {{detail.anime.status}} · {{detail.anime.score}} · {{detail.anime.dub?'DUB ITA':'SUB ITA'}}</p>
+       <p class="genres">{{genreText(detail.anime)}}</p><p class="detail-plot" tabindex="0" role="region" aria-label="Trama: freccia giù e freccia su per scorrere" data-focus="detail-plot">{{detail.anime.plot||'Trama non disponibile.'}}</p>
+       @if(sourceNotice()){<p class="muted">{{sourceNotice()}}</p>}
+       <div class="toolbar">@if(detail.episodes.length){<button class="primary" data-focus="detail-play" (click)="playResume()">▶ Guarda / Riprendi</button>}
+        <button data-focus="detail-fav" (click)="toggle(detail.anime)">{{storage.isFavorite(detail.anime)?'♥ Nei preferiti':'♡ Aggiungi ai preferiti'}}</button>
+        @if(detail.related.length){<button (click)="nav.open('related',{anime:activeDetail()||detail.anime})">Serie e film collegati ({{detail.related.length}})</button>}
+       </div>
+       @if(exploration.get(detail.anime);as discovery){<div class="toolbar discovery-choice" data-focus-row><span>Esplorazione: {{discovery.feedback==='like'?'Mi piace':discovery.feedback==='dislike'?'Non mi interessa':'Già esplorato'}}</span><button data-focus="detail-discovery-remove" (click)="removeDiscovery(detail.anime)">Elimina scelta</button></div>}
+       <p class="discovery-status" role="status">{{discoveryStatus()}}</p>
+       @if(audioOptions().length>1){<div class="toolbar audio-versions"><span>Versione audio:</span>@for(match of audioOptions();track match.anime.awSlug){<button [class.primary]="!!detail.anime.dub===!!match.anime.dub" [attr.aria-pressed]="!!detail.anime.dub===!!match.anime.dub" (click)="chooseAudio(match)">{{match.anime.dub?'DUB ITA':'SUB ITA'}}</button>}</div>}
+      </div>
+     </section>
+     <section class="episodes-section">@if(markStatus()){<p class="watch-status" role="status">{{markStatus()}}</p>}<div class="section-heading"><h2>Episodi</h2><span class="muted">{{detail.count}} disponibili</span></div>
+      <div class="episode-grid">@for(ep of episodes();track ep.id){<div class="episode-tile" [class.watched]="lib.isSeen(detail.anime,ep)"><button class="episode-play" [disabled]="ep.public===0" (click)="play(ep)">▶ Episodio {{ep.number}}</button><button class="episode-seen" [disabled]="marking()" [attr.data-focus]="'seen-'+ep.id" (click)="mark(detail.anime,ep)">{{lib.isSeen(detail.anime,ep)?'✓ Visto':'Segna visto'}}</button></div>}</div>
+      @if(detail.count>24){<div class="pager"><button [disabled]="episodePage()===0" (click)="episodePage.set(episodePage()-1)">← Precedenti</button><span>{{episodePage()*24+1}}–{{(episodePage()+1)*24>detail.count?detail.count:(episodePage()+1)*24}}</span><button [disabled]="(episodePage()+1)*24>=detail.count" (click)="episodePage.set(episodePage()+1)">Successivi →</button></div>}
+     </section>
+     @if(detail.related.length){<section class="content-section"><div class="section-heading"><h2>Serie e film collegati</h2><button (click)="nav.open('related',{anime:activeDetail()||detail.anime})">Vedi tutti →</button></div><div class="card-row">@for(a of detail.related.slice(0,12);track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div></section>}
+    }
+@if(unwatch();as choice){<div class="watch-confirm-overlay"><section class="watch-confirm" data-tv-dialog role="dialog" aria-modal="true" aria-labelledby="unwatch-title"><h2 id="unwatch-title">Segnare come non visto?</h2>@if(choice.remote){<p>MAL salva il progresso come numero di episodi visti.</p><p>Il progresso torner? all?episodio {{+choice.episode.number-1}}. Questo episodio e quelli successivi risulteranno non visti anche su MAL e AniPlayer.</p>}@else{<p>Vuoi togliere il visto dall?episodio {{choice.episode.number}}?</p>}<div class="toolbar" data-focus-row><button data-dialog-cancel (click)="cancelUnwatch()">Annulla</button><button class="primary" (click)="confirmUnwatch()">S?, segna non visto</button></div></section></div>}

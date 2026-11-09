@@ -1,0 +1,21 @@
+﻿@if(hero();as anime){
+<section class="hero" aria-label="Anime in evidenza">
+ @if(anime.imageurl_cover||anime.imageurl){<img class="hero-art" [src]="anime.imageurl_cover||anime.imageurl" alt="" (error)="$any($event.target).style.display='none'">}
+ <div class="hero-content">
+  <p class="eyebrow">IL TUO PROSSIMO EPISODIO</p>
+  <h1>{{viewTitle(anime)}}</h1>
+  <p class="hero-meta">{{meta(anime)}}</p>
+  @if(plot(anime)){<p class="hero-plot">{{plot(anime)}}</p>}
+  <div class="toolbar"><button class="primary" data-focus="hero-open" (click)="openAnime(anime)">▶ Scopri gli episodi</button><button data-focus="hero-catalog" (click)="go('catalog')">Esplora il catalogo</button></div>
+ </div>
+</section>
+} @else {
+<section class="page-heading"><p class="eyebrow">IL TUO MONDO ANIME</p><h1>La prossima storia ti aspetta.</h1><p class="muted">Sfoglia il catalogo e riprendi i tuoi anime preferiti.</p></section>
+}
+@if(allHistory().length){<section class="content-section"><div class="section-heading"><h2>Continua a guardare</h2><button data-focus="home-history-all" (click)="go('history')">Vedi tutti →</button></div><div class="card-row">@for(h of allHistory().slice(0,12);track h.anime.id){<app-anime-card [anime]="h.anime" [progress]="progress(h.anime)" (select)="openAnime($event)" />}</div></section>}
+
+@if(recent().length){<section class="content-section"><div class="section-heading"><h2>Ultimi episodi</h2><button data-focus="home-recent-all" (click)="openRecent()">Vedi tutti →</button></div><div class="card-row">@for(a of recent().slice(0,18);track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div></section>}
+@if(featured().length){<section class="content-section"><div class="section-heading"><h2>In evidenza</h2></div><div class="card-row">@for(a of featured().slice(0,18);track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div></section>}
+<section class="content-section"><div class="section-heading"><h2>Scopri gli anime</h2><button (click)="go('catalog')">Vedi tutti →</button></div><div class="card-row">@for(a of cards().slice(0,20);track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div></section>
+
+@if(storage.settings()['exploreEnabled']!==false && exploration.recent().length){<section class="content-section"><div class="section-heading"><h2>Già esplorati</h2><button (click)="openExplored()">Vedi tutti →</button></div><div class="card-row">@for(item of exploration.recent().slice(0,18);track exploration.key(item.anime)){<div class="explored-tile"><app-anime-card [anime]="item.anime" (select)="openAnime($event)" /><p class="muted">{{item.feedback==='like'?'👍 Mi piace':item.feedback==='dislike'?'👎 Non mi interessa':'Esplorato'}}</p></div>}</div></section>}

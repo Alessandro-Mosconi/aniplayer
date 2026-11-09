@@ -1,0 +1,11 @@
+/* AnimeDetailPage: layout and colors inherit the existing global AniPlayer theme. */
+
+.watch-confirm-overlay{position:fixed;inset:0;z-index:100;background:#050914dd;display:flex;align-items:center;justify-content:center}.watch-confirm{max-width:850px;padding:48px;background:#202c46;border:2px solid #8698bd;border-radius:22px;font-size:25px}.watch-status{font-size:22px;color:#badaca}
+
+
+/* Keep the remote focus inside each button: tile overflow clips external outlines. */
+.episode-tile button:focus,.episode-tile button:focus-visible{position:relative;z-index:1;outline:0;box-shadow:inset 0 0 0 5px #fff;background:#dce5ff;color:#101b34;font-weight:800;transform:none}
+.episode-tile.watched .episode-seen:focus{color:#101b34}
+.episode-tile:focus-within{border-color:#dce5ff;box-shadow:0 0 0 2px #a5b8ff}
+
+.discovery-choice{align-items:center;flex-wrap:wrap;font-size:21px}.discovery-choice span{color:#c2cde5}.discovery-status{font-size:20px;color:#b8e6d4}.discovery-status:empty{display:none}

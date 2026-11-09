@@ -1,0 +1,1 @@
+<section class="page-heading"><p class="eyebrow">UNIVERSO ANIME</p><h1>Serie e film collegati</h1><p class="muted">{{related().length}} titoli</p></section><div class="catalog-grid">@for(a of related();track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div>

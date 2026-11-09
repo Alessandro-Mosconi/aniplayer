@@ -1,0 +1,47 @@
+﻿<section class="page-heading"><p class="eyebrow">LA TUA COLLEZIONE</p><h1>I miei anime</h1><p class="muted">La tua lista MAL, i progressi e le statistiche di visione.</p></section>
+@if(!library.available()){
+ <p class="empty">Per vedere questa sezione, allinea una lista pubblica da username oppure collega il tuo account MAL.</p><button class="primary" (click)="go('mal')">Configura MyAnimeList</button>
+}@else{
+ <div class="library-toolbar" data-focus-row><button [attr.aria-pressed]="view()==='dashboard'" (click)="view.set('dashboard')">Dashboard</button><button [attr.aria-pressed]="view()==='list'" (click)="view.set('list')">La mia lista</button><button [disabled]="library.loading()" (click)="refreshList()">{{library.loading()?'Aggiornamento…':'Aggiorna lista'}}</button></div>
+ <p class="muted">{{library.username()}} · {{library.source()==='account'?'Account collegato':'Lista pubblica da username'}} · {{library.rows().length}} anime in lista</p>
+ @if(library.mal.connected && library.publicMal.username()){
+  <div class="source-picker" data-focus-row><span>Visualizza:</span><button [attr.aria-pressed]="library.source()==='account'" (click)="changeSource('account')">Account · {{library.mal.rememberedUser}}</button><button [attr.aria-pressed]="library.source()==='public'" (click)="changeSource('public')">Username · {{library.publicMal.username()}}</button></div>
+ }
+ @if(library.error()){<p class="empty" role="status">{{library.error()}}</p>}
+ @if(library.loading()){<p class="muted" role="status">Aggiornamento di titoli, copertine e progressi…</p>}
+ @if(view()==='dashboard'){
+  @let stats=library.stats();
+  <section class="insight"><h2>Le tue scoperte su questa TV</h2><div class="library-toolbar" data-focus-row><button (click)="showExplored('seen')">{{exploration.stats().total}} esplorati</button><button (click)="showExplored('like')">👍 {{exploration.stats().liked}} mi piace</button><button (click)="showExplored('dislike')">👎 {{exploration.stats().disliked}} non mi interessa</button><button class="primary" (click)="go('explore')">Scopri il prossimo anime</button></div></section>
+  <div class="stats-grid">
+   <article class="stat"><span>Anime con episodi visti</span><strong>{{stats.started}}</strong><small>su {{stats.total}} titoli in lista</small></article>
+   <button class="stat" (click)="showStatus('completed')"><span>Completati</span><strong>{{stats.completed}}</strong><small>Apri la lista</small></button>
+   <button class="stat" (click)="showStatus('watching')"><span>In corso</span><strong>{{stats.watching}}</strong><small>Apri la lista</small></button>
+   <article class="stat"><span>Episodi visti</span><strong>{{stats.episodes|number}}</strong><small>progressi registrati su MAL</small></article>
+   <article class="stat"><span>Ore di visione stimate</span><strong>{{stats.timedEpisodes?(stats.hours|number:'1.0-1'):'—'}}</strong><small>Durata disponibile per {{stats.timedEpisodes}} episodi</small></article>
+   <article class="stat"><span>Media dei tuoi voti</span><strong>{{stats.rated?(stats.averageScore|number:'1.1-1'):'—'}}</strong><small>{{stats.rated}} anime visti e votati</small></article>
+  </div>
+  <p class="muted stats-note">Statistiche della lista selezionata. Il tempo è una stima basata sulla durata media degli episodi fornita da MAL; i voti non assegnati sono esclusi dalla media.</p>
+  <div class="insights-grid"><section class="insight"><h2>La tua lista, per stato</h2>@for(item of stats.statuses;track item.status){<button class="chart-row" (click)="showStatus(item.status)"><span>{{statusLabel(item.status)}}</span><span class="bar-track"><span [style.width.%]="stats.total?item.count/stats.total*100:0"></span></span><strong>{{item.count}}</strong></button>}</section>
+  <section class="insight"><h2>I generi che guardi di più</h2>@for(genre of stats.genres;track genre.name){<button class="chart-row genre-chart" (click)="showGenre(genre.name)"><span>{{genre.name}}</span><span class="bar-track"><span [style.width.%]="stats.started?genre.count/stats.started*100:0"></span></span><strong>{{genre.count}}</strong></button>}@if(!stats.genres.length){<p class="muted">I generi compariranno dopo aver scaricato i dettagli degli anime visti.</p>}</section></div>
+  <section class="insight progress-insight"><h2>Progresso delle serie iniziate</h2><p>{{stats.progress}}% degli episodi totali noti nelle serie che hai iniziato.</p><div class="bar-track" role="img" [attr.aria-label]="'Progresso '+stats.progress+' percento'"><span [style.width.%]="stats.progress"></span></div><button (click)="view.set('list')">Esplora tutti i miei anime</button></section>
+  @if(!library.rows().length&&!library.loading()){<p class="empty">La lista non è ancora scaricata. Premi Aggiorna lista per importarla.</p>}
+ }@else{
+  <div class="search-line" data-focus-row><input data-tv-input readonly data-focus="my-search" maxlength="200" type="search" aria-label="Cerca nella mia lista" placeholder="Cerca tra i miei anime…" [ngModel]="listFilters().query" (ngModelChange)="setFilter('query',$event)"><button class="primary" data-search-submit (click)="applySearch()">Cerca</button></div>
+  <div class="filter-bar" data-focus-row><button data-focus="my-filter-status" [attr.aria-expanded]="expanded()==='status'" (click)="togglePanel('status')">Stato: {{statusLabel(listFilters().status)}}</button><button data-focus="my-filter-type" [attr.aria-expanded]="expanded()==='type'" (click)="togglePanel('type')">Formato: {{listFilters().type||'Tutti'}}</button><button data-focus="my-filter-watch" [attr.aria-expanded]="expanded()==='watch'" (click)="togglePanel('watch')">Visti: {{watchLabel()}}</button><button data-focus="my-filter-genres" [attr.aria-expanded]="expanded()==='genres'" (click)="togglePanel('genres')">Generi: {{listFilters().genres.length||'Tutti'}}</button><button data-focus="my-filter-order" [attr.aria-expanded]="expanded()==='order'" (click)="togglePanel('order')">Ordine: {{orderLabel()}}</button><button (click)="reset()">Azzera filtri</button></div>
+  @if(expanded();as key){<section id="my-options" class="insight"><h2>Scegli il filtro</h2><div class="filter-options">
+  @switch(key){
+   @case('status'){@for(option of statuses;track option.value){<button [attr.aria-pressed]="listFilters().status===option.value" (click)="setFilter('status',option.value)">{{option.label}}</button>}}
+   @case('watch'){@for(option of watches;track option.value){<button [attr.aria-pressed]="listFilters().watch===option.value" (click)="setFilter('watch',option.value)">{{option.label}}</button>}}
+   @case('order'){@for(option of orders;track option.value){<button [attr.aria-pressed]="listFilters().order===option.value" (click)="setFilter('order',option.value)">{{option.label}}</button>}}
+   @case('type'){<button [attr.aria-pressed]="!listFilters().type" (click)="setFilter('type','')">Tutti</button>@for(type of types();track type){<button [attr.aria-pressed]="listFilters().type===type" (click)="setFilter('type',type)">{{type}}</button>}}
+   @case('genres'){<button [attr.aria-pressed]="!listFilters().genres.length" (click)="setFilter('genres',[])">Tutti i generi</button>@for(genre of genres();track genre){<button [attr.aria-pressed]="listFilters().genres.includes(genre)" (click)="toggleGenre(genre)">{{listFilters().genres.includes(genre)?'✓ ':''}}{{genre}}</button>}}
+  }</div><button data-filter-close (click)="closePanel()">Fatto</button></section>}
+  <p class="muted" role="status">{{filtered().length}} anime · Ricerca e filtri si applicano alla lista completa.</p>
+  @if(notice()){<section class="insight" role="status"><p>{{notice()}}</p>@if(selected()&&!opening()){<button (click)="searchCatalog()">Cerca il titolo nel catalogo</button>}</section>}
+  <div class="catalog-grid">@for(row of visible();track row.id){<button class="anime-card my-card" data-my-card [attr.data-focus]="'my-anime-'+row.id" (click)="openRow(row)"><span class="poster"><img [src]="row.anime?.image||'assets/images/aniplayer-icon-512.png'" [alt]="row.title" loading="lazy" (error)="fallback($event)"><span class="list-status">{{statusLabel(row.status)}}</span><span class="card-progress"><span [style.width.%]="row.total?100*row.watched/row.total:0"></span></span></span><span class="card-title">{{row.title}}</span><span class="card-sub">{{row.watched}} / {{row.total||'?'}} episodi @if(row.score){ · Il mio voto: {{row.score}}}</span>@if(opening()===row.id){<span class="card-sub">Ricerca nel catalogo…</span>}</button>}</div>
+  @if(!filtered().length&&!library.loading()){<p class="empty">Nessun anime corrisponde ai filtri. Prova ad azzerarli o ad aggiornare la lista.</p>}
+  <div class="pager"><button [disabled]="listPage()===0" (click)="turnPage(-1)">← Precedenti</button><span>Pagina {{listPage()+1}}</span><button [disabled]="(listPage()+1)*30>=filtered().length" (click)="turnPage(1)">Successivi →</button></div>
+ }
+}
+
+

@@ -1,0 +1,47 @@
+import {inject} from '@angular/core';
+import {AppFacadeService} from './app-facade.service';
+/** Shared page access to application state. Each page owns its template and can add its own behavior. */
+export abstract class PageBase {
+  protected readonly vm=inject(AppFacadeService);
+  readonly nav=this.vm.nav;
+  readonly catalog=this.vm.catalog;
+  readonly animeworld=this.vm.animeworld;
+  readonly storage=this.vm.storage;
+  readonly playback=this.vm.playback;
+  readonly prefetch=this.vm.prefetch;
+  readonly remote=this.vm.remote;
+  readonly mal=this.vm.mal;
+  readonly lib=this.vm.lib;
+  readonly tv=this.vm.tv;
+  readonly loading=this.vm.loading;
+  readonly error=this.vm.error;
+  readonly featured=this.vm.featured;
+  readonly recent=this.vm.recent;
+  readonly cards=this.vm.cards;
+  readonly total=this.vm.total;
+  readonly catalogTotalExact=this.vm.catalogTotalExact;
+  readonly catalogHasMore=this.vm.catalogHasMore;
+  readonly details=this.vm.details;
+  readonly related=this.vm.related;
+  readonly candidates=this.vm.candidates;
+  readonly audioMatches=this.vm.audioMatches;
+  readonly sourceNotice=this.vm.sourceNotice;
+  readonly searchText=this.vm.searchText;
+  readonly filters=this.vm.filters;
+  readonly page=this.vm.page;
+  readonly episodePage=this.vm.episodePage;
+  readonly activeDetail=this.vm.activeDetail;
+  readonly domainField=this.vm.domainField;
+  readonly malClient=this.vm.malClient;
+  readonly malRedirect=this.vm.malRedirect;
+  readonly malCallback=this.vm.malCallback;
+  readonly selectLanguage=this.vm.selectLanguage;
+  readonly allFavorites=this.vm.allFavorites;
+  readonly allHistory=this.vm.allHistory;
+  readonly viewTitle=this.vm.viewTitle;
+  readonly genreText=this.vm.genreText.bind(this.vm);
+  readonly back=this.vm.back.bind(this.vm);
+  readonly go=this.vm.go.bind(this.vm);
+  readonly openAnime=this.vm.openAnime.bind(this.vm);
+  readonly progress=this.vm.progress.bind(this.vm);
+}
