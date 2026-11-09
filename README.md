@@ -8,6 +8,8 @@ Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWor
 
 **Stato:** progetto in sviluppo, con test automatici e packaging Tizen. Il dispositivo di riferimento è Samsung S90F; il manifest richiede **Tizen 9.0**. La compatibilità con altri modelli e firmware non è garantita. Non è un’app ufficiale Samsung, MyAnimeList o dei provider.
 
+**Uso consentito:** utilizza AniPlayer esclusivamente con contenuti e servizi ai quali hai diritto di accedere. Consulta il [disclaimer su copyright e responsabilità](#disclaimer-copyright-e-uso-consentito).
+
 ## Indice
 
 - [Funzioni](#funzioni)
@@ -23,6 +25,7 @@ Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWor
 - [Problemi comuni](#problemi-comuni)
 - [Sviluppo e struttura](#sviluppo-e-struttura)
 - [Crediti e servizi utilizzati](#crediti-e-servizi-utilizzati)
+- [Disclaimer: copyright e uso consentito](#disclaimer-copyright-e-uso-consentito)
 - [Contributi e licenze](#contributi-e-licenze)
 
 ## Funzioni
@@ -360,6 +363,18 @@ AniPlayer è un progetto indipendente, non affiliato, approvato o sponsorizzato 
 - [QRCode.js](https://github.com/davidshimjs/qrcodejs), di David Shim e Kazuhiko Arase: generazione dei QR per il collegamento MAL; [licenza inclusa](src/assets/vendor/LICENSE.qrcodejs).
 
 Per i riconoscimenti e le licenze del codice incluso o derivato consulta [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Disclaimer: copyright e uso consentito
+
+AniPlayer è un client indipendente che interagisce con servizi di terze parti. Il repository non include né ospita i file video riprodotti. La presenza di un’integrazione, di un collegamento o di un risultato di ricerca **non certifica che il contenuto sia distribuito con il consenso dei titolari dei diritti**.
+
+Il software deve essere utilizzato esclusivamente per accedere a contenuti la cui fruizione sia autorizzata e consentita dalla normativa applicabile e dalle condizioni dei servizi interessati. Non è consentito utilizzare il progetto per violare diritti d’autore, eludere protezioni o accedere senza autorizzazione a contenuti o servizi. La disponibilità gratuita di un contenuto su Internet non equivale a un’autorizzazione al suo utilizzo.
+
+Gli autori non concedono diritti sui contenuti di terzi e non garantiscono la legittimità, la disponibilità o l’accuratezza delle fonti esterne. Gli utenti devono verificare di avere le autorizzazioni necessarie. Questa indicazione non esclude eventuali responsabilità degli autori o dei distributori previste dalla legge.
+
+Nomi, marchi, immagini e opere appartengono ai rispettivi titolari. Per segnalare una possibile violazione relativa a materiale presente nel repository, apri una segnalazione indicando il materiale interessato e i riferimenti utili, senza pubblicare dati personali o credenziali.
+
+**Questo disclaimer non costituisce consulenza legale, non rende leciti usi non autorizzati e non sostituisce una valutazione delle effettive funzioni e modalità di distribuzione del progetto.**
 
 ## Contributi e licenze
 
