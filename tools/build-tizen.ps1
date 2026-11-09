@@ -11,6 +11,7 @@ try {
  $browser=Join-Path $root 'dist/aniplayer/browser'
  if(!(Test-Path (Join-Path $browser 'index.html'))){throw "Output Angular non trovato: $browser"}
  $stage=Join-Path $root 'tizen'
+ if((Resolve-Path -LiteralPath $stage).Path -ne (Join-Path (Resolve-Path -LiteralPath $root).Path 'tizen')){throw 'Directory staging Tizen inattesa'}
  Get-ChildItem $stage -Force | Where-Object {$_.Name -notin @('.project','.tproject','config.xml')} | Remove-Item -Force -Recurse
  Copy-Item (Join-Path $browser '*') -Destination $stage -Recurse -Force
  Copy-Item (Join-Path $root 'src/assets/images/icon.png') (Join-Path $stage 'icon.png') -Force

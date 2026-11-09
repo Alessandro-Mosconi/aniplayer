@@ -1,6 +1,12 @@
 package org.aniplayer.tv;
 
 import android.app.Activity;
+import android.app.UiModeManager;
+import android.app.PictureInPictureParams;
+import android.util.Rational;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.content.pm.ActivityInfo;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -23,6 +29,9 @@ public class MainActivity extends Activity {
  private static final String ORIGIN="https://appassets.androidplatform.net";
  private WebView web;
  private boolean ready=false;
+ private boolean television=false;
+ private volatile boolean pipActive=false,videoPlaying=false;
+ private int pipWidth=16,pipHeight=9;
  private String requestAgent="AniPlayerTV";
  private String launchUrl="";
  private final ExecutorService network=Executors.newFixedThreadPool(6);
@@ -32,8 +41,11 @@ public class MainActivity extends Activity {
 
  @Override public void onCreate(Bundle saved){
   super.onCreate(saved);
+  UiModeManager mode=(UiModeManager)getSystemService(UI_MODE_SERVICE);
+  television=mode.getCurrentModeType()==Configuration.UI_MODE_TYPE_TELEVISION||getPackageManager().hasSystemFeature("android.software.leanback");
+  if(television)setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
   getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-  getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+  if(television)getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
   web=new WebView(this);setContentView(web);
   WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);settings.setMediaPlaybackRequiresUserGesture(false);
   settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
@@ -85,11 +97,33 @@ public class MainActivity extends Activity {
   if(ready&&key!=null){sendKey(event.getAction()==KeyEvent.ACTION_UP?"keyup":"keydown",key,js,event.getRepeatCount()>0);return true;}return super.dispatchKeyEvent(event);
  }
  @Override public void onBackPressed(){if(ready)sendKey("keydown","Back",10009,false);else super.onBackPressed();}
- @Override protected void onPause(){super.onPause();if(web!=null){evaluate("document.querySelectorAll('video').forEach(function(v){v.pause();});window.dispatchEvent(new Event('aniplayer-suspend'));");web.onPause();}}
+ private boolean supportsPip(){return !television&&getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);}
+ private void pipEvent(boolean active,String error){evaluate("window.dispatchEvent(new CustomEvent('aniplayer-pip',{detail:{active:"+active+",error:"+JSONObject.quote(error)+"}}));");}
+ private void enterPip(){
+  if(!supportsPip()||!videoPlaying||pipActive){if(!pipActive)pipEvent(false,"Avvia il video per usare il Picture-in-Picture.");return;}
+  try{
+   // Android accepts aspect ratios between 1:2.39 and 2.39:1.
+   float ratio=(float)pipWidth/Math.max(1,pipHeight);int width=Math.max(100,Math.min(239,Math.round(ratio*100))),height=100;
+   if(ratio<1){width=100;height=Math.max(100,Math.min(239,Math.round(100/Math.max(.01f,ratio))));}
+   pipActive=true;
+   boolean entered=enterPictureInPictureMode(new PictureInPictureParams.Builder().setAspectRatio(new Rational(width,height)).build());
+   if(!entered){pipActive=false;pipEvent(false,"Picture-in-Picture non consentito: verifica le autorizzazioni Android.");}
+  }catch(Exception error){pipActive=false;pipEvent(false,"Impossibile aprire il Picture-in-Picture: verifica le autorizzazioni Android.");}
+ }
+ @Override protected void onUserLeaveHint(){super.onUserLeaveHint();if(videoPlaying&&supportsPip())enterPip();}
+ @Override public void onPictureInPictureModeChanged(boolean active,Configuration config){super.onPictureInPictureModeChanged(active,config);pipActive=active;pipEvent(active,"");if(web!=null)web.onResume();}
+ private void suspendWeb(){if(web!=null){evaluate("document.querySelectorAll('video').forEach(function(v){v.pause();});window.dispatchEvent(new Event('aniplayer-suspend'));");web.onPause();}}
+ @Override protected void onPause(){super.onPause();if(!pipActive&&!isInPictureInPictureMode())suspendWeb();}
+ @Override protected void onStop(){super.onStop();pipActive=false;videoPlaying=false;pipEvent(false,"");suspendWeb();}
  @Override protected void onResume(){super.onResume();if(web!=null)web.onResume();}
  @Override protected void onDestroy(){for(HttpURLConnection connection:connections.values())connection.disconnect();network.shutdownNow();if(web!=null){web.removeJavascriptInterface("AniPlayerNative");web.destroy();web=null;}super.onDestroy();}
 
  private class NativeBridge {
+  @JavascriptInterface public boolean isPipSupported(){return supportsPip();}
+  @JavascriptInterface public boolean isPipActive(){return pipActive;}
+  @JavascriptInterface public void enterPip(int width,int height){runOnUiThread(()->{pipWidth=width;pipHeight=height;MainActivity.this.enterPip();});}
+  @JavascriptInterface public void setPipPlayback(boolean playing,int width,int height){runOnUiThread(()->{videoPlaying=playing;pipWidth=Math.max(1,width);pipHeight=Math.max(1,height);});}
+  @JavascriptInterface public boolean isTelevision(){return television;}
   @JavascriptInterface public void exit(){runOnUiThread(()->finish());}
   @JavascriptInterface public void setKeyboard(boolean visible){runOnUiThread(()->{InputMethodManager ime=(InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);if(visible)web.postDelayed(()->{if(web!=null)ime.showSoftInput(web,InputMethodManager.SHOW_IMPLICIT);},100);else ime.hideSoftInputFromWindow(web.getWindowToken(),0);});}
   @JavascriptInterface public void openExternal(String url){runOnUiThread(()->openBrowser(url));}

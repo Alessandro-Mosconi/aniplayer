@@ -5,11 +5,36 @@ import {Anime,CatalogFilters} from '../../core/models';
 import {CatalogProgressService} from '../../core/catalog-progress.service';
 import {ExplorationService} from '../../core/exploration.service';
 import {remoteKey} from '../../core/remote.service';
+import {LayoutService} from '../../core/layout.service';
 @Component({selector:'app-explore-page',standalone:true,imports:[CommonModule],templateUrl:'./explore.page.html',styleUrl:'./explore.page.scss'})
 export class ExplorePage extends PageBase implements OnInit,OnDestroy {
  readonly exploration=inject(ExplorationService);private source=inject(CatalogProgressService);
+ readonly layout=inject(LayoutService);
+ readonly showInfo=signal(false);readonly showFilters=signal(false);readonly showHelp=signal(false);
  readonly transition=signal<'left'|'right'|'down'|null>(null);readonly favoritePulse=signal(false);readonly entering=signal(false);readonly undoAvailable=signal(false);private lastAction:{anime:Anime;record:any;favorite:boolean}|null=null;private actionLocked=false;
  readonly current=signal<Anime|null>(null);readonly busy=signal(false);readonly message=signal('');readonly saved=signal('');
+ readonly drag=signal<{x:number;y:number}|null>(null);
+ private gesture:{id:number;x:number;y:number;at:number;target:HTMLElement}|null=null;
+ readonly swipeHint=computed(()=>{const d=this.drag();if(!d||Math.max(Math.abs(d.x),Math.abs(d.y))<35)return '';return Math.abs(d.x)>Math.abs(d.y)?(d.x>0?'Mi piace':'Non mi interessa'):(d.y<0?'Preferiti':'Salta');});
+ swipeStart(event:PointerEvent){
+  if(!event.isPrimary){this.cancelSwipe();return;}
+  if(!['touch','pen'].includes(event.pointerType)||this.busy()||this.actionLocked||!this.current())return;
+  const target=event.currentTarget as HTMLElement;
+  this.gesture={id:event.pointerId,x:event.clientX,y:event.clientY,at:performance.now(),target};
+  target.setPointerCapture(event.pointerId);this.drag.set({x:0,y:0});
+ }
+ swipeMove(event:PointerEvent){const g=this.gesture;if(!g||g.id!==event.pointerId)return;this.drag.set({x:event.clientX-g.x,y:event.clientY-g.y});}
+ swipeEnd(event:PointerEvent){
+  const g=this.gesture;if(!g||g.id!==event.pointerId)return;
+  const x=event.clientX-g.x,y=event.clientY-g.y,elapsed=performance.now()-g.at;
+  this.cancelSwipe();
+  // Require a deliberate, clearly directional gesture; taps/diagonals do nothing.
+  const major=Math.max(Math.abs(x),Math.abs(y)),minor=Math.min(Math.abs(x),Math.abs(y));
+  if(major<60||major<minor*1.3||elapsed>1800)return;
+  if(Math.abs(x)>Math.abs(y))void this.react(x>0?'like':'dislike');
+  else if(y<0)this.favorite();else void this.skip();
+ }
+ cancelSwipe(){const g=this.gesture;this.gesture=null;this.drag.set(null);if(g?.target.hasPointerCapture(g.id))g.target.releasePointerCapture(g.id);}
  readonly isFavorite=computed(()=>{const anime=this.current();return !!anime&&this.storage.isFavorite(anime);});
  readonly plot=computed(()=>String(this.current()?.plot||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim());
  private pool:Anime[]=[];private destroyed=false;private hasMore=true;private offset=0;private deckSeen=new Set<string>();private menuRequested=false;
@@ -35,9 +60,9 @@ export class ExplorePage extends PageBase implements OnInit,OnDestroy {
   if(event.repeat&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key))return true;
   if(key==='ArrowLeft'){void this.react('dislike');return true;}if(key==='ArrowRight'){void this.react('like');return true;}if(key==='ArrowUp'){this.favorite();return true;}if(key==='ArrowDown'){void this.skip();return true;}if(key==='Enter'&&this.current()){this.openAnime(this.current()!);return true;}return false;
  });void this.next();}
- focusMenu(){this.menuRequested=true;this.remote.focus(document.querySelector<HTMLElement>('.sidebar nav button.active')||document.querySelector<HTMLElement>('.sidebar nav button'));}
+ focusMenu(){this.menuRequested=true;if(this.layout.mobile()){document.querySelector<HTMLElement>('[data-mobile-menu-open]')?.click();return;}this.remote.focus(document.querySelector<HTMLElement>('.sidebar nav button.active')||document.querySelector<HTMLElement>('.sidebar nav button'));}
  cardFocused(){this.menuRequested=false;}
- ngOnDestroy(){this.destroyed=true;this.remote.setExploreHandler(null);}
+ ngOnDestroy(){this.cancelSwipe();this.destroyed=true;this.remote.setExploreHandler(null);}
  async next(){
   if(this.busy())return;this.busy.set(true);this.message.set('Cerco il prossimo anime…');
   try{
@@ -49,7 +74,7 @@ export class ExplorePage extends PageBase implements OnInit,OnDestroy {
    }
    while(!candidate&&this.pool.length){const anime=this.pool.shift()!;if(!this.deckSeen.has(this.exploration.key(anime))&&this.exploration.matches(anime,this.activeFilters.explored))candidate=anime;}
    if(this.destroyed)return;
-   if(candidate){this.deckSeen.add(this.exploration.key(candidate));this.exploration.mark(candidate);this.current.set(candidate);this.message.set('');setTimeout(()=>{if(!this.destroyed&&!this.menuRequested)this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));});}
+   if(candidate){this.deckSeen.add(this.exploration.key(candidate));this.exploration.mark(candidate);this.current.set(candidate);this.showInfo.set(false);this.message.set('');setTimeout(()=>{if(!this.destroyed&&!this.menuRequested&&!this.layout.mobile())this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));});}
    else {this.current.set(null);this.message.set(this.hasMore?'Non ho ancora trovato un titolo con questi filtri. Premi Continua ricerca.':'Hai terminato gli anime disponibili con questi filtri. Puoi rivedere quelli già esplorati.');}
   }catch(error){if(!this.destroyed)this.message.set(error instanceof Error?error.message:'Esplorazione non disponibile.');}
   finally{if(!this.destroyed)this.busy.set(false);}
@@ -59,7 +84,7 @@ export class ExplorePage extends PageBase implements OnInit,OnDestroy {
  async react(feedback:'like'|'dislike'){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;try{this.remember(anime);this.exploration.mark(anime,feedback);this.saved.set((feedback==='like'?'Mi piace salvato: ':'Non mi interessa salvato: ')+this.viewTitle(anime));await this.animate(feedback==='like'?'right':'left');}catch(error){this.actionLocked=false;this.message.set(error instanceof Error?error.message:'Scelta non salvata.');}}
  async skip(){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;this.remember(anime);this.saved.set('Saltato: '+this.viewTitle(anime));await this.animate('down');}
  favorite(){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;this.remember(anime);this.storage.toggleFavorite(anime);this.favoritePulse.set(false);setTimeout(()=>this.favoritePulse.set(true));setTimeout(()=>this.favoritePulse.set(false),500);this.saved.set((this.isFavorite()?'Aggiunto ai preferiti: ':'Rimosso dai preferiti: ')+this.viewTitle(anime));}
- undo(){const action=this.lastAction;if(!action||this.busy()||this.actionLocked)return;try{this.exploration.restore(action.anime,action.record);if(this.storage.isFavorite(action.anime)!==action.favorite)this.storage.toggleFavorite(action.anime);this.current.set(action.anime);this.saved.set('Scelta annullata: '+this.viewTitle(action.anime));this.undoAvailable.set(false);this.lastAction=null;this.entering.set(true);setTimeout(()=>{this.entering.set(false);if(!this.destroyed&&!this.menuRequested)this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));},300);}catch(error){this.message.set(error instanceof Error?error.message:'Impossibile annullare.');}}
+ undo(){const action=this.lastAction;if(!action||this.busy()||this.actionLocked)return;try{this.exploration.restore(action.anime,action.record);if(this.storage.isFavorite(action.anime)!==action.favorite)this.storage.toggleFavorite(action.anime);this.current.set(action.anime);this.saved.set('Scelta annullata: '+this.viewTitle(action.anime));this.undoAvailable.set(false);this.lastAction=null;this.entering.set(true);setTimeout(()=>{this.entering.set(false);if(!this.destroyed&&!this.menuRequested&&!this.layout.mobile())this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));},300);}catch(error){this.message.set(error instanceof Error?error.message:'Impossibile annullare.');}}
  resetCurrent(){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;try{this.remember(anime);this.exploration.resetFeedback(anime);this.saved.set('Preferenza eliminata: '+this.viewTitle(anime));}catch(error){this.message.set(error instanceof Error?error.message:'Impossibile eliminare.');}}
  restart(){this.activeFilters={...this.activeFilters,explored:'all',randomSeed:Math.floor(Math.random()*4294967296)};this.pool=[];this.offset=0;this.deckSeen.clear();this.hasMore=true;void this.next();}
  fallback(event:Event){const image=event.target as HTMLImageElement;if(!image.src.endsWith('aniplayer-icon-512.png'))image.src='assets/images/aniplayer-icon-512.png';}

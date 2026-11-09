@@ -1,5 +1,6 @@
 import {TvSwitchComponent} from '../../components/tv-switch.component';
 import {SidebarService} from '../../core/sidebar.service';
+import {LayoutService} from '../../core/layout.service';
 import {RouteName} from '../../core/navigation.service';
 import {Component,inject} from '@angular/core';
 import {CommonModule} from '@angular/common';
@@ -11,6 +12,7 @@ import {ExplorationService} from '../../core/exploration.service';
 @Component({selector:'app-settings-page',standalone:true,imports:[TvSwitchComponent,CommonModule,FormsModule],templateUrl:'./settings.page.html',styleUrl:'./settings.page.scss'})
 export class SettingsPage extends PageBase {
   readonly sidebar=inject(SidebarService);
+  readonly layout=inject(LayoutService);
   moveMenu(id:RouteName,direction:-1|1){this.sidebar.move(id,direction);setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-menu-item="'+id+'"] button:not(:disabled)')));}
   readonly publicMal=inject(MalPublicService);
   readonly exploration=inject(ExplorationService);

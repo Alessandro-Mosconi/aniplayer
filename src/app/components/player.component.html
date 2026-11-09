@@ -1,6 +1,6 @@
 <section id="player" [hidden]="!p.state().opened" aria-label="Riproduzione video">
  <object #avObject id="av-player" type="application/avplayer" [hidden]="p.html5()"></object>
- <video #htmlVideo id="html-player" playsinline [hidden]="!p.html5()" (timeupdate)="p.onHtmlTime()" (waiting)="p.onHtmlWaiting()" (playing)="p.onHtmlPlaying()" (ended)="p.onHtmlEnded()"></video>
+ <video #htmlVideo id="html-player" playsinline [hidden]="!p.html5()" (click)="p.showControls()" (timeupdate)="p.onHtmlTime()" (waiting)="p.onHtmlWaiting()" (playing)="p.onHtmlPlaying()" (ended)="p.onHtmlEnded()"></video>
  @if(p.controls() || p.state().error){
   <div class="player-heading">
    <div><p class="eyebrow">EPISODIO {{p.state().episode}}</p><h1>{{p.state().title}}</h1></div>
@@ -13,6 +13,7 @@
  @if(p.showNextEpisode && !p.selectMenu() && p.scrub()===null){<button #nextEpisodeButton class="next-episode-prompt" data-focus="player-next-episode" (click)="p.next()">Prossimo episodio <span aria-hidden="true">→</span><small>Episodio {{p.nextEpisode!.number}} · Premi OK</small></button>}
  @if(p.controls()){
  <div id="p-controls" class="player-controls">
+  @if(pip.notice()){<p class="pip-notice" role="status">{{pip.notice()}}</p>}
   @if(p.introStatus()){<div class="intro-status" role="status">{{p.introStatus()}}</div>}
   @if(p.aniSkipDuration() && !p.intro()){
    <div class="intro-fallback toolbar" aria-label="Salto manuale in base alla lunghezza AniSkip">
@@ -31,6 +32,7 @@
    <div class="toolbar">
     <button data-focus="p-back" (click)="p.seekBy(-30)">−30 s</button>
     <button data-focus="p-toggle" (click)="p.toggle()">{{p.state().playing?'Ⅱ Pausa':'▶ Riprendi'}}</button>
+    @if(p.html5()&&pip.supported()){<button data-focus="p-pip" (click)="pip.enter()" aria-label="Picture-in-Picture">PiP &#8599;</button>}
     <button data-focus="p-next" (click)="p.seekBy(30)">+30 s</button>
     @if(p.nextEpisode){<button data-focus="p-episode-next" (click)="p.next()">Episodio successivo →</button>}
     <button data-focus="p-intro" (click)="editIntro()">Sigla</button>

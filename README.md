@@ -10,6 +10,19 @@ Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWor
 
 **Uso consentito:** utilizza AniPlayer esclusivamente con contenuti e servizi ai quali hai diritto di accedere. Consulta il [disclaimer su copyright e responsabilità](#disclaimer-copyright-e-uso-consentito).
 
+## Prova su telefono
+
+La Smart TV resta la piattaforma principale. Su telefono il layout adattivo usa un menu hamburger in alto: tocca ☰ per aprirlo, scegli una voce oppure tocca lo sfondo per chiuderlo. Ricerca, filtri e comandi si adattano allo spazio disponibile. In **Impostazioni → Versione PC** puoi attivare il layout adattivo o tornare alle dimensioni TV; la preferenza resta sul dispositivo.
+
+- **Android (APK, Android 8 o superiore):** installa `Release/AniPlayer-AndroidTV-debug.apk`, lo stesso pacchetto delle TV Android. Su telefono usa le dimensioni dello schermo e consente la rotazione; su Android TV mantiene il layout TV orizzontale. Per aggiornare reinstalla con la stessa firma.
+- **Browser del telefono:** sul PC avvia `npm start`, poi apri `http://IP_DEL_PC:4200` dal telefono sulla stessa rete Wi-Fi. Consenti Node.js nel firewall per la rete privata. Usa l'IP locale del PC, non `localhost`. Il server di sviluppo deve restare acceso per fornire anche il proxy necessario alle richieste dei provider.
+
+In **Esplora mobile**, la copertina e le quattro azioni restano in primo piano. Apri **Info anime** per leggere generi e descrizione o accedere agli episodi; **Filtri** mostra le selezioni attive e **?** spiega i gesti. Fai swipe sulla copertina: destra per Mi piace, sinistra per Non mi interessa, su per aggiungere/rimuovere dai preferiti, giù per saltare. Sul testo puoi scorrere normalmente la pagina. Restano disponibili i pulsanti, Annulla ultima azione e le frecce del telecomando sulla TV.
+
+**Picture-in-Picture (PiP):** durante il video premi **PiP ↗** nei comandi del player. Nell'APK Android su telefono puoi anche premere Home mentre il video è in riproduzione. La finestrella mostra solo il video; toccala per tornare all'app. Android deve supportare e autorizzare il PiP per AniPlayer. Nel browser il pulsante compare solo quando le API PiP sono disponibili: il supporto varia per browser e dispositivo e può richiedere HTTPS. Le TV mantengono la riproduzione normale. [Documentazione Android](https://developer.android.com/develop/ui/views/picture-in-picture), [API PiP del browser](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestPictureInPicture).
+
+Nel browser la riproduzione dipende dai formati e dalle regole CORS del servizio video. L'APK mobile è sperimentale: le verifiche responsive e la compilazione non sostituiscono una prova sul telefono reale.
+
 ## Installa AniPlayer sulla tua Smart TV
 
 Scegli il **sistema operativo** della TV, non soltanto il marchio: per esempio, televisori dello stesso produttore possono usare Google TV oppure VIDAA. Lo trovi nelle informazioni del dispositivo.
@@ -231,6 +244,22 @@ $sdb = Join-Path $env:USERPROFILE '.tizen-extension-platform/server/sdktools/dat
 La TV deve comparire tra i dispositivi connessi. Evita reti ospiti con isolamento tra dispositivi; PC e TV devono potersi raggiungere.
 
 ## Compilare il pacchetto
+
+Per rigenerare **tutte le versioni** (Samsung, LG, APK Android/Fire OS e browser), dalla cartella del progetto:
+
+```powershell
+npm run build:all
+```
+
+Il comando esegue prima i controlli e compila Angular una sola volta, poi prepara i pacchetti in sequenza. Richiede gli SDK delle piattaforme e un profilo Samsung valido. I pacchetti vengono salvati in `Release/`, la versione browser in `dist/platforms/web/`. Se un passaggio fallisce, il comando si interrompe.
+
+Per inviare il pacchetto Samsung appena generato alla TV configurata (`192.168.1.103`):
+
+```powershell
+npm run dist
+```
+
+Il deploy esegue **backup prima dell'installazione**, ripristina i dati e avvia AniPlayer. Se il backup fallisce, non installa. Per aggiornare anche la build Samsung prima dell'invio usa `npm run dist -- -Build`; per un IP diverso usa `npm run dist -- -TvIp 192.168.1.50`. I backup restano privati in `tools/local-private/` e non vanno pubblicati.
 
 Il profilo predefinito è `SamsungS90F`. **I certificati non sono inclusi:** usa il nome del tuo profilo, ad esempio:
 

@@ -34,3 +34,12 @@ test('Android network bridge reassembles chunked binary responses without changi
 test('Android TV high-density screens scale the complete 1920px UI into the visible area',()=>{
  const fixture=runtime(undefined);let content='';fixture.context.window.AniPlayerNative={};fixture.context.window.screen={width:960};fixture.context.document.querySelector=()=>({setAttribute:(key,value)=>content=value});vm.runInNewContext(source,fixture.context);assert.match(content,/width=1920,initial-scale=0\.5/);
 });
+
+test('Android phone bridge uses device width instead of the fixed TV viewport',()=>{
+ const fixture=runtime(undefined);let content='';
+ fixture.context.window.AniPlayerNative={isTelevision:()=>false};
+ fixture.context.window.screen={width:390};
+ fixture.context.document.querySelector=()=>({setAttribute:(key,value)=>content=value});
+ vm.runInNewContext(source,fixture.context);
+ assert.equal(content,'width=device-width,initial-scale=1');
+});

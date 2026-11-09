@@ -18,6 +18,11 @@ export class RemoteService {
   setExploreHandler(handler:((event:KeyboardEvent)=>boolean)|null){this.exploreHandler=handler;}
   constructor(private tv:TizenService){
     this.tv.setKeys();
+    // Touch/mouse activates editable fields; remote focus alone keeps them locked.
+    document.addEventListener('pointerdown',e=>{
+      const field=e.target;
+      if(document.documentElement.classList.contains('browser-layout')&&(field instanceof HTMLInputElement||field instanceof HTMLTextAreaElement)&&field.hasAttribute('data-tv-input'))field.readOnly=false;
+    },true);
     document.addEventListener('keydown',e=>this.onKey(e),true);
     document.addEventListener('focusout',e=>{const el=e.target;if((el instanceof HTMLInputElement||el instanceof HTMLTextAreaElement)&&el.hasAttribute('data-tv-input'))el.readOnly=true;});
   }

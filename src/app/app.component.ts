@@ -1,5 +1,6 @@
 import {SidebarService} from './core/sidebar.service';
-import {Component,inject} from '@angular/core';
+import {LayoutService} from './core/layout.service';
+import {Component,inject,effect,HostListener} from '@angular/core';
 import {AppFacadeService} from './core/app-facade.service';
 import {PlayerComponent} from './components/player.component';
 import {AnimeLoaderComponent} from './components/anime-loader.component';
@@ -19,6 +20,7 @@ import {ExplorePage} from './pages/explore/explore.page';
 export class AppComponent {
   // A small shell: app state, layout and cross-page player are shared.
   readonly sidebar=inject(SidebarService);
+  readonly layout=inject(LayoutService);
   readonly vm=inject(AppFacadeService);
   readonly malLibrary=inject(MalLibraryService);
   readonly nav=this.vm.nav;
@@ -27,5 +29,16 @@ export class AppComponent {
   readonly playback=this.vm.playback;
   readonly loading=this.vm.loading;
   readonly error=this.vm.error;
-  go(name: Parameters<AppFacadeService['go']>[0]){this.vm.go(name);}
+  constructor(){effect(()=>{const route=this.nav.route();this.layout.menuOpen.set(false);});}
+  openMobileMenu(){this.layout.menuOpen.set(true);setTimeout(()=>document.querySelector<HTMLElement>('[data-mobile-menu-close]')?.focus({preventScroll:true}));}
+  closeMobileMenu(){this.layout.menuOpen.set(false);setTimeout(()=>document.querySelector<HTMLElement>('[data-mobile-menu-open]')?.focus({preventScroll:true}));}
+  @HostListener('document:keydown',['$event'])
+  trapMobileMenu(event:KeyboardEvent){
+   if(event.key!=='Tab'||!this.layout.mobile()||!this.layout.menuOpen())return;
+   const items=Array.from(document.querySelectorAll<HTMLButtonElement>('#main-navigation button:not(:disabled)'));
+   const first=items[0],last=items[items.length-1];
+   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
+   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
+  }
+  go(name: Parameters<AppFacadeService['go']>[0]){this.layout.menuOpen.set(false);this.vm.go(name);}
 }

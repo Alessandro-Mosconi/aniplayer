@@ -6,6 +6,16 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import {webcrypto} from 'node:crypto';
 
+test('PiP keeps background playback only while the system displays the video',()=>{
+ const {pictureInPictureActive}=load('src/app/core/picture-in-picture.ts');
+ assert.equal(pictureInPictureActive({},{}),false);
+ assert.equal(pictureInPictureActive({AniPlayerNative:{isPipActive:()=>false}},{}),false);
+ assert.equal(pictureInPictureActive({AniPlayerNative:{isPipActive:()=>true}},{}),true);
+ assert.equal(pictureInPictureActive({},{pictureInPictureElement:{}}),true);
+ assert.equal(pictureInPictureActive({},{querySelector:()=>({webkitPresentationMode:'picture-in-picture'})}),true);
+ assert.equal(pictureInPictureActive({},{querySelector:()=>({webkitPresentationMode:'inline'})}),false);
+});
+
 function load(path,globals={},dependencies={}){
  const exports={};
  const signal=value=>Object.assign(()=>value,{set:next=>value=next,update:fn=>value=fn(value)});

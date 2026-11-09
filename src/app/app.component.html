@@ -1,14 +1,20 @@
 ﻿<div id="shell" [hidden]="playback.state().opened">
- <aside class="sidebar">
+ @if(layout.mobile()){
+  <header class="mobile-header" [attr.inert]="layout.menuOpen()?'':null"><button data-mobile-menu-open aria-label="Apri menu" aria-controls="main-navigation" [attr.aria-expanded]="layout.menuOpen()" (click)="openMobileMenu()">&#9776;</button><img src="assets/images/aniplayer-logo.png" alt=""><strong>ANIPLAYER</strong></header>
+  @if(layout.menuOpen()){<button class="mobile-menu-backdrop" aria-label="Chiudi menu" tabindex="-1" (click)="closeMobileMenu()"></button>}
+ }
+ <aside id="main-navigation" class="sidebar" [class.mobile-drawer-open]="layout.menuOpen()" [attr.inert]="layout.mobile()&&!layout.menuOpen()?'':null" [attr.role]="layout.mobile()&&layout.menuOpen()?'dialog':null" [attr.aria-modal]="layout.mobile()&&layout.menuOpen()?'true':null" [attr.data-tv-dialog]="layout.mobile()&&layout.menuOpen()?'':null" aria-label="Menu principale">
+  @if(layout.mobile()){<button class="mobile-menu-close" data-mobile-menu-close data-dialog-cancel aria-label="Chiudi menu" (click)="closeMobileMenu()">&#10005; Chiudi</button>}
   <div class="brand"><img class="brand-icon" src="assets/images/aniplayer-logo.png" alt="" /><span class="brand-word">ANI<span>PLAYER</span></span></div>
   <nav aria-label="Navigazione principale">
    @for(item of sidebar.items();track item.id){@if(item.visible && (item.id!=='explore'||vm.storage.settings()['exploreEnabled']!==false) && (item.id!=='my-anime'||malLibrary.available())){<button [attr.data-focus]="'nav-'+item.id" [class.active]="nav.route().name===item.id" [attr.aria-current]="nav.route().name===item.id?'page':null" (click)="go(item.id)"><span class="nav-symbol">{{item.icon}}</span> {{item.label}}</button>}}
   </nav>
   <div class="sidebar-bottom"><span class="pill">{{vm.tv.label}}</span><p>Le tue storie.<br />Il tuo schermo.</p></div>
  </aside>
- <div class="workspace">
+ <div class="workspace" [attr.inert]="layout.mobile()&&layout.menuOpen()?'':null">
   <header class="topbar"><div class="provider-status" role="status"><span [class.connected]="catalog.online()">{{catalog.online()?'AnimeUnity · connesso':'AnimeUnity · verifica connessione'}}</span><span [class.connected]="animeworld.online()" [class.disconnected]="animeworld.connectionStatus()==='offline'" [attr.title]="animeworld.connectionError() || null">AnimeWorld · {{animeworld.connectionStatus()==='online'?'connesso':animeworld.connectionStatus()==='checking'?'verifica in corso':animeworld.connectionStatus()==='offline'?'non raggiungibile':'da verificare'}}</span></div><span>Frecce per navigare · OK per scegliere · Return per tornare</span></header>
   <main id="view" [attr.aria-busy]="loading()">
+   @if(nav.route().name==='detail'||nav.route().name==='related'||nav.route().name==='mal'||nav.route().name==='diagnostics'){<button class="touch-back" (click)="vm.back()">← Indietro</button>}
    @if(error()) {<section class="error-panel" role="status"><span>{{error()}}</span><button (click)="error.set('')">Chiudi</button></section>}
    @if(loading() && nav.route().name!=='catalog') {<app-anime-loader message="Caricamento catalogo…" />}
 

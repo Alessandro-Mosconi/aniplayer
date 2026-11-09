@@ -11,6 +11,7 @@ import {LibraryService} from './library.service';
 import {TizenService} from './tizen.service';
 import {IntroPrefetchService} from './intro-prefetch.service';
 import {CatalogProgressService} from './catalog-progress.service';
+import {pictureInPictureActive} from './picture-in-picture';
 @Injectable({providedIn:'root'})
 export class AppFacadeService {
  readonly nav=inject(NavigationService);readonly catalog=inject(CatalogService);readonly animeworld=inject(AnimeWorldService);
@@ -33,8 +34,8 @@ export class AppFacadeService {
   this.remote.configure({player:e=>this.playback.handleKey(e),back:()=>this.back(),playerActive:()=>this.playback.state().opened});
   this.playback.onClosed=()=>this.remote.restore();
   effect(()=>{const route=this.nav.route();untracked(()=>void this.load(route));});
-  window.addEventListener('aniplayer-suspend',()=>this.playback.pause());
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)this.playback.pause();});
+  window.addEventListener('aniplayer-suspend',()=>{if(!pictureInPictureActive(window,document))this.playback.pause();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&!pictureInPictureActive(window,document))this.playback.pause();});
  }
  readonly exitPrompt=signal(false);private exitFocus:HTMLElement|null=null;
  back(){

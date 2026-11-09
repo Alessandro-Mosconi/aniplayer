@@ -1,0 +1,53 @@
+/* Applied only by the PC layout switch; TV dimensions remain unchanged. */
+.browser-layout {
+ body, app-root, #shell, .workspace { min-width: 0; }
+ #shell { max-width: 100%; }
+ button { font-size: 17px; min-height: 44px; padding: 11px 16px; }
+ input, select { font-size: 17px; padding: 12px; }
+ h1 { font-size: clamp(28px, 3vw, 44px); }
+ h2 { font-size: 26px; }
+ h3 { font-size: 21px; }
+ .sidebar { width: 230px; flex-basis: 230px; padding: 24px 16px; overflow-y: auto; }
+ .brand { min-height: 85px; padding-bottom: 24px; }
+ .brand-icon { width: 44px; height: 44px; }
+ .brand-word { font-size: 19px; }
+ .sidebar nav { gap: 8px; }
+ .sidebar nav button { font-size: 18px; padding: 13px 14px; }
+ .nav-symbol { width: 32px; font-size: 23px; }
+ .sidebar-bottom { font-size: 15px; padding: 20px 10px; }
+ .topbar { padding: 14px 28px; min-height: 60px; flex-wrap: wrap; gap: 12px; font-size: 14px; }
+ #view { padding: 28px 32px 60px; min-height: calc(100vh - 60px); }
+ .hero { min-width: 0; min-height: clamp(350px, 52vh, 560px); padding: clamp(24px, 4vw, 55px); }
+ .hero-content { min-width: 0; max-width: 850px; }
+ .hero h1 { font-size: clamp(32px, 4vw, 56px); }
+ .hero .hero-meta { font-size: 18px; }
+ .hero .hero-plot { font-size: 18px; max-height: 135px; margin: 22px 0; }
+ .hero .toolbar { margin-top: 24px; }
+ .section-heading, .search-line { flex-wrap: wrap; }
+ .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(min(165px, 100%), 1fr)); }
+ .catalog-grid .poster { height: auto; aspect-ratio: 2 / 3; }
+ .setting-card { padding: 22px; min-width: 0; }
+ .setting-card p, .page-heading .muted { font-size: 17px; }
+ .detail-info h1 { font-size: clamp(28px, 3vw, 44px); }
+ .detail-plot { font-size: 18px; }
+ @media (max-width: 1100px) {
+  .settings-grid { grid-template-columns: 1fr; }
+  .topbar > span:last-child { display: none; }
+ }
+ @media (max-width: 900px) {
+  .sidebar { width: 76px; flex-basis: 76px; padding: 18px 8px; }
+  .brand-word, .sidebar-bottom { display: none; }
+  .brand { padding: 0 0 20px; min-height: 65px; }
+  .sidebar nav button { font-size: 0; padding: 12px; }
+  .nav-symbol { width: auto; font-size: 25px; }
+  #view { padding: 22px 20px 45px; }
+  .topbar { padding: 14px 20px; }
+ }
+ @media (max-width: 600px) {
+  .hero { padding: 24px; }
+  .hero .toolbar { align-items: stretch; flex-direction: column; }
+  .hero .hero-meta { font-size: 15px; }
+  .hero .hero-plot { font-size: 16px; }
+  .search-input { min-width: 0; width: 100%; flex-basis: 100%; }
+ }
+}

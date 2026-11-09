@@ -10,6 +10,8 @@
     "mal:relay": "node tools/mal-phone-relay.mjs",
     "start": "ng serve --host 0.0.0.0",
     "build": "ng build --configuration production",
+    "build:all": "node tools/build-all.mjs",
+    "dist": "powershell -ExecutionPolicy Bypass -File ./tools/deploy-tizen.ps1",
     "build:dev": "ng build --configuration development",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "node --test tests/integration.test.mjs tests/tv-navigation.test.mjs tests/mal-relay.test.mjs tests/platform-runtime.test.mjs tests/platform-packaging.test.mjs tests/dev-proxy.test.mjs && node --experimental-strip-types --test tests/audio-fingerprint.test.mjs",

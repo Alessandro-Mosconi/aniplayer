@@ -7,7 +7,9 @@
  // Android TV WebView may report 960 CSS px on a 1920px display (density 2).
  // Keep the shared 1920px layout fully inside the visible viewport.
  var viewport=document.querySelector&&document.querySelector('meta[name="viewport"]');
- if(viewport&&window.screen&&window.screen.width>0){var scale=window.screen.width/1920;viewport.setAttribute('content','width=1920,initial-scale='+scale+',minimum-scale='+scale+',maximum-scale='+scale+',user-scalable=no');}
+ var nativeTv=!window.AniPlayerNative.isTelevision||window.AniPlayerNative.isTelevision();
+ if(!nativeTv&&viewport)viewport.setAttribute('content','width=device-width,initial-scale=1');
+ if(nativeTv&&viewport&&window.screen&&window.screen.width>0){var scale=window.screen.width/1920;viewport.setAttribute('content','width=1920,initial-scale='+scale+',minimum-scale='+scale+',maximum-scale='+scale+',user-scalable=no');}
  document.addEventListener('focusin',function(event){var field=event.target;if(window.AniPlayerNative.setKeyboard)window.AniPlayerNative.setKeyboard(!!(field&&field.matches&&field.matches('input,textarea')&&!field.readOnly));});
  document.addEventListener('focusout',function(){if(window.AniPlayerNative.setKeyboard)window.AniPlayerNative.setKeyboard(false);});
  document.addEventListener('keydown',function(event){
