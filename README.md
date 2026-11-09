@@ -22,6 +22,7 @@ Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWor
 - [Impostazioni e dati locali](#impostazioni-e-dati-locali)
 - [Problemi comuni](#problemi-comuni)
 - [Sviluppo e struttura](#sviluppo-e-struttura)
+- [Crediti e servizi utilizzati](#crediti-e-servizi-utilizzati)
 - [Contributi e licenze](#contributi-e-licenze)
 
 ## Funzioni
@@ -337,6 +338,28 @@ docs/                  Approfondimenti tecnici
 In VS Code verifica `.vscode/settings.json`: il percorso del progetto Tizen deve corrispondere al tuo checkout.
 
 I test automatici non sostituiscono prove hardware. Dopo modifiche al player o alla navigazione verifica sulla TV video/audio, focus, timeline, ripresa, standby, MAL e aggiornamento con conservazione dei dati.
+
+## Crediti e servizi utilizzati
+
+Grazie ai progetti e ai servizi su cui si appoggia AniPlayer:
+
+| Servizio | Utilizzo in AniPlayer |
+| --- | --- |
+| [AnimeUnity](https://www.animeunity.co/) | Catalogo, ricerca, copertine, informazioni sugli anime e ultimi episodi. |
+| [AnimeWorld](https://www.animeworld.ac/) | Ricerca delle corrispondenze, elenco episodi e sorgenti per la riproduzione. |
+| [AniSkip](https://aniskip.com/) | Intervalli delle sigle iniziali e finali, usati insieme alle verifiche di durata e al riconoscimento locale. |
+| [MyAnimeList](https://myanimelist.net/) | Lista personale, progressi, statistiche e aggiornamento dei visti tramite API e autorizzazione OAuth. |
+| [AniList](https://anilist.co/) | Date di uscita recuperate tramite API per migliorare l’ordinamento del catalogo. |
+
+AniPlayer è un progetto indipendente, non affiliato, approvato o sponsorizzato dai servizi elencati. Nomi, marchi, copertine e contenuti appartengono ai rispettivi titolari. La disponibilità delle integrazioni dipende dai servizi esterni.
+
+### Codice e librerie
+
+- [ani-cli-it](https://github.com/nicolagalassi/ani-cli-it): riferimento per il flusso di acquisizione AnimeWorld, come descritto in [THIRD_PARTY.md](THIRD_PARTY.md); licenza inclusa in [LICENSE.ani-cli-it](LICENSE.ani-cli-it).
+- [Angular](https://angular.dev/): framework dell’applicazione.
+- [QRCode.js](https://github.com/davidshimjs/qrcodejs), di David Shim e Kazuhiko Arase: generazione dei QR per il collegamento MAL; [licenza inclusa](src/assets/vendor/LICENSE.qrcodejs).
+
+Per i riconoscimenti e le licenze del codice incluso o derivato consulta [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Contributi e licenze
 
