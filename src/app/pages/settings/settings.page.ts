@@ -2,7 +2,7 @@ import {TvSwitchComponent} from '../../components/tv-switch.component';
 import {SidebarService} from '../../core/sidebar.service';
 import {LayoutService} from '../../core/layout.service';
 import {RouteName} from '../../core/navigation.service';
-import {Component,inject} from '@angular/core';
+import {Component,inject,signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {PageBase} from '../../core/page-base';
 
@@ -13,7 +13,8 @@ import {ExplorationService} from '../../core/exploration.service';
 export class SettingsPage extends PageBase {
   readonly sidebar=inject(SidebarService);
   readonly layout=inject(LayoutService);
-  moveMenu(id:RouteName,direction:-1|1){this.sidebar.move(id,direction);setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-menu-item="'+id+'"] button:not(:disabled)')));}
+  readonly menuOrderNotice=signal('');
+  moveMenu(id:RouteName,direction:-1|1){const before=this.sidebar.items().findIndex(item=>item.id===id);this.sidebar.move(id,direction);const after=this.sidebar.items().findIndex(item=>item.id===id);if(before===after)return;const item=this.sidebar.items()[after];this.menuOrderNotice.set(item.label+' spostato in posizione '+(after+1));setTimeout(()=>{const row=document.querySelector<HTMLElement>('[data-menu-item="'+id+'"]');const preferred=row?.querySelector<HTMLElement>('[data-menu-move="'+direction+'"]:not(:disabled)');const fallback=row?.querySelector<HTMLElement>('[data-menu-move="'+(direction===1?-1:1)+'"]:not(:disabled)');this.remote.focus(preferred||fallback);});}
   readonly publicMal=inject(MalPublicService);
   readonly exploration=inject(ExplorationService);
   clearFeedback(kind:'like'|'dislike'){try{this.exploration.clearFeedback(kind);}catch(error){this.error.set(error instanceof Error?error.message:'Impossibile eliminare le preferenze.');}}

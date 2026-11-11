@@ -371,6 +371,25 @@ test('Watch and exploration filters compose across catalog pages without skippin
  assert.deepEqual([...Array.from(first.records,a=>a.id),...Array.from(next.records,a=>a.id)],expected);assert.equal(first.exact,true);assert.equal(next.hasMore,false);assert.equal(calls,4);
 });
 
+test('Minimum score filters all catalog pages while preserving order and excluding unrated titles',async()=>{
+ const rows=Array.from({length:120},(_,i)=>({id:i+1,score:i%4===0?'8.50':i%4===1?'7.99':i%4===2?null:'9.0'}));
+ const catalog={domain:()=> 'test'},ordered={page:async(_f,offset)=>({records:rows.slice(offset,offset+30),tot:rows.length})};
+ const library={progressKey:()=>'',progress:a=>({watched:a.id%3===0?1:0,remaining:2})},exploration={fingerprint:()=>'',matches:()=>true};
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');const service=new CatalogProgressService(catalog,library,ordered,exploration),filters={minScore:8,watch:'never'};
+ const first=await service.page(filters,0),next=await service.page(filters,30);
+ const expected=rows.filter(a=>Number(a.score)>=8&&a.id%3!==0).map(a=>a.id);
+ assert.deepEqual([...Array.from(first.records,a=>a.id),...Array.from(next.records,a=>a.id)],expected);assert.equal(next.exact,true);
+});
+
+test('Minimum score applies to latest episodes and explored titles, including absent or invalid ratings',async()=>{
+ const rows=[{id:1,score:'8.5',title:'A'},{id:2,score:'7.99',title:'B'},{id:3,score:null,title:'C'},{id:4,score:'9.1',title:'D'},{id:5,score:11,title:'E'}];
+ const catalog={domain:()=> 'test',recentPage:async()=>({records:rows,lastPage:1})};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:2})},exploration={fingerprint:()=>'',matches:()=>true,recent:()=>rows.map(anime=>({anime}))};
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');const service=new CatalogProgressService(catalog,library,{},exploration);
+ for(const filters of [{order:'episode_desc',minScore:8},{explored:'like',minScore:8}]){const result=await service.page(filters,0);assert.deepEqual(Array.from(result.records,a=>a.id),[1,4]);}
+ const all=await service.page({order:'episode_desc'},0);assert.equal(all.records.length,5);
+});
+
 test('Latest episode ordering deduplicates series across pages and composes audio, watch and genre filters',async()=>{
  const rows=Array.from({length:76},(_,i)=>({id:i+1,slug:'anime-'+(i+1),title:'Anime '+(i+1),dub:i%2,type:'TV',lastEpisodeDate:'2026-11-01'}));
  const updates=[...rows.slice(0,30),...rows.slice(0,5),...rows.slice(30)];

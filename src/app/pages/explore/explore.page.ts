@@ -51,6 +51,7 @@ export class ExplorePage extends PageBase implements OnInit,OnDestroy {
   if(f.status)chips.push('Stato: '+f.status);
   if(f.year)chips.push('Anno: '+f.year);
   if(f.season)chips.push('Stagione: '+f.season);
+  if(f.minScore)chips.push('Voto minimo: '+String(f.minScore).replace('.',',')+'+');
   if(f.genres)for(const id of f.genres)chips.push('Genere: '+(this.catalog.genres().find(g=>g.id===id)?.name||id));
   return chips;
  }

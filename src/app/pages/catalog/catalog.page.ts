@@ -15,6 +15,7 @@ export class CatalogPage extends PageBase {
     {key:'dubbed',label:'Audio',options:[{value:false,label:'Tutti'},{value:0,label:'SUB ITA'},{value:1,label:'DUB ITA'}]},
     {key:'type',label:'Tipo',options:[{value:false,label:'Tutti'},{value:'TV',label:'TV'},{value:'TV Short',label:'TV brevi'},{value:'Movie',label:'Film'},{value:'OVA',label:'OVA'},{value:'ONA',label:'ONA'},{value:'Special',label:'Special'}]},
     {key:'status',label:'Stato',options:[{value:false,label:'Tutti'},{value:'Terminato',label:'Conclusi'},{value:'In Corso',label:'In corso'},{value:'In Uscita',label:'In uscita'},{value:'Droppato',label:'Interrotti'}]},
+    {key:'minScore',label:'Voto minimo',options:[{value:false,label:'Tutti'},{value:5,label:'5+'},{value:6,label:'6+'},{value:7,label:'7+'},{value:7.5,label:'7,5+'},{value:8,label:'8+'},{value:8.5,label:'8,5+'},{value:9,label:'9+'},{value:9.5,label:'9,5+'}]},
     {key:'order',label:'Ordine',options:[{value:false,label:'Predefinito'},{value:'episode_desc',label:'Ultimo episodio · Più recenti'},{value:'release_desc',label:'Uscita anime · Più recenti'},{value:'release_asc',label:'Uscita anime · Più antichi'},{value:'random',label:'Casuale'},{value:'Lista A-Z',label:'Titolo A–Z'},{value:'Lista Z-A',label:'Titolo Z–A'},{value:'Popolarità',label:'Più visti'},{value:'Valutazione',label:'Valutazione'}]}
   ];
   filterLabel(key:keyof CatalogFilters){return this.groups.find(g=>g.key===key)?.options.find(o=>o.value===(this.filters()[key]??false))?.label||'Tutti';}
