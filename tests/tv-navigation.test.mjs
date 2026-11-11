@@ -370,6 +370,44 @@ test('Watch and exploration filters compose across catalog pages without skippin
  const expected=records.filter(a=>a.id%2!==0&&a.id%3!==0).map(a=>a.id);
  assert.deepEqual([...Array.from(first.records,a=>a.id),...Array.from(next.records,a=>a.id)],expected);assert.equal(first.exact,true);assert.equal(next.hasMore,false);assert.equal(calls,4);
 });
+
+test('Latest episode ordering deduplicates series across pages and composes audio, watch and genre filters',async()=>{
+ const rows=Array.from({length:76},(_,i)=>({id:i+1,slug:'anime-'+(i+1),title:'Anime '+(i+1),dub:i%2,type:'TV',lastEpisodeDate:'2026-11-01'}));
+ const updates=[...rows.slice(0,30),...rows.slice(0,5),...rows.slice(30)];
+ let genreCalls=0;
+ const catalog={domain:()=> 'test',recentPage:async page=>({records:updates.slice((page-1)*30,page*30),lastPage:Math.ceil(updates.length/30)}),catalog:async f=>{genreCalls++;const row=rows.find(a=>a.title===f.title);return {records:row&&row.id%3===0?[row]:[],tot:row&&row.id%3===0?1:0};}};
+ const library={progressKey:()=>'',progress:a=>({watched:a.id%4===0?1:0,remaining:12})};
+ const exploration={fingerprint:()=>'',matches:(a,f)=>!f||f==='all'||f==='never'&&a.id%5!==0};
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');const service=new CatalogProgressService(catalog,library,{},exploration);
+ const first=await service.page({order:'episode_desc'},0),second=await service.page({order:'episode_desc'},30);
+ assert.deepEqual([...Array.from(first.records,a=>a.id),...Array.from(second.records,a=>a.id)],rows.slice(0,60).map(a=>a.id));
+ const filtered=await service.page({order:'episode_desc',dubbed:0,watch:'never',explored:'never',genres:[7]},0);
+ assert.deepEqual(Array.from(filtered.records,a=>a.id),rows.filter(a=>a.dub===0&&a.id%4!==0&&a.id%5!==0&&a.id%3===0).map(a=>a.id));
+ assert.equal(filtered.exact,true);assert.ok(genreCalls>0);
+});
+
+test('Latest episode search retries a failed genre lookup without skipping the provider page',async()=>{
+ const rows=[{id:1,slug:'a',title:'A',dub:0},{id:2,slug:'b',title:'B',dub:0}];let fail=true;
+ const catalog={domain:()=> 'test',recentPage:async()=>({records:rows,lastPage:1}),catalog:async f=>{if(f.title==='B'&&fail){fail=false;throw Error('network');}return {records:rows.filter(a=>a.title===f.title),tot:1};}};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:1})},exploration={fingerprint:()=>'',matches:()=>true};
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');const service=new CatalogProgressService(catalog,library,{},exploration),filters={order:'episode_desc',genres:[1]};
+ await assert.rejects(service.page(filters,0),/network/);const result=await service.page(filters,0);assert.deepEqual(Array.from(result.records,a=>a.id),[1,2]);
+});
+
+test('Latest episode genre filtering handles entries without the primary title',async()=>{
+ const rows=[{id:1,slug:'a',title:null,title_eng:'English title'},{id:2,slug:'b',title:null}];
+ const catalog={domain:()=> 'test',recentPage:async()=>({records:rows,lastPage:1}),catalog:async f=>({records:f.title==='English title'?[rows[0]]:[],tot:1}),detail:async a=>({anime:{...a,genres:[{id:7}]}})};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:0})},exploration={fingerprint:()=>'',matches:()=>true};
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');const service=new CatalogProgressService(catalog,library,{},exploration);
+ const result=await service.page({order:'episode_desc',genres:[7]},0);assert.deepEqual(Array.from(result.records,a=>a.id),[1,2]);
+});
+
+test('Provider episode updates preserve publication date and exclude hidden or undated episodes',()=>{
+ const {CatalogService}=load('src/app/core/catalog.service.ts');const service=new CatalogService({read:(_key,fallback)=>fallback});
+ const data={last_page:2,data:[{number:3,created_at:'2026-11-11 19:02:21',public:1,hidden:0,anime:{id:1,slug:'one'}},{number:2,created_at:'2026-11-10 10:00:00',public:1,hidden:1,anime:{id:2,slug:'hidden'}},{number:1,public:1,anime:{id:3,slug:'undated'}}]};
+ const result=service.episodeUpdates({querySelector:()=>({getAttribute:()=>JSON.stringify(data)})});
+ assert.equal(result.lastPage,2);assert.equal(result.records.length,1);assert.equal(result.records[0].lastEpisode,'3');assert.equal(result.records[0].lastEpisodeDate,'2026-11-11 19:02:21');
+});
 test('Discovery feedback persists, unifies audio variants and filters liked records locally',async()=>{
  const memory=new Map(),store={read:(key,fallback)=>memory.get(key)??fallback,write:(key,value)=>{memory.set(key,value);return true;}};
  const {ExplorationService}=load('src/app/core/exploration.service.ts');const exploration=new ExplorationService(store);

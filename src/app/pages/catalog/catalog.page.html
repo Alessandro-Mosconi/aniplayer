@@ -20,6 +20,7 @@
 }
 <div class="catalog-actions" data-focus-row>@if(filters().order==='random'){<button [disabled]="loading()" (click)="refreshCatalog()">Rimescola</button>}<button class="primary" [disabled]="loading()" (click)="refreshCatalog()">@if(loading()){Ricerca in corso<app-loading-dots />}@else{{{'Applica filtri e cerca'}}}</button><button (click)="resetFilters()">Azzera ricerca e filtri</button>@if(storage.settings()['exploreEnabled']!==false){<button class="explore-secondary" aria-label="Esplora questi anime" title="Esplora questi anime" (click)="openExplore()"><span aria-hidden="true">&#10023;</span> Esplora</button>}</div>
 @if(filters().order==='release_desc' || filters().order==='release_asc'){<p class="muted">Ordine per data di uscita. Le schede con solo anno o stagione hanno una data approssimativa.</p>}
+@if(filters().order==='episode_desc'){<p class="muted">Ordinati per ultimo episodio pubblicato su AnimeUnity. Sono mostrati i titoli presenti negli aggiornamenti del provider.</p>}
 @if(loading()){<app-anime-loader variant="inline" message="Ricerca in corso" />}@else{<p class="muted" role="status">{{error()?'Ricerca non completata. Correggi i filtri o riprova.':total()+(catalogTotalExact()?' anime nel risultato':' risultati trovati finora ? ricerca progressiva')}}</p>}
 <div class="catalog-grid">@for(a of cards();track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div>
 @if(!loading() && !error() && !cards().length && !catalogHasMore()){<p class="empty">Nessun anime trovato. Modifica la ricerca o azzera i filtri.</p>}

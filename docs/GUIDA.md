@@ -374,6 +374,8 @@ I filtri dei visti sono **Tutti**, **Mai visti**, **Con episodi da vedere**. Que
 
 L’ordine casuale resta stabile tra pagine fino a **Rimescola**. Per l’uscita, l’app prova a recuperare date complete da AniList tramite gli ID MAL e le conserva in cache; senza date complete o in caso di errore usa anno e stagione. La data visibile sulla scheda permette di verificare la precisione disponibile.
 
+**Ultimo episodio · Più recenti** usa invece la data di pubblicazione dell'episodio su AnimeUnity, dalla più recente, e mostra una volta sola ogni versione dell'anime. È l'ordine usato da **Vedi tutti** nella sezione Ultimi episodi della Home. La ricerca scorre progressivamente gli aggiornamenti del provider: mostra i titoli presenti in quel flusso e non necessariamente tutti quelli del catalogo. Con filtri selettivi può essere necessario premere **Continua ricerca**. La data di pubblicazione sul provider può differire dalla prima messa in onda originale.
+
 ### Esplora
 
 Con il focus sulla scheda grande:

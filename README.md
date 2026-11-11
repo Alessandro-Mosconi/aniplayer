@@ -60,7 +60,7 @@ Su Android puoi anche installare l’APK sperimentale usato per Android TV. [Ist
 ## Come si usa
 
 - **Telecomando:** usa le frecce per spostarti, **OK** per scegliere e **Return** per tornare indietro. Premi OK su un campo per scrivere.
-- **Catalogo:** cerca per titolo o scegli filtri e generi, poi premi **Applica filtri e cerca**. Puoi filtrare anche anime già visti ed esplorati e scegliere l’ordine casuale.
+- **Catalogo:** cerca per titolo o scegli filtri e generi, poi premi **Applica filtri e cerca**. Puoi filtrare anche anime già visti ed esplorati e ordinare per ultimo episodio pubblicato, uscita dell’anime o in modo casuale.
 - **Esplora:** scopri un anime alla volta. Sulla scheda usa sinistra/destra per esprimere una preferenza, su per i preferiti e giù per saltare. Su telefono puoi fare swipe sulla copertina.
 - **Player:** riprendi gli episodi e, quando disponibili, salta riassunto, sigla iniziale o finale. Dopo un salto hai cinque secondi per annullarlo. I pulsanti `SUB`/`ITA` cambiano versione audio quando disponibili.
 - **Impostazioni:** personalizza le voci del menu, le opzioni di riproduzione e i dati salvati sul dispositivo.

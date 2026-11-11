@@ -8,12 +8,14 @@ import {IntroService} from '../core/intro.service';
  @if(introBadge()){<span class="intro-badge" title="Intervalli sigla presenti su AniSkip; verificare sempre la versione del video" aria-label="AniSkip rilevato">⏭ AS</span>}
  @if(progress()){<span class="card-progress"><span [style.width.%]="progress()"></span></span>}
  </span><span class="card-title">{{animeTitle(anime())}}</span>
+ @if(anime().lastEpisodeDate){<span class="card-sub">Ep. {{anime().lastEpisode}} · {{episodeDate(anime().lastEpisodeDate!)}}</span>}
  <span class="card-sub">{{anime().releaseDate||anime().date||anime().type||'Serie anime'}} @if(anime().season){ ? {{anime().season}} } @if(anime().score){ · ★ {{anime().score}} }</span>
 </button>`})
 export class AnimeCardComponent implements AfterViewInit,OnDestroy{
  readonly anime=input.required<Anime>();readonly progress=input(0);readonly select=output<Anime>();
  readonly introBadge=signal(false);animeTitle=animeTitle;
  private service=inject(IntroService);private host=inject(ElementRef<HTMLElement>);private observer:IntersectionObserver|null=null;private destroyed=false;
+ episodeDate(value:string){const match=/^(\d{4})-(\d{2})-(\d{2})/.exec(value);return match?`${match[3]}/${match[2]}/${match[1]}`:value;}
  ngAfterViewInit(){this.introBadge.set(this.service.hasBadge(this.anime()));
   if(!Number(this.anime().mal_id)||this.introBadge())return;
   if(typeof IntersectionObserver!=='undefined'){

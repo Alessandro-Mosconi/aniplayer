@@ -4,6 +4,7 @@ export interface Anime {
  id: string|number; slug?: string; awSlug?: string; provider?: 'animeworld'|'animeunity';
  title?: string; title_eng?: string; title_it?: string; title_original?: string;
  imageurl?: string; imageurl_cover?: string; date?: string; releaseDate?: string; season?: string; type?: string; status?: string;
+ lastEpisode?:string; lastEpisodeDate?:string;
  score?: number|string; dub?: boolean|number; episodes_count?: number; real_episodes_count?: number;
  plot?: string; genres?: string|string[]; mal_id?: number; anilist_id?: number;
 }
