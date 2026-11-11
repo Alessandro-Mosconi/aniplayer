@@ -140,7 +140,7 @@ export class PlaybackService {
   this.offerUndo(recovery);
  }
  private captureSkip():SkipUndo|null{return this.detail&&this.episode&&this.state().opened?{detail:this.detail,episode:this.episode,position:this.state().position,playing:this.state().playing,url:this.source,versions:this.audioOptions(),generation:this.generation,expires:0}:null;}
- private offerUndo(recovery:SkipUndo|null){if(!recovery||!this.state().opened||this.state().error)return;clearTimeout(this.skipUndoTimer);this.skipUndo={...recovery,generation:this.generation,expires:Date.now()+5000};this.skipUndoAvailable.set(true);this.skipUndoTimer=setTimeout(()=>this.clearSkipUndo(),5000);}
+ private offerUndo(recovery:SkipUndo|null){if(!recovery||!this.state().opened||this.state().error)return;clearTimeout(this.skipUndoTimer);this.skipUndo={...recovery,generation:this.generation,expires:Date.now()+3000};this.skipUndoAvailable.set(true);this.skipUndoTimer=setTimeout(()=>this.clearSkipUndo(),3000);}
  private clearSkipUndo(){clearTimeout(this.skipUndoTimer);this.skipUndo=null;this.skipUndoAvailable.set(false);}
  async undoSkip(){
   const recovery=this.skipUndo;if(!recovery||Date.now()>recovery.expires||recovery.generation!==this.generation){this.clearSkipUndo();return;}
