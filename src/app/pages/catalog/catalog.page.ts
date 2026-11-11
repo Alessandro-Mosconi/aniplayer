@@ -1,10 +1,12 @@
+import {LoadingDotsComponent} from '../../components/loading-dots.component';
+import {AnimeLoaderComponent} from '../../components/anime-loader.component';
 ﻿import {Component,signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {PageBase} from '../../core/page-base';
 import {CatalogFilters} from '../../core/models';
 import {AnimeCardComponent} from '../../components/anime-card.component';
 import {FormsModule} from '@angular/forms';
-@Component({selector:'app-catalog-page',standalone:true,imports:[CommonModule,AnimeCardComponent,FormsModule],templateUrl:'./catalog.page.html',styleUrl:'./catalog.page.scss'})
+@Component({selector:'app-catalog-page',standalone:true,imports:[LoadingDotsComponent,AnimeLoaderComponent,CommonModule,AnimeCardComponent,FormsModule],templateUrl:'./catalog.page.html',styleUrl:'./catalog.page.scss'})
 export class CatalogPage extends PageBase {
   readonly expanded=signal<string|null>(null);
   readonly groups:{key:keyof CatalogFilters;label:string;options:{value:string|number|false;label:string}[]}[]=[

@@ -58,8 +58,8 @@ export class IntroDetectorService{
   return entry;
  }
  rememberNotFound(anime:Anime,ep:Episode,ctx:IntroContext,hint:AudioHint|null){return this.persist(anime,ep,ctx,{state:'not-found',hint:hint?{start:hint.start,end:hint.end}:null});}
- private async load(anime:Anime,ep:Episode,signal:AbortSignal|undefined,hint:AudioHint|null,onProgress:(s:string)=>void){
-  const window=searchWindow(hint),key=this.key(anime,ep),existing=this.cache.get(key);
+ private async load(anime:Anime,ep:Episode,signal:AbortSignal|undefined,hint:AudioHint|null,onProgress:(s:string)=>void,narrow=false){
+  const window=searchWindow(hint,narrow),key=this.key(anime,ep),existing=this.cache.get(key);
   if(existing&&Date.now()-existing.time<1800000&&existing.value.window.start<=window.start&&existing.value.window.end>=window.end)return existing.value;
   onProgress('Analisi audio · episodio '+ep.number);const url=await this.api.source(anime,ep);checkAbort(signal);
   const value=await readAudio(url,signal,p=>onProgress('Audio ep. '+ep.number+' · '+Math.floor(p.seconds)+' s · '+Math.round(p.bytes/1024)+' KB'),window);
@@ -71,6 +71,12 @@ export class IntroDetectorService{
   * a previously verified fingerprint. Inconclusive analysis does not auto-skip.
   */
  async detect(args:{anime:Anime;episode:Episode;context:IntroContext;length:number|null;hint:AudioHint|null;signal?:AbortSignal;onProgress?:(s:string)=>void}):Promise<Detection>{
+  if(args.hint||this.templates(args.anime).length){
+   try{return await this.detectPass(args,true);}catch{checkAbort(args.signal);args.onProgress?.('Ricerca audio estesa…');}
+  }
+  return this.detectPass(args,false);
+ }
+ private async detectPass(args:{anime:Anime;episode:Episode;context:IntroContext;length:number|null;hint:AudioHint|null;signal?:AbortSignal;onProgress?:(s:string)=>void},narrow:boolean):Promise<Detection>{
   const {anime,episode,context,length,hint,signal}=args,onProgress=args.onProgress||(()=>{}),infer=length===null;
   if(!infer&&(!Number.isFinite(length)||length<20||length>180))throw Error('Durata intro non supportata (20–180 s).');
   checkAbort(signal);const page=await this.api.page(anime),others=page.episodes.filter(e=>Number(e.number)!==Number(episode.number)&&e.public!==0);
@@ -78,7 +84,8 @@ export class IntroDetectorService{
    previous=others.filter(e=>Number(e.number)<Number(episode.number)).sort((a,b)=>Number(b.number)-Number(a.number));const refs:Episode[]=[];
   for(let i=0;refs.length<4&&(i<next.length||i<previous.length);i++){if(next[i])refs.push(next[i]);if(previous[i]&&refs.length<4)refs.push(previous[i]);}
   if(refs.length<2&&!this.templates(anime).length)throw Error('Servono due altri episodi o un’impronta audio locale verificata.');
-  const current=await this.load(anime,episode,signal,hint,onProgress);const templates:({template:Template}&Match)[]=[];
+  const latest=this.templates(anime).sort((a,b)=>b.updated-a.updated)[0],seed=hint||(latest?{start:latest.start,end:latest.start+latest.length}:null);
+  const current=await this.load(anime,episode,signal,narrow?seed:hint,onProgress,narrow);const templates:({template:Template}&Match)[]=[];
   for(const t of this.templates(anime)){
    checkAbort(signal);if(t.referenceEpisode===String(episode.number))continue;
    onProgress('Confronto con impronta audio locale');try{const match=await matchTemplate(current,this.unpack(t),t.length,length,signal);if(match)templates.push({...match,template:t});}catch(e){checkAbort(signal);}
@@ -93,7 +100,7 @@ export class IntroDetectorService{
   for(const ref of refs){
    try{checkAbort(signal);let anchor:AudioHint|null=null;
     if(context.mal>0)try{anchor=await this.aniskip.reference(context.mal,Number(ref.number),length);}catch(e){checkAbort(signal);}
-    const other=await this.load(anime,ref,signal,anchor,onProgress);bytes+=other.bytes;
+    const other=await this.load(anime,ref,signal,narrow?(anchor||seed):anchor,onProgress,narrow);bytes+=other.bytes;
     onProgress('Confronto episodi '+episode.number+' / '+ref.number);
     const match=infer?await inferRepeated(current,other,signal):await compare(current,other,length!,signal);
     attempts.push({episode:String(ref.number),matched:!!match});if(match)matches.push({...match,episode:String(ref.number)});

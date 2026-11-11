@@ -1,8 +1,11 @@
+import {alignSkip,SkipAlignment} from './skip-alignment';
 import {Injectable} from '@angular/core';
 import {Anime,Episode} from './models';
 import {StorageService} from './storage.service';
 export type IntroSource='local'|'aniskip'|'audio'|'fingerprint';
 export interface IntroWindow{start:number;end:number;source:IntroSource;}
+export type ExtraSegment='recap'|'prologue'|'ending';
+export interface SkipProposals{opening:IntroWindow|null;recap:IntroWindow|null;ending:IntroWindow|null;}
 export interface IntroContext{mal:number;number:number;duration:number;key:string;}
 export interface IntroCandidate{start:number;end:number;referenceDuration:number;delta:number;}
 export interface IntroResult{state:'ready'|'review'|'disabled'|'changed'|'unavailable';source?:IntroSource;interval?:IntroWindow;candidate?:IntroCandidate;message:string;}
@@ -55,46 +58,76 @@ export class IntroService{
   Object.keys(stored).sort((a,b)=>stored[b].checkedAt-stored[a].checkedAt).slice(1000).forEach(k=>delete stored[k]);this.store.write('aniskipAvailability',stored);return true;
  }
  async fetchTimes(ctx:IntroContext):Promise<any[]>{
-  const key=ctx.mal+':'+ctx.number+':'+Math.round(ctx.duration),cached=this.memo.get(key);
+  const base=ctx.mal+':'+ctx.number,now=Date.now();
+  // Fetch all timings while the video is preparing; validate duration locally later.
+  const warmed=this.memo.get(base+':0');if(ctx.duration>0&&warmed&&now-warmed.time<900000)return warmed.promise;
+  if(ctx.duration===0){const saved=this.store.read<Record<string,any>>('skipTimesCache',{})[base];
+   if(saved?.version===1&&Array.isArray(saved.rows)&&now-saved.time<(saved.rows.length?7*86400000:3600000)){
+    const promise=Promise.resolve(saved.rows);this.memo.set(base+':0',{time:now,promise});return promise;
+   }
+  }
+  const key=base+':'+Math.round(ctx.duration),cached=this.memo.get(key);
   if(cached&&Date.now()-cached.time<900000)return cached.promise;
   const request=(async()=>{
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
-   try{const url=`https://api.aniskip.com/v2/skip-times/${ctx.mal}/${ctx.number}?types%5B%5D=op&types%5B%5D=ed&episodeLength=${ctx.duration.toFixed(3)}`;
-    const r=await fetch(url,{mode:'cors',credentials:'omit',signal:controller.signal});if(r.status===404)return [];
+   try{const url=`https://api.aniskip.com/v2/skip-times/${ctx.mal}/${ctx.number}?types%5B%5D=op&types%5B%5D=ed&types%5B%5D=recap&episodeLength=${ctx.duration.toFixed(3)}`;
+    const r=await fetch(url,{mode:'cors',credentials:'omit',signal:controller.signal});if(r.status===404){if(ctx.duration===0)this.cacheTimes(base,[]);return [];}
     if(r.status===429)this.badgeCooldown=Date.now()+300000;
     if(!r.ok)throw Error('AniSkip HTTP '+r.status);
-    const data=await r.json();if(data.found===false)return [];if(!Array.isArray(data.results))throw Error('Risposta AniSkip non valida');
+    const data=await r.json();if(data.found===false){if(ctx.duration===0)this.cacheTimes(base,[]);return [];}if(!Array.isArray(data.results))throw Error('Risposta AniSkip non valida');
+    if(ctx.duration===0)this.cacheTimes(base,data.results);
     this.record(ctx.mal,ctx.number,data.results,ctx.duration);return data.results;
    }finally{clearTimeout(timer);}
   })();this.memo.set(key,{time:Date.now(),promise:request});if(this.memo.size>40)this.memo.delete(this.memo.keys().next().value!);
   try{return await request;}catch(e){this.memo.delete(key);throw e;}
+ }
+ private cacheTimes(key:string,results:any[]){
+  const rows=results.filter(row=>['op','ed','recap'].includes(row?.skipType)&&Number.isFinite(row.episodeLength)&&row.episodeLength>0&&row.episodeLength<=86400&&Number.isFinite(row.interval?.startTime)&&Number.isFinite(row.interval?.endTime)&&row.interval.startTime>=0&&row.interval.endTime>row.interval.startTime&&row.interval.endTime<=row.episodeLength+.5).slice(0,30);
+  const cache=this.store.read<Record<string,any>>('skipTimesCache',{});cache[key]={version:1,time:Date.now(),rows};
+  Object.keys(cache).sort((a,b)=>cache[b].time-cache[a].time).slice(60).forEach(k=>delete cache[k]);this.store.write('skipTimesCache',cache);
+ }
+ prefetch(anime:Anime,episode:Episode){
+  const ctx=this.context(anime,episode,0);if(!Number.isSafeInteger(ctx.mal)||ctx.mal<=0||!Number.isFinite(ctx.number)||ctx.number<=0)return;
+  void this.fetchTimes(ctx).catch(()=>{});
  }
  async reference(mal:number,number:number,length:number|null){if(!Number.isSafeInteger(mal)||mal<=0)return null;
   const rows=(await this.fetchTimes({mal,number,duration:0,key:''})).filter(r=>r.skipType==='op'&&r.interval&&validIntro(Number(r.interval.startTime),Number(r.interval.endTime),Number(r.episodeLength)+.1)).sort((a,b)=>length?Math.abs(a.interval.endTime-a.interval.startTime-length)-Math.abs(b.interval.endTime-b.interval.startTime-length):0);
   const row=rows[0];return row?{start:Number(row.interval.startTime),end:Number(row.interval.endTime),referenceDuration:Number(row.episodeLength)}:null;
  }
  async loadEnding(ctx:IntroContext,detected?:IntroWindow):Promise<IntroWindow|null>{
-  if(!Number.isSafeInteger(ctx.mal)||ctx.mal<=0||!Number.isFinite(ctx.number)||ctx.number<=0||!Number.isFinite(ctx.duration)||ctx.duration<=0)return null;
-  try{
-   let rows=await this.fetchTimes(ctx);if(!rows.some(row=>row.skipType==='ed'))rows=await this.fetchTimes({...ctx,duration:0});
-   let referenceDuration=ctx.duration,offset=0;
-   if(detected&&(detected.source==='audio'||detected.source==='fingerprint')){
-    const anchors=rows.filter(row=>row.skipType==='op'&&Number.isFinite(row.episodeLength)&&row.episodeLength>0&&row.interval&&validIntro(row.interval.startTime,row.interval.endTime,row.episodeLength+.1))
-     .map(row=>({start:row.interval.startTime,end:row.interval.endTime,duration:row.episodeLength,delta:Math.abs(row.episodeLength-ctx.duration)}))
-     .filter(row=>Math.abs((detected.end-detected.start)-(row.end-row.start))<=2).sort((a,b)=>a.delta-b.delta);
-    const anchor=anchors[0];
-    if(!anchor||anchors.some(row=>Math.abs(row.delta-anchor.delta)<.5&&(Math.abs(row.start-anchor.start)>2||Math.abs(row.end-anchor.end)>2)))return null;
-    referenceDuration=anchor.duration;offset=detected.start-anchor.start;
-    // A single translation is justified only when both intro edges agree.
-    if(Math.abs((detected.end-anchor.end)-offset)>2)return null;
-   }
-   const candidates=rows.filter(row=>row.skipType==='ed'&&Number.isFinite(row.episodeLength)&&Math.abs(row.episodeLength-referenceDuration)<=(detected?.source==='audio'||detected?.source==='fingerprint'?0.5:3)&&Number.isFinite(row.interval?.startTime)&&Number.isFinite(row.interval?.endTime))
-    .map(row=>({start:row.interval.startTime+offset,end:row.interval.endTime+offset,delta:Math.abs(row.episodeLength-referenceDuration)}))
-    .filter(row=>row.start>=ctx.duration*.5&&row.end<=ctx.duration&&row.end-row.start>=15&&row.end-row.start<=300).sort((a,b)=>a.delta-b.delta);
-   const best=candidates[0];if(!best||candidates.some(row=>Math.abs(row.delta-best.delta)<.5&&(Math.abs(row.start-best.start)>2||Math.abs(row.end-best.end)>2)))return null;
-   return {start:best.start,end:best.end,source:'aniskip'};
-  }catch{return null;}
+  return this.loadExtra(ctx,'ed',detected);
  }
+ async proposals(ctx:IntroContext):Promise<SkipProposals>{
+  const empty:SkipProposals={opening:null,recap:null,ending:null};
+  if(!Number.isSafeInteger(ctx.mal)||ctx.mal<=0||ctx.number<=0)return empty;
+  try{const rows=await this.fetchTimes(ctx);
+   const pick=(kind:string)=>{
+    const candidates=rows.filter(row=>row.skipType===kind&&Number.isFinite(row.episodeLength)&&row.episodeLength>0&&Number.isFinite(row.interval?.startTime)&&Number.isFinite(row.interval?.endTime)&&row.interval.startTime>=0&&row.interval.endTime>row.interval.startTime&&row.interval.endTime<=row.episodeLength+.5).sort((a,b)=>Math.abs(a.episodeLength-ctx.duration)-Math.abs(b.episodeLength-ctx.duration));
+    const best=candidates[0];if(!best||candidates.some(row=>Math.abs(Math.abs(row.episodeLength-ctx.duration)-Math.abs(best.episodeLength-ctx.duration))<.5&&(Math.abs(row.interval.startTime-best.interval.startTime)>2||Math.abs(row.interval.endTime-best.interval.endTime)>2)))return null;
+    return {start:best.interval.startTime,end:best.interval.endTime,source:'aniskip' as const};
+   };
+   return {opening:pick('op'),recap:pick('recap'),ending:pick('ed')};
+  }catch{return empty;}
+ }
+ async loadRecap(ctx:IntroContext,detected?:IntroWindow):Promise<IntroWindow|null>{return this.loadExtra(ctx,'recap',detected);}
+ async alignment(ctx:IntroContext,kind:'ed'|'recap',opening?:IntroWindow,ending?:IntroWindow):Promise<SkipAlignment>{
+  if(!Number.isSafeInteger(ctx.mal)||ctx.mal<=0||!Number.isFinite(ctx.number)||ctx.number<=0||!Number.isFinite(ctx.duration)||ctx.duration<=0)return {state:'unavailable',interval:null,reason:'MAL ID, numero episodio o durata non disponibili.'};
+  try{let rows=await this.fetchTimes(ctx);if(!rows.some(r=>r.skipType===kind)||opening&&!rows.some(r=>r.skipType==='op'))rows=await this.fetchTimes({...ctx,duration:0});return alignSkip(ctx,kind,rows,opening,ending);}
+  catch{return {state:'unavailable',interval:null,reason:'AniSkip non ? raggiungibile; restano disponibili gli intervalli gi? caricati.'};}
+ }
+ private async loadExtra(ctx:IntroContext,kind:'ed'|'recap',detected?:IntroWindow):Promise<IntroWindow|null>{return (await this.alignment(ctx,kind,detected)).interval;}
+
+ localSegment(ctx:IntroContext,kind:ExtraSegment):IntroWindow|null{
+  const row=this.store.read<Record<string,any>>('skipSegments',{})[ctx.key+'|'+kind];
+  return row&&Number.isFinite(row.duration)&&Math.abs(row.duration-ctx.duration)<=2&&Number.isFinite(row.start)&&Number.isFinite(row.end)&&row.start>=0&&row.end>row.start&&row.end<=ctx.duration?{start:row.start,end:row.end,source:'local'}:null;
+ }
+ saveSegment(ctx:IntroContext,kind:ExtraSegment,start:number,end:number){
+  if(!Number.isFinite(ctx.duration)||ctx.duration<=0||!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end>ctx.duration)throw Error('Intervallo non valido.');
+  const rows=this.store.read<Record<string,any>>('skipSegments',{});rows[ctx.key+'|'+kind]={start,end,duration:ctx.duration,updated:Date.now()};
+  Object.keys(rows).sort((a,b)=>rows[b].updated-rows[a].updated).slice(500).forEach(key=>delete rows[key]);
+  if(!this.store.write('skipSegments',rows))throw Error('Impossibile salvare il salto.');
+ }
+ clearSegment(ctx:IntroContext,kind:ExtraSegment){const rows=this.store.read<Record<string,any>>('skipSegments',{});delete rows[ctx.key+'|'+kind];if(!this.store.write('skipSegments',rows))throw Error('Impossibile eliminare il salto.');}
  async checkAvailability(anime:Anime):Promise<boolean>{
   const mal=Number(anime.mal_id),queued=this.badgeJobs.get(mal);if(queued)return queued;
   const result=this.badgeQueue.then(()=>this.probeAvailability(anime));

@@ -1,3 +1,4 @@
+import {AnimeLoaderComponent} from '../../components/anime-loader.component';
 ﻿import {Component,OnInit,OnDestroy,computed,inject,signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {PageBase} from '../../core/page-base';
@@ -6,7 +7,7 @@ import {CatalogProgressService} from '../../core/catalog-progress.service';
 import {ExplorationService} from '../../core/exploration.service';
 import {remoteKey} from '../../core/remote.service';
 import {LayoutService} from '../../core/layout.service';
-@Component({selector:'app-explore-page',standalone:true,imports:[CommonModule],templateUrl:'./explore.page.html',styleUrl:'./explore.page.scss'})
+@Component({selector:'app-explore-page',standalone:true,imports:[AnimeLoaderComponent,CommonModule],templateUrl:'./explore.page.html',styleUrl:'./explore.page.scss'})
 export class ExplorePage extends PageBase implements OnInit,OnDestroy {
  readonly exploration=inject(ExplorationService);private source=inject(CatalogProgressService);
  readonly layout=inject(LayoutService);

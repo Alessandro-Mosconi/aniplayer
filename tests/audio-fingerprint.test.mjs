@@ -38,3 +38,13 @@ test('fingerprint window validates hint length without trusting AniSkip offset',
  assert.deepEqual(searchWindow({start:180,end:270}),{start:90,end:360});
  assert.deepEqual(searchWindow({start:50,end:360}),{start:0,end:360});
 });
+
+test('Ending matches retain absolute tail timestamps and stop before post-credit audio',async()=>{
+ const song=randomFrames(240,800),left={...spectrum([...randomFrames(60,801),...song,...randomFrames(80,802)]),origin:1200};
+ const right={...spectrum([...randomFrames(40,803),...song,...randomFrames(100,804)]),origin:1260};
+ const third={...spectrum([...randomFrames(80,805),...song,...randomFrames(60,806)]),origin:1170};
+ const a=await inferRepeated(left,right),b=await inferRepeated(left,third);
+ assert.ok(a&&b);assert.ok(a.start>=1214&&a.start<=1216);assert.ok(a.end>=1274&&a.end<=1276);
+ assert.ok(a.otherStart>=1269&&a.otherStart<=1271);
+ assert.ok(consensus([{...a,episode:'2'},{...b,episode:'3'}],true));
+});

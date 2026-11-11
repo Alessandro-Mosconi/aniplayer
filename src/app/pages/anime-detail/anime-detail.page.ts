@@ -25,7 +25,7 @@ export class AnimeDetailPage extends PageBase {
   episodes(){return this.details()?.episodes.slice(this.episodePage()*24,this.episodePage()*24+24)||[];}
   async playResume(){const detail=this.details();if(!detail)return;const h=this.storage.history()[String(detail.anime.id)];const ep=h&&!h.completed?detail.episodes.find(e=>String(e.number)===String(h.episode.number)):null;await this.play(ep||detail.episodes[0]);}
   async play(episode:Episode){const detail=this.details();if(!detail?.anime.awSlug){this.error.set('Non è disponibile una sorgente AnimeWorld verificata.');return;}
-    this.remote.remember();await this.playback.open(detail,episode);setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-focus="player-skip-intro"]')||document.getElementById('p-close')||undefined),120);
+    this.remote.remember();await this.playback.open(detail,episode,{versions:this.audioOptions()});setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-focus="player-skip-segment"]')||document.getElementById('p-close')||undefined),120);
   }
   toggle(anime:Anime){this.storage.toggleFavorite(anime);}
   mark(anime:Anime,ep:Episode){if(this.marking())return;this.markFocus=document.activeElement as HTMLElement;if(this.lib.isSeen(anime,ep)){this.unwatch.set({anime,episode:ep,remote:this.mal.connected&&Number(anime.mal_id)>0&&Number.isInteger(Number(ep.number))});setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-dialog-cancel]')));return;}void this.applyMark(anime,ep,true);}

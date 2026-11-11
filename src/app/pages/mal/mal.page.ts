@@ -1,3 +1,4 @@
+import {LoadingDotsComponent} from '../../components/loading-dots.component';
 import {TvSwitchComponent} from '../../components/tv-switch.component';
 import {Component,inject,signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
@@ -8,7 +9,7 @@ import {QrCodeComponent} from '../../components/qr-code.component';
 import {MAL_MANUAL_REDIRECT} from '../../core/mal.service';
 import {MalPhoneRelayService} from '../../core/mal-phone-relay.service';
 import {MalPublicService} from '../../core/mal-public.service';
-@Component({selector:'app-mal-page',standalone:true,imports:[TvSwitchComponent,CommonModule,FormsModule,QrCodeComponent],templateUrl:'./mal.page.html',styleUrl:'./mal.page.scss'})
+@Component({selector:'app-mal-page',standalone:true,imports:[LoadingDotsComponent,TvSwitchComponent,CommonModule,FormsModule,QrCodeComponent],templateUrl:'./mal.page.html',styleUrl:'./mal.page.scss'})
 export class MalPage extends PageBase {
   readonly manualRedirect=MAL_MANUAL_REDIRECT;
   readonly phoneRelay=inject(MalPhoneRelayService);

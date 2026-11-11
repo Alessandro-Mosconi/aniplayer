@@ -33,6 +33,8 @@ export class AppFacadeService {
   void this.animeworld.checkConnection();
   this.remote.configure({player:e=>this.playback.handleKey(e),back:()=>this.back(),playerActive:()=>this.playback.state().opened});
   this.playback.onClosed=()=>this.remote.restore();
+  this.playback.audioVersionsProvider=()=>this.audioMatches();
+  this.playback.onAudioChanged=detail=>{if(String(this.details()?.anime.id)===String(detail.anime.id))this.details.set({...detail,related:this.details()?.related||detail.related});};
   effect(()=>{const route=this.nav.route();untracked(()=>void this.load(route));});
   window.addEventListener('aniplayer-suspend',()=>{if(!pictureInPictureActive(window,document))this.playback.pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&!pictureInPictureActive(window,document))this.playback.pause();});

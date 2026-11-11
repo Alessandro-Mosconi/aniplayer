@@ -1,3 +1,5 @@
+import {LoadingDotsComponent} from '../../components/loading-dots.component';
+import {AnimeLoaderComponent} from '../../components/anime-loader.component';
 import {Component,OnInit,OnDestroy,computed,inject,signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -5,7 +7,7 @@ import {PageBase} from '../../core/page-base';
 import {MalLibraryService} from '../../core/mal-library.service';
 import {MalListFilters,MalRow,filterMalRows} from '../../core/mal-library';
 import {ExplorationService} from '../../core/exploration.service';
-@Component({selector:'app-my-anime-page',standalone:true,imports:[CommonModule,FormsModule],templateUrl:'./my-anime.page.html',styleUrl:'./my-anime.page.scss'})
+@Component({selector:'app-my-anime-page',standalone:true,imports:[LoadingDotsComponent,AnimeLoaderComponent,CommonModule,FormsModule],templateUrl:'./my-anime.page.html',styleUrl:'./my-anime.page.scss'})
 export class MyAnimePage extends PageBase implements OnInit,OnDestroy {
  readonly library=inject(MalLibraryService);readonly view=this.library.view;readonly listFilters=this.library.filters;readonly listPage=this.library.page;
  readonly exploration=inject(ExplorationService);

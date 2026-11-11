@@ -4,52 +4,68 @@
  @if(p.controls() || p.state().error){
   <div class="player-heading">
    <div><p class="eyebrow">EPISODIO {{p.state().episode}}</p><h1>{{p.state().title}}</h1></div>
-   <button id="p-close" data-focus="p-close" (click)="p.close()">✕ Chiudi player</button>
+   <button id="p-close" class="player-icon-button" data-focus="p-close" aria-label="Chiudi player" title="Chiudi player" (click)="p.close()"><app-player-icon name="close" /></button>
   </div>
  }
  @if(p.state().buffering){<div class="player-buffer"><app-anime-loader variant="player" message="Preparazione video…" /></div>}
  @if(p.state().error){<div class="player-error"><h2>Riproduzione non disponibile</h2><p>{{p.state().error}}</p><button data-focus="player-error-close" (click)="p.close()">Torna alla scheda</button></div>}
- @if(p.intro() && p.state().position>=p.intro()!.start-5 && p.state().position<p.intro()!.end){<button #skipIntroButton class="skip-intro" data-focus="player-skip-intro" (click)="p.skipIntro()">Salta intro →</button>}
- @if(p.showNextEpisode && !p.selectMenu() && p.scrub()===null){<button #nextEpisodeButton class="next-episode-prompt" data-focus="player-next-episode" (click)="p.next()">Prossimo episodio <span aria-hidden="true">→</span><small>Episodio {{p.nextEpisode!.number}} · Premi OK</small></button>}
+ @if(p.skipPrompt;as action){<button #skipIntroButton class="skip-intro" [style.bottom]="p.controls()&&controlsHeight()>0?controlsHeight()+16+'px':null" data-focus="player-skip-segment" [attr.title]="action.provisional?'Intervallo proposto da AniSkip, in attesa di analisi':action.label" (click)="p.skipCurrentSegment()">{{action.label}} &#8594;</button>}
+ @if(p.skipUndoAvailable()){<button #undoSkipButton data-tv-click class="undo-skip" data-focus="player-undo-skip" [style.bottom]="p.controls()&&controlsHeight()>0?controlsHeight()+16+'px':null" (click)="p.undoSkip()">&#8630; Annulla salto</button>}
+ @if(p.showNextEpisode && !p.selectMenu() && p.scrub()===null){<button #nextEpisodeButton class="next-episode-prompt" [style.bottom]="p.controls()&&controlsHeight()>0?controlsHeight()+16+'px':null" data-focus="player-next-episode" [attr.aria-label]="'Prossimo episodio '+p.nextEpisode!.number" (click)="p.next()">Episodio {{p.nextEpisode!.number}} &#8594;</button>}
  @if(p.controls()){
- <div id="p-controls" class="player-controls">
+ <div #playerControls id="p-controls" class="player-controls">
+  @if(p.skipNotice()){<p class="pip-notice" role="status">{{p.skipNotice()}}</p>}
   @if(pip.notice()){<p class="pip-notice" role="status">{{pip.notice()}}</p>}
-  @if(p.introStatus()){<div class="intro-status" role="status">{{p.introStatus()}}</div>}
-  @if(p.aniSkipDuration() && !p.intro()){
-   <div class="intro-fallback toolbar" aria-label="Salto manuale in base alla lunghezza AniSkip">
-    <span>Durata sigla suggerita, posizione non verificata:</span>
-    <button data-focus="p-intro-forward" (click)="p.skipByAniSkip(0)">Avanza di {{clock(p.aniSkipDuration()!)}}</button>
-    <button data-focus="p-intro-forward-short" (click)="p.skipByAniSkip(5)">Avanza −5 secondi</button>
-   </div>
-  }
-  @if(p.intro()){<div class="intro-status">Sigla {{p.intro()!.source==='local'?'corretta sulla TV':p.intro()!.source==='aniskip'?'AniSkip':'verificata con audio'}} · {{clock(p.intro()!.start)}}–{{clock(p.intro()!.end)}}</div>}
+  <div class="skip-indicators" aria-label="Intervalli dei salti: A AniSkip, A? proposta da allineare, spunta verificato con audio, matita manuale">
+   @for(item of skipIndicators();track item.key){<button type="button" data-tv-click class="skip-indicator" [attr.data-interval]="item.key" (click)="explainInterval(item.key)" [class.skip-provisional]="item.provisional" [attr.title]="item.title" [attr.aria-label]="item.title"><b aria-hidden="true">{{item.icon}}</b><span aria-hidden="true">{{item.times}}</span><small aria-hidden="true">{{item.mark}}</small>@if(item.analyzing){<i class="skip-checking" aria-hidden="true">&#8635;</i>}</button>}
+  </div>
   @if(p.scrub()!==null){<div class="seek-preview">Vai a {{clock(p.scrub()!)}} · OK conferma · Return annulla</div>}
   <div class="timeline" id="timeline" role="slider" tabindex="0" data-focus="p-timeline" aria-label="Timeline video: frecce per anteprima, OK conferma, Return annulla" [attr.aria-valuemax]="p.state().duration" [attr.aria-valuenow]="p.state().position" (click)="timeline($event)" (keydown)="onKey($event)">
     <span class="timeline-progress" [style.width.%]="p.state().duration?100*(p.scrub()??p.state().position)/p.state().duration:0"></span>
   </div>
   <div class="player-controls-row">
    <span class="player-clock">{{clock(p.state().position)}} / {{clock(p.state().duration)}}</span>
-   <div class="toolbar">
-    <button data-focus="p-back" (click)="p.seekBy(-30)">−30 s</button>
-    <button data-focus="p-toggle" (click)="p.toggle()">{{p.state().playing?'Ⅱ Pausa':'▶ Riprendi'}}</button>
-    @if(p.html5()&&pip.supported()){<button data-focus="p-pip" (click)="pip.enter()" aria-label="Picture-in-Picture">PiP &#8599;</button>}
-    <button data-focus="p-next" (click)="p.seekBy(30)">+30 s</button>
-    @if(p.nextEpisode){<button data-focus="p-episode-next" (click)="p.next()">Episodio successivo →</button>}
-    <button data-focus="p-intro" (click)="editIntro()">Sigla</button>
-    <button data-focus="p-subtitles" (click)="p.selectMenu.set(p.selectMenu()==='subtitles'?null:'subtitles')">Sottotitoli</button>
+   <div class="toolbar player-actions" (focusin)="controlFocused($event)" (focusout)="controlHint.set('')">
+    <button class="player-icon-button" data-focus="p-episode-previous" [disabled]="!p.previousEpisode" aria-label="Episodio precedente" title="Episodio precedente" (click)="p.previous()"><app-player-icon name="previous" /></button>
+    <button class="player-icon-button" data-focus="p-back" aria-label="Indietro di 30 secondi" title="Indietro di 30 secondi" (click)="p.seekBy(-30)"><app-player-icon name="back" /></button>
+    <button class="player-icon-button" data-focus="p-toggle" [attr.aria-label]="p.state().playing?'Pausa':'Riprendi'" [attr.title]="p.state().playing?'Pausa':'Riprendi'" (click)="p.toggle()"><app-player-icon [name]="p.state().playing?'pause':'play'" /></button>
+    <button class="player-icon-button" data-focus="p-next" aria-label="Avanti di 30 secondi" title="Avanti di 30 secondi" (click)="p.seekBy(30)"><app-player-icon name="forward" /></button>
+    <button class="player-icon-button" data-focus="p-episode-next" [disabled]="!p.nextEpisode" aria-label="Episodio successivo" title="Episodio successivo" (click)="p.next()"><app-player-icon name="next" /></button>
+    @if(p.html5()&&pip.supported()){<button class="player-icon-button" data-focus="p-pip" (click)="pip.enter()" aria-label="Picture-in-Picture" title="Picture-in-Picture"><app-player-icon name="pip" /></button>}
+    <button class="player-short-button" data-focus="p-intro" aria-label="Gestisci salti" title="Gestisci salti" (click)="editIntro()">Salti</button>
+    <button data-tv-click class="player-short-button" data-focus="p-subtitles" aria-label="Cambia versione SUB ITA o DUB ITA" title="Cambia versione SUB ITA o DUB ITA" [disabled]="p.audioSwitching()||p.state().buffering" (click)="audioMenu()">{{p.audioLanguage()==='dub'?'ITA':'SUB'}}</button>
    </div>
   </div>
-  <p class="player-help">← → Timeline · OK conferma · Return nasconde i comandi · Play/Pausa · Posizione salvata automaticamente</p>
+  <p class="player-control-caption" aria-hidden="true">{{controlHint()}}</p>
+  @if(p.selectMenu()==='intervals'){
+   <section class="player-popup interval-explanation" role="dialog" aria-label="Dettagli intervallo">
+    <h3>{{intervalInfo().label}}</h3><p class="interval-state">{{intervalInfo().state}}</p>
+    <dl><div><dt>AniSkip</dt><dd>{{intervalInfo().reference}}</dd></div><div><dt>Nel video</dt><dd>{{intervalInfo().current}}</dd></div><div><dt>Offset applicato</dt><dd>{{intervalInfo().offset}}</dd></div></dl>
+    <p>{{intervalInfo().reason}}</p>@if(intervalInfo().progress){<p class="muted">Analisi in corso?</p>}
+    <button data-tv-click data-interval-close (click)="closeInterval()">Chiudi</button>
+   </section>
+  }
   @if(p.selectMenu()==='intro'){
    <div class="player-popup">
-    <h3>Correggi la sigla</h3>
+    <h3>Salti di questo episodio</h3><label>Tipo <select [ngModel]="segmentKind" (ngModelChange)="chooseSegment($event)"><option value="opening">Sigla iniziale</option><option value="recap">Riassunto</option><option value="prologue">Intro narrativa / altro inizio</option><option value="ending">Sigla finale</option></select></label>
+    @if(p.introStatus()){<p class="skip-detail-message">{{p.introStatus()}}</p>}@if(p.endingStatus()){<p class="skip-detail-message">{{p.endingStatus()}}</p>}
+    @if(p.aniSkipDuration() && !p.intro()){<div class="intro-fallback toolbar" aria-label="Salto manuale in base alla lunghezza AniSkip"><span>Durata suggerita, posizione da verificare:</span><button data-focus="p-intro-forward" (click)="p.skipByAniSkip(0)">Avanza di {{clock(p.aniSkipDuration()!)}}</button><button data-focus="p-intro-forward-short" (click)="p.skipByAniSkip(5)">Avanza −5 secondi</button></div>}
     <label>Inizio (secondi) <input type="number" min="0" [(ngModel)]="introStart"></label>
     <label>Fine (secondi) <input type="number" min="0" [(ngModel)]="introEnd"></label>
-    <div class="toolbar"><button (click)="introStart=p.state().position">Usa posizione come inizio</button><button (click)="introEnd=p.state().position">Usa posizione come fine</button><button (click)="saveIntro()">Salva su questa TV</button><button (click)="p.clearIntro();p.selectMenu.set(null)">Rimuovi e ricalcola</button><button (click)="p.disableIntro();p.selectMenu.set(null)">Disattiva per episodio</button><button (click)="p.cancelIntroAnalysis()">Annulla analisi</button></div>
+    <div class="toolbar"><button (click)="introStart=p.state().position">Usa posizione come inizio</button><button (click)="introEnd=p.state().position">Usa posizione come fine</button><button (click)="saveIntro()">Salva su questa TV</button><button (click)="clearSegment()">Elimina intervallo</button>@if(segmentKind==='opening'){<button (click)="p.disableIntro();p.selectMenu.set(null)">Disattiva sigla iniziale</button>}@if(segmentKind==='ending'){<button (click)="p.analyzeEnding()">Analizza audio finale</button>}<button (click)="p.cancelIntroAnalysis()">Annulla analisi</button><button (click)="p.selectMenu.set(null)">Chiudi</button></div>
    </div>
   }
-  @if(p.selectMenu()==='subtitles'){
-   <div class="player-popup"><h3>Sottotitoli</h3><div class="toolbar"><button (click)="p.setSubtitleTrack(null)">Disattivati</button>@for(track of p.subtitles();track track.index){<button (click)="p.setSubtitleTrack(track.index)">{{track.label}}</button>}</div>@if(!p.subtitles().length){<p>Nessuna traccia di sottotitoli selezionabile.</p>}<button (click)="p.selectMenu.set(null)">Chiudi</button></div>
+  @if(p.selectMenu()==='language'){
+   <div class="player-popup" role="dialog" aria-label="Versione del video"><h3>SUB / DUB ITA</h3>
+    @if(p.audioLoading()||p.audioSwitching()){<app-anime-loader variant="inline" message="Cambio versione" />}
+    <div class="toolbar">
+     <button data-tv-click data-audio-option [attr.aria-pressed]="p.audioLanguage()==='sub'" [disabled]="p.audioLanguage()==='sub'||!p.audioAvailable('sub')||p.audioSwitching()" (click)="p.switchAudio('sub')">SUB ITA</button>
+     <button data-tv-click data-audio-option [attr.aria-pressed]="p.audioLanguage()==='dub'" [disabled]="p.audioLanguage()==='dub'||!p.audioAvailable('dub')||p.audioSwitching()" (click)="p.switchAudio('dub')">DUB ITA</button>
+    </div>
+    @if(!p.audioLoading()&&!p.audioAvailable(p.audioLanguage()==='sub'?'dub':'sub')){<p class="skip-detail-message">La versione alternativa non è disponibile per questo episodio.</p>}
+    @if(p.audioNotice()){<p class="skip-detail-message" role="status">{{p.audioNotice()}}</p>}
+    <button data-tv-click data-audio-close (click)="p.selectMenu.set(null)">Chiudi</button>
+   </div>
   }
  </div>
  }

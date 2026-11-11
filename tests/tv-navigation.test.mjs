@@ -505,10 +505,10 @@ test('AniSkip ending accepts compatible unambiguous ED only and shares the openi
  service.fetchTimes=async()=>{throw Error('Offline');};assert.equal(await service.loadEnding(ctx),null);
 });
 test('Verified ending controls next prompt timing and still requires 75 percent actual coverage to mark seen',()=>{
- const {player}=nextEpisodeFixture();player.ending.set({start:1250,end:1340,source:'aniskip'});player.state.update(s=>({...s,position:1249}));assert.equal(player.showNextEpisode,false);player.state.update(s=>({...s,position:1250}));assert.equal(player.showNextEpisode,true);
+ const {player}=nextEpisodeFixture();player.ending.set({start:1250,end:1340,source:'aniskip'});player.state.update(s=>({...s,position:1249}));assert.equal(player.showNextEpisode,false);player.state.update(s=>({...s,position:1250}));assert.equal(player.showNextEpisode,false);assert.equal(player.activeSkip.kind,'ending');player.state.update(s=>({...s,position:1340}));assert.equal(player.showNextEpisode,true);assert.equal(player.activeSkip,null);
  const {WatchProgress}=load('src/app/core/watch-progress.ts');const progress=new WatchProgress();for(let p=0;p<=1250;p+=5)progress.sample(p,1440,true,p*1000+1);assert.equal(progress.complete(1250),false);assert.equal(progress.complete(1250,1250),true);
  const skipped=new WatchProgress();skipped.sample(1240,1440,true,1);skipped.sample(1250,1440,true,10001);assert.equal(skipped.complete(1250,1250),false);
- player.ending.set(null);assert.equal(player.showNextEpisode,false);
+ player.ending.set(null);player.state.update(s=>({...s,position:1250}));assert.equal(player.showNextEpisode,false);
 });
 
 test('Audio-confirmed opening shifts AniSkip ending by the same offset and rejects mixed versions',async()=>{
@@ -533,4 +533,262 @@ test('LG adapter launches external browser through Luna and does not expose Sams
  const calls=[];class Bridge{call(uri,body){calls.push([uri,JSON.parse(body)]);this.onservicecallback();}}
  const {TvPlatformService}=load('src/app/core/tv-platform.service.ts',{window:{webOSSystem:{},PalmServiceBridge:Bridge,webapis:{avplay:{}},addEventListener(){},close(){calls.push(['close']);}},navigator:{onLine:true,userAgent:'Web0S'}});
  const platform=new TvPlatformService();assert.equal(platform.getAvplay(),null);platform.openExternal('https://myanimelist.net/');assert.equal(calls[0][0],'luna://com.webos.applicationManager/launch');assert.equal(calls[0][1].id,'com.webos.app.browser');assert.equal(platform.exitApp(),true);assert.throws(()=>platform.openExternal('javascript:alert(1)'),/non consentito/);
+});
+
+
+test('Recap and finale skips preserve post-credit material and remote OK skips only the active interval',async()=>{
+ const {player,document}=nextEpisodeFixture();let sought=null,next=0;player.seekTo=position=>{sought=position;};player.next=async()=>{next++;};
+ player.recap.set({start:0,end:55,source:'aniskip'});player.intro.set({start:60,end:150,source:'aniskip'});
+ assert.equal(player.activeSkip.kind,'recap');await player.skipCurrentSegment();assert.equal(sought,55);assert.equal(next,0);
+ player.state.update(s=>({...s,position:60}));assert.equal(player.activeSkip.kind,'opening');
+ player.ending.set({start:1250,end:1340,source:'audio'});player.state.update(s=>({...s,position:1250}));document.activeElement={getAttribute:()=> 'player-skip-segment'};
+ assert.equal(player.showNextEpisode,false);assert.equal(player.handleKey({key:'Enter',repeat:false}),true);await Promise.resolve();assert.equal(sought,1340);assert.equal(next,0);
+ player.state.update(s=>({...s,position:1340}));assert.equal(player.activeSkip,null);assert.equal(player.showNextEpisode,true);
+ player.ending.set({start:1350,end:1440,source:'aniskip'});player.state.update(s=>({...s,position:1350}));player.showControls();await player.skipCurrentSegment();assert.equal(next,1);
+ player.detail.episodes.pop();player.showControls();await player.skipCurrentSegment();assert.equal(next,1);assert.equal(sought,1440);
+ player.ending.set(null);player.intro.set(null);player.recap.set(null);player.state.update(s=>({...s,position:1400}));assert.equal(player.activeSkip,null);
+});
+
+test('Manual narrative/recap/ending intervals are scoped by episode, provider, audio and video duration',()=>{
+ const data={};const store={read:(key,fallback)=>data[key]??fallback,write:(key,value)=>{data[key]=value;return true;}};
+ const {IntroService}=load('src/app/core/intro.service.ts');const service=new IntroService(store);
+ const ctx=service.context({id:1,mal_id:10,slug:'test',dub:0},{number:'1'},1440);
+ service.saveSegment(ctx,'prologue',0,35);service.saveSegment(ctx,'ending',1350,1440);
+ assert.equal(service.localSegment(ctx,'prologue').end,35);assert.equal(service.localSegment(ctx,'ending').end,1440);
+ assert.equal(service.localSegment({...ctx,duration:1500},'ending'),null);assert.equal(service.localSegment({...ctx,key:ctx.key+'dub'},'ending'),null);
+ assert.throws(()=>service.saveSegment(ctx,'recap',30,1500),/non valido/);service.clearSegment(ctx,'prologue');assert.equal(service.localSegment(ctx,'prologue'),null);
+});
+
+test('AniSkip recap uses duration validation and verified opening offset while rejecting mixed endings',async()=>{
+ const {IntroService}=load('src/app/core/intro.service.ts');const service=new IntroService({read:()=>({}),write:()=>true});
+ const ctx={mal:10,number:1,duration:1470,key:'test'};
+ const op={skipType:'op',episodeLength:1440,interval:{startTime:60,endTime:150}},recap={skipType:'recap',episodeLength:1440,interval:{startTime:0,endTime:55}};
+ service.fetchTimes=async()=>[op,recap];assert.equal(await service.loadRecap(ctx),null);
+ const shifted=await service.loadRecap(ctx,{start:90,end:180,source:'audio'});assert.equal(shifted.start,30);assert.equal(shifted.end,85);
+ service.fetchTimes=async()=>[{skipType:'mixed-ed',episodeLength:1470,interval:{startTime:1300,endTime:1420}}];assert.equal(await service.loadEnding(ctx),null);
+ service.fetchTimes=async()=>[{...recap,episodeLength:1470},{...recap,episodeLength:1470,interval:{startTime:5,endTime:60}}];assert.equal(await service.loadRecap(ctx),null);
+});
+
+test('Ending audio analyzes each episodes own tail and needs two independent agreeing references',async()=>{
+ const {consensus}=load('src/app/core/audio-fingerprint.ts');const windows=[],data={};let comparisons=0,oneOnly=false;
+ const modules={
+  './mp4-duration':{readVideoDuration:async()=>1500},
+  './audio-fingerprint':{INTRO_AUDIO_VERSION:3,consensus,readAudio:async(url,signal,progress,window)=>{windows.push({url,...window});return {url};},inferRepeated:async()=>{comparisons++;if(oneOnly&&comparisons>1)return null;return {start:1300,end:1390,otherStart:1360,score:.95,coverage:1,temporalContrast:.5};}}
+ };
+ const {EndingDetectorService}=load('src/app/core/ending-detector.service.ts',{DOMException},modules);
+ const store={read:(key,fallback)=>data[key]??fallback,write:(key,value)=>{data[key]=value;return true;}};
+ const api={page:async()=>({episodes:[{number:'1'},{number:'2'},{number:'3'}]}),source:async(anime,ep)=>'https://example.com/'+ep.number};
+ const service=new EndingDetectorService(store,api),anime={slug:'test',dub:0},episode={number:'1'};
+ const ending=await service.detect(anime,episode,1440,new AbortController().signal);assert.equal(ending.start,1300);assert.equal(comparisons,2);
+ assert.equal(windows[0].start,1140);assert.equal(windows[0].end,1440);assert.equal(windows[1].start,1200);assert.equal(windows[1].end,1500);
+ assert.equal(service.saved(anime,episode,1440).end,1390);assert.equal(service.saved({...anime,dub:1},episode,1440),null);
+ comparisons=0;oneOnly=true;assert.equal(await service.detect(anime,{number:'4'},1440,new AbortController().signal),null);
+});
+
+
+test('AniSkip prefetch reuses one request for opening, recap and ending and survives app restart',async()=>{
+ let calls=0,resolveFetch;const data={};const rows=[{skipType:'op',episodeLength:1440,interval:{startTime:0,endTime:90}},{skipType:'recap',episodeLength:1440,interval:{startTime:90,endTime:150}},{skipType:'ed',episodeLength:1440,interval:{startTime:1350,endTime:1440}}];
+ const {IntroService}=load('src/app/core/intro.service.ts',{AbortController,fetch:()=>{calls++;return new Promise(resolve=>{resolveFetch=()=>resolve({ok:true,status:200,json:async()=>({found:true,results:rows})});});}});
+ const store={read:(key,fallback)=>data[key]??fallback,write:(key,value)=>{data[key]=value;return true;}},service=new IntroService(store),anime={id:1,mal_id:10,slug:'test'},episode={number:'1'};
+ service.prefetch(anime,episode);const ctx=service.context(anime,episode,1440);
+ const jobs=[service.load(ctx),service.loadRecap(ctx),service.loadEnding(ctx)];assert.equal(calls,1);resolveFetch();
+ const [op,recap,ed]=await Promise.all(jobs);assert.equal(op.interval.start,0);assert.equal(recap.end,150);assert.equal(ed.end,1440);assert.equal(calls,1);
+ const restarted=new IntroService(store);restarted.prefetch(anime,episode);const cached=await restarted.load(ctx);assert.equal(cached.interval.end,90);assert.equal(calls,1);
+ assert.equal((await restarted.load({...ctx,duration:1500})).state,'review');
+});
+
+test('An AniSkip opening at time zero is actionable without invoking audio analysis',async()=>{
+ const {player}=nextEpisodeFixture();let analyses=0;player.detail.anime.awSlug='test';
+ const window={start:0,end:90,source:'aniskip'};
+ player.introService={context:()=>({mal:10,number:1,duration:1440,key:'test'}),local:()=>null,localSegment:()=>null,load:async()=>({state:'ready',interval:window,message:'ready'}),skipLength:()=>({seconds:90}),loadEnding:async()=>null,loadRecap:async()=>({start:90,end:150,source:'aniskip'})};
+ player.detector={saved:()=>null,supported:()=>true,detect:async()=>{analyses++;throw Error('must not run');}};
+ await player.loadIntro(player.generation);await Promise.resolve();assert.equal(analyses,0);assert.equal(player.activeSkip.kind,'opening');assert.equal(player.intro().end,90);
+ player.state.update(s=>({...s,position:90}));assert.equal(player.activeSkip.kind,'recap');
+});
+
+
+test('One Piece 100 ending survives sub-second EOF rounding without hiding post-credit content',async()=>{
+ const {IntroService}=load('src/app/core/intro.service.ts');const service=new IntroService({read:()=>({}),write:()=>true});
+ const row={skipType:'ed',episodeLength:1440.167,interval:{startTime:1325,endTime:1440}};
+ service.fetchTimes=async()=>[row];
+ for(const duration of [1439.9,1438,1440,1440.167]){
+  const result=await service.loadEnding({mal:21,number:100,duration,key:'test'});assert.ok(result,'ending missing for duration '+duration);assert.equal(result.start,1325);assert.equal(result.end,Math.min(1440,duration));
+ }
+ assert.equal(await service.loadEnding({mal:21,number:100,duration:1430,key:'test'}),null);
+ service.fetchTimes=async()=>[{...row,interval:{startTime:1250,endTime:1340}}];
+ assert.equal((await service.loadEnding({mal:21,number:100,duration:1439.9,key:'test'})).end,1340);
+ const {player}=nextEpisodeFixture();player.state.update(s=>({...s,duration:1439.9,position:1325}));player.ending.set({start:1325,end:1439.9,source:'aniskip'});
+ assert.equal(player.activeSkip.kind,'ending');assert.equal(player.showNextEpisode,false);
+});
+
+
+test('One Piece 100 23m44 file keeps the audio-aligned ending even when the reference credits extend beyond EOF',async()=>{
+ const {IntroService}=load('src/app/core/intro.service.ts');const service=new IntroService({read:()=>({}),write:()=>true});
+ const ctx={mal:21,number:100,duration:1424,key:'one-piece-100'};
+ const op={skipType:'op',episodeLength:1440.167,interval:{startTime:.957,endTime:90.957}};
+ const ed={skipType:'ed',episodeLength:1440.167,interval:{startTime:1325,endTime:1440}};
+ service.fetchTimes=async()=>[op,ed];assert.equal(await service.loadEnding(ctx),null,'duration alone is not an offset');
+ const aligned=await service.loadEnding(ctx,{start:.957,end:90.957,source:'audio'});assert.equal(aligned.start,1325);assert.equal(aligned.end,1424);
+ const shifted=await service.loadEnding(ctx,{start:0,end:90,source:'fingerprint'});assert.ok(Math.abs(shifted.start-1324.043)<.001);assert.equal(shifted.end,1424);
+ service.fetchTimes=async()=>[op,{...ed,interval:{startTime:1250,endTime:1340}}];assert.equal((await service.loadEnding(ctx,{start:.957,end:90.957,source:'audio'})).end,1340,'post-credit tail must stay intact');
+ service.fetchTimes=async()=>[op,{...ed,episodeLength:1480}];assert.equal(await service.loadEnding(ctx,{start:.957,end:90.957,source:'audio'}),null);
+});
+
+
+test('AniSkip proposals offer an immediate provisional skip and reject conflicting intervals',async()=>{
+ const {IntroService}=load('src/app/core/intro.service.ts');const service=new IntroService({read:()=>({}),write:()=>true});
+ const ctx={mal:21,number:100,duration:1424,key:'test'};
+ service.fetchTimes=async()=>[{skipType:'op',episodeLength:1440.167,interval:{startTime:.957,endTime:90.957}},{skipType:'recap',episodeLength:1440.105,interval:{startTime:124,endTime:156}},{skipType:'ed',episodeLength:1440.167,interval:{startTime:1325,endTime:1440}}];
+ const proposal=await service.proposals(ctx);assert.equal(proposal.ending.end,1440);assert.equal(proposal.recap.start,124);
+ assert.equal(await service.loadEnding(ctx),null);
+ const {player}=nextEpisodeFixture();player.skipProposals.set(proposal);player.state.update(s=>({...s,position:1325}));assert.equal(player.activeSkip.kind,'ending');assert.equal(player.activeSkip.provisional,true);
+ service.fetchTimes=async()=>[{skipType:'op',episodeLength:1440,interval:{startTime:0,endTime:90}},{skipType:'op',episodeLength:1440,interval:{startTime:20,endTime:110}}];assert.equal((await service.proposals(ctx)).opening,null);
+});
+
+
+test('Previous episode is bounded by available episodes and saves current playback before opening',async()=>{
+ const {player,saved}=nextEpisodeFixture();assert.equal(player.previousEpisode,null);
+ player.episode=player.detail.episodes[1];player.state.update(s=>({...s,episode:2,position:300}));let opened=null;
+ player.open=async(detail,episode)=>{assert.equal(saved.length,1);opened=episode;};
+ await player.previous();assert.equal(opened.number,'1');assert.equal(saved[0][2],300);
+ player.detail.episodes[0].public=0;assert.equal(player.previousEpisode,null);opened=null;await player.previous();assert.equal(opened,null);
+ player.detail.episodes.shift();assert.equal(player.previousEpisode,null);
+});
+
+test('Skipping removes control focus and leaves video alone even when another skip segment starts immediately',async()=>{
+ const {player,document}=nextEpisodeFixture();let blurred=0;
+ player.engine='html5';player.video={currentTime:0};player.recap.set({start:0,end:60,source:'aniskip'});player.intro.set({start:60,end:150,source:'aniskip'});
+ document.activeElement={closest:()=>true,blur(){blurred++;document.activeElement=null;}};
+ await player.skipCurrentSegment();assert.equal(player.state().position,60);assert.equal(player.controls(),false);assert.equal(blurred,1);assert.equal(player.skipPrompt,null);assert.equal(player.showNextEpisode,false);
+ player.showControls();assert.equal(player.controls(),true);assert.equal(player.skipPrompt.kind,'opening');clearTimeout(player.controlTimer);clearTimeout(player.skipQuietTimer);
+});
+
+
+function audioSwitchFixture(metadata=false){
+ const document={activeElement:null,documentElement:{classList:{toggle(){}}},body:{classList:{toggle(){}}}};
+ const {PlaybackService}=load('src/app/core/playback.service.ts',{document,AbortController,setInterval,clearInterval},metadata?{'./mp4-duration':{readVideoDuration:async()=>1500}}:{});const saved=[];
+ const sub={anime:{id:10,mal_id:100,awSlug:'test-sub',dub:0,title:'Test'},episodes:[{id:'s1',number:'1',public:1},{id:'s2',number:'2',public:1}],related:[],count:2};
+ const dub={...sub,anime:{...sub.anime,id:99,awSlug:'test-dub',dub:1},episodes:[{id:'d1',number:'1',public:1}]};
+ const local={history:()=>({}),settings:()=>({resume:false,autonext:false}),isSeen:()=>false,watchCoverage:Object.assign(()=>({}),{set(){}}),watchKey:()=> 'mal:100:1',write(){},progress:(...args)=>saved.push(args)};
+ const sourceCalls=[];const api={source:async(anime,episode)=>{sourceCalls.push({slug:anime.awSlug,number:episode.number});return 'https://example.com/'+anime.awSlug+'.mp4';},match:async()=>({matches:[sub,dub]})};
+ const player=new PlaybackService(api,local,{},{prefetch(){}},{},{queue(){}},{},{});player.detail=sub;player.episode=sub.episodes[0];player.source='https://example.com/test-sub.mp4';player.audioOptions.set([sub,dub]);player.state.set({opened:true,playing:false,buffering:false,error:'',position:420,duration:1440,title:'Test',episode:1});
+ const prepared=[];player.prepare=async(url,position,id,paused,exact)=>{prepared.push({url,position,paused,exact});player.state.update(s=>({...s,position,duration:1500,playing:!paused,buffering:false}));};
+ return {player,sub,dub,saved,prepared,sourceCalls};
+}
+
+test('Audio source switch preserves exact seconds and pause even with resume disabled and a different catalog ID',async()=>{
+ const {player,prepared,saved}=audioSwitchFixture();let changed;player.onAudioChanged=detail=>changed=detail;
+ await player.switchAudio('dub');assert.equal(player.audioLanguage(),'dub');assert.equal(player.state().position,420);assert.equal(player.state().playing,false);
+ assert.equal(prepared[0].position,420);assert.equal(prepared[0].exact,true);assert.equal(prepared[0].paused,true);assert.equal(changed.anime.id,10);assert.equal(changed.anime.awSlug,'test-dub');assert.equal(player.episode.id,'d1');assert.ok(saved.length>=2);
+ player.close(false);
+});
+
+test('Missing audio episode or failed URL lookup does not replace the current video',async()=>{
+ const {player,dub,prepared}=audioSwitchFixture();player.episode=player.detail.episodes[1];assert.equal(player.audioAvailable('dub'),false);await player.switchAudio('dub');assert.equal(prepared.length,0);assert.equal(player.detail.anime.awSlug,'test-sub');
+ player.episode=player.detail.episodes[0];player.data.source=async()=>{throw Error('offline');};await player.switchAudio('dub');assert.equal(prepared.length,0);assert.equal(player.state().position,420);assert.equal(player.audioLanguage(),'sub');assert.equal(player.state().error,'');assert.match(player.audioNotice(),/attuale/);
+});
+
+test('Failed replacement restores previous source and timestamp without resetting to episode start',async()=>{
+ const {player,prepared}=audioSwitchFixture();const prepare=player.prepare;player.prepare=async(url,...args)=>{if(url.includes('test-dub'))throw Error('new source too short');return prepare(url,...args);};
+ await player.switchAudio('dub');assert.equal(player.audioLanguage(),'sub');assert.equal(player.state().position,420);assert.equal(player.state().playing,false);assert.equal(prepared[0].url,'https://example.com/test-sub.mp4');assert.match(player.audioNotice(),/ripristinata/);assert.equal(player.selectMenu(),'language');player.close(false);
+});
+
+test('Closing during language lookup does not reopen playback when the network finishes',async()=>{
+ const {player,prepared}=audioSwitchFixture();let finish;player.data.source=()=>new Promise(resolve=>finish=resolve);const pending=player.switchAudio('dub');player.close(false);finish('https://example.com/new.mp4');await pending;assert.equal(prepared.length,0);assert.equal(player.state().opened,false);
+});
+
+
+test('Version alignment translates timestamps only for compatible opening boundaries',()=>{
+ const {audioPosition}=load('src/app/core/audio-position.ts');const from={start:60,end:150,source:'audio'},to={start:90,end:180,source:'aniskip'};
+ assert.equal(audioPosition(420,from,to).position,450);assert.equal(audioPosition(420,from,to).aligned,true);
+ assert.equal(audioPosition(30,from,to).position,30);assert.equal(audioPosition(30,from,to).aligned,false);
+ assert.equal(audioPosition(420,from,{...to,end:210}).position,420);assert.equal(audioPosition(420,from,null).aligned,false);
+});
+
+test('SUB to DUB uses the known opening offset and rollback restores the original rather than translated timestamp',async()=>{
+ const {player,prepared}=audioSwitchFixture(true);player.intro.set({start:60,end:150,source:'audio'});
+ player.introService={prefetch(){},context:()=>({mal:100,number:1,duration:1500,key:'dub'}),local:()=>null,load:async()=>({state:'ready',interval:{start:90,end:180,source:'aniskip'}})};player.detector={saved:()=>null};
+ await player.switchAudio('dub');assert.equal(prepared[0].position,450);assert.equal(player.state().position,450);player.close(false);
+ const retry=audioSwitchFixture(true),p=retry.player;p.intro.set({start:60,end:150,source:'audio'});p.introService=player.introService;p.detector=player.detector;
+ const prepare=p.prepare;p.prepare=async(url,...args)=>{if(url.includes('test-dub'))throw Error('failed');return prepare(url,...args);};
+ await p.switchAudio('dub');assert.equal(retry.prepared[0].position,420);assert.equal(p.state().position,420);p.close(false);
+});
+
+test('AVPlay source preparation seeks exact seconds and preserves paused playback',async()=>{
+ const {player}=audioSwitchFixture();let sought=0,played=0;
+ const av={close(){},open(){},setDisplayRect(){},setDisplayMethod(){},setListener(){},prepareAsync:ok=>ok(),getDuration:()=>1500000,seekTo:(ms,ok)=>{sought=ms;ok();},getTotalTrackInfo:()=>[],play:()=>played++};
+ player.tv={getAvplay:()=>av,platform:'tizen'};delete player.prepare;player.loadIntro=async()=>{};
+ await player.prepare('https://example.com/video.mp4',420,player.generation,true,true);assert.equal(sought,420000);assert.equal(played,0);assert.equal(player.state().position,420);assert.equal(player.state().playing,false);
+ await assert.rejects(player.prepare('https://example.com/video.mp4',1501,player.generation,true,true),/termina prima/);
+});
+
+test('HTML5 source preparation waits for seeking and preserves exact timestamp while paused',async()=>{
+ const {player}=audioSwitchFixture();
+ class Video extends EventTarget{duration=1500;paused=true;value=0;playCalls=0;get currentTime(){return this.value;}set currentTime(value){this.value=value;queueMicrotask(()=>this.dispatchEvent(new Event('seeked')));}load(){queueMicrotask(()=>this.dispatchEvent(new Event('loadedmetadata')));}pause(){this.paused=true;}async play(){this.paused=false;this.playCalls++;}}
+ const video=new Video();player.video=video;player.tv={getAvplay:()=>null,platform:'browser'};delete player.prepare;player.loadIntro=async()=>{};
+ await player.prepare('https://example.com/video.mp4',420,player.generation,true,true);assert.equal(video.currentTime,420);assert.equal(video.playCalls,0);assert.equal(player.state().playing,false);
+ await assert.rejects(player.prepare('https://example.com/video.mp4',1501,player.generation,false,true),/termina prima/);
+});
+
+
+test('The immediate AniSkip button updates after analysis while explicit manual disabling remains respected',()=>{
+ const {player}=nextEpisodeFixture();player.skipProposals.set({opening:{start:0,end:90,source:'aniskip'},recap:null,ending:null});
+ assert.equal(player.skipPrompt.provisional,true);assert.equal(player.skipPrompt.window.end,90);
+ player.intro.set({start:10,end:100,source:'audio'});player.state.update(s=>({...s,position:10}));assert.equal(player.skipPrompt.provisional,false);assert.equal(player.skipPrompt.window.end,100);
+ player.openingSkipDisabled=true;assert.equal(player.skipPrompt,null);
+});
+
+test('After skipping ED, next episode stays available without restoring the control overlay or focus',async()=>{
+ const {player,document}=nextEpisodeFixture();player.engine='html5';player.video={currentTime:1250};player.state.update(s=>({...s,position:1250}));player.ending.set({start:1250,end:1340,source:'audio'});
+ document.activeElement={closest:()=>true,blur(){document.activeElement=null;}};await player.skipCurrentSegment();
+ assert.equal(player.state().position,1340);assert.equal(player.showNextEpisode,true);assert.equal(player.controls(),false);assert.equal(player.endingSkipped(),true);assert.equal(document.activeElement,null);
+ player.detail.episodes[1].public=0;assert.equal(player.showNextEpisode,false);clearTimeout(player.skipQuietTimer);
+});
+
+
+test('Alignment rejects recap overlap and explains both the conflict and applied offset',()=>{
+ const {alignSkip}=load('src/app/core/skip-alignment.ts');const ctx={mal:1,number:1,duration:1470,key:'test'};
+ const op={skipType:'op',episodeLength:1440,interval:{startTime:60,endTime:150}},recap={skipType:'recap',episodeLength:1440,interval:{startTime:0,endTime:50}},ed={skipType:'ed',episodeLength:1440,interval:{startTime:1250,endTime:1340}};
+ const opening={start:90,end:180,source:'audio'};
+ const good=alignSkip(ctx,'recap',[op,recap,ed],opening);assert.equal(good.state,'aligned');assert.equal(good.offset,30);assert.equal(good.interval.start,30);assert.equal(good.reference.start,0);
+ const bad=alignSkip(ctx,'recap',[op,{...recap,interval:{startTime:45,endTime:90}},ed],opening);assert.equal(bad.state,'conflict');assert.equal(bad.interval,null);assert.match(bad.reason,/sovrappone/);
+});
+
+test('An independently detected ending disambiguates two otherwise plausible AniSkip editions',()=>{
+ const {alignSkip}=load('src/app/core/skip-alignment.ts');const ctx={mal:1,number:1,duration:1470,key:'test'};
+ const rows=[{skipType:'op',episodeLength:1440,interval:{startTime:60,endTime:150}},{skipType:'ed',episodeLength:1440,interval:{startTime:1250,endTime:1340}},{skipType:'recap',episodeLength:1440,interval:{startTime:0,endTime:50}},
+ {skipType:'op',episodeLength:1470,interval:{startTime:90,endTime:180}},{skipType:'ed',episodeLength:1470,interval:{startTime:1200,endTime:1290}},{skipType:'recap',episodeLength:1470,interval:{startTime:5,endTime:55}}];
+ const result=alignSkip(ctx,'recap',rows,{start:90,end:180,source:'audio'},{start:1280,end:1370,source:'audio'});
+ assert.equal(result.state,'aligned');assert.equal(result.reference.duration,1440);assert.equal(result.interval.start,30);
+});
+
+test('Undo skip restores the exact pre-skip position without crediting the skipped footage',async()=>{
+ const {player}=nextEpisodeFixture();player.engine='html5';player.video={currentTime:20};player.state.update(s=>({...s,position:20}));player.recap.set({start:0,end:60,source:'aniskip'});
+ await player.skipCurrentSegment();assert.equal(player.state().position,60);assert.equal(player.skipUndoAvailable(),true);
+ await player.undoSkip();assert.equal(player.state().position,20);assert.equal(player.skipUndoAvailable(),false);assert.equal(player.controls(),false);assert.equal(player.tracker.watched(),0);clearTimeout(player.skipQuietTimer);
+});
+
+test('Undo terminal ending can return from the next episode and is cleared when the player closes',async()=>{
+ const {player}=audioSwitchFixture();player.state.update(s=>({...s,position:1400,duration:1440}));player.ending.set({start:1350,end:1440,source:'aniskip'});
+ await player.skipCurrentSegment();assert.equal(player.episode.number,'2');assert.equal(player.skipUndoAvailable(),true);
+ await player.undoSkip();assert.equal(player.episode.number,'1');assert.equal(player.state().position,1400);assert.equal(player.state().playing,false);assert.equal(player.skipUndoAvailable(),false);
+ player.close(false);assert.equal(player.skipUndoAvailable(),false);
+});
+
+test('Intro narrow search falls back to the original complete search rather than declaring a false negative',async()=>{
+ const {IntroDetectorService}=load('src/app/core/intro-detector.service.ts');const detector=new IntroDetectorService({read:()=>({})},{},{}),passes=[];
+ detector.detectPass=async(args,narrow)=>{passes.push(narrow);if(narrow)throw Error('outside narrow window');return {start:80,end:170};};
+ const result=await detector.detect({anime:{},episode:{number:'1'},context:{},hint:{start:0,end:90},length:90});assert.equal(result.start,80);assert.equal(passes.join(','),'true,false');
+ passes.length=0;detector.detectPass=async(args,narrow)=>{passes.push(narrow);return {start:0,end:90};};await detector.detect({anime:{},episode:{number:'1'},context:{},hint:{start:0,end:90},length:90});assert.equal(passes.join(','),'true');
+});
+
+test('A verified ending fingerprint needs only the current episode and a narrow audio window',async()=>{
+ const math=load('src/app/core/audio-fingerprint.ts'),{packAudio}=load('src/app/core/audio-template.ts',{btoa,atob});let seed=7;
+ const random=()=>{const v=Array.from({length:24},()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296-.5;});const n=Math.hypot(...v);return v.map(x=>x/n);};
+ const song=Array.from({length:360},random),packed=packAudio({frames:song,origin:0},0,90);assert.ok(packed);
+ const data={endingFingerprints:{old:{...packed,version:3,series:'same',dub:0,episode:'1',remaining:50,updated:Date.now()}}},calls=[];
+ const {EndingDetectorService}=load('src/app/core/ending-detector.service.ts',{btoa,atob,DOMException},{'./audio-fingerprint':{...math,readAudio:async(url,signal,progress,window)=>{calls.push({url,...window});return {frames:[...Array.from({length:120},random),...song,...Array.from({length:120},random)],origin:1300,step:.25,seconds:150,bytes:0,window};}}});
+ const service=new EndingDetectorService({read:(key,f)=>data[key]??f,write:(key,v)=>{data[key]=v;return true;}},{page:async()=>({episodes:[{number:'1'},{number:'2'}]}),source:async(a,e)=>'https://example.com/'+e.number});
+ const result=await service.detect({awSlug:'same',dub:0},{number:'2'},1470,new AbortController().signal);
+ assert.equal(result.source,'fingerprint');assert.ok(Math.abs(result.start-1330)<1.5);assert.equal(calls.length,1);assert.equal(calls[0].end-calls[0].start,150);
 });

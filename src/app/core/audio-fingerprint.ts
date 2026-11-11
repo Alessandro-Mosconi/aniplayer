@@ -11,7 +11,7 @@ export type Frame=number[]|null;
 export interface Spectrum{frames:Frame[];origin:number;step:number;seconds:number;bytes:number;window:{start:number;end:number};}
 export interface AudioHint{start:number;end:number;}
 export interface Match{start:number;end?:number;otherStart:number;score:number;coverage:number;temporalContrast:number;templateMatch?:string;episode?:string;}
-export function searchWindow(hint?:AudioHint|null){if(hint&&Number.isFinite(hint.start)&&Number.isFinite(hint.end)&&hint.start>=0&&hint.end>hint.start&&hint.end-hint.start<=180){const start=Math.max(0,hint.start-90);return {start,end:Math.min(start+MAX_SECONDS,hint.end+90)};}return {start:0,end:MAX_SECONDS};}
+export function searchWindow(hint?:AudioHint|null,narrow=false){if(hint&&Number.isFinite(hint.start)&&Number.isFinite(hint.end)&&hint.start>=0&&hint.end>hint.start&&hint.end-hint.start<=180){const margin=narrow?30:90,start=Math.max(0,hint.start-margin);return {start,end:Math.min(start+MAX_SECONDS,hint.end+margin)};}return {start:0,end:MAX_SECONDS};}
 export class SpectralFrames{
  private stride:number;private rate:number;private phase=0;private bin=-1;private samples:number[]=[];private frames:Frame[]=[];
  private readonly size=2048;private readonly window:number[];private readonly bands:number[];

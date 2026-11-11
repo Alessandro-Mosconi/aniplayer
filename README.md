@@ -10,6 +10,33 @@ Il catalogo usa AnimeUnity; la riproduzione cerca una corrispondenza su AnimeWor
 
 **Uso consentito:** utilizza AniPlayer esclusivamente con contenuti e servizi ai quali hai diritto di accedere. Consulta il [disclaimer su copyright e responsabilità](#disclaimer-copyright-e-uso-consentito).
 
+## Salta riassunti e sigle
+
+Il player propone **Salta riassunto**, **Salta sigla iniziale** e **Salta sigla finale** appena dispone di una proposta AniSkip o di un intervallo verificato. I dati AniSkip vengono validati rispetto alla durata del video; se la sigla iniziale viene riconosciuta con audio e corrisponde a quella di riferimento, il suo offset riallinea anche riassunto e finale della stessa versione. Gli intervalli discordanti e le sigle miste a scene narrative non vengono accettati automaticamente.
+
+Gli intervalli AniSkip vengono richiesti mentre il video si prepara e conservati in cache: il pulsante non aspetta l'analisi audio. Per una sigla compatibile che inizia entro cinque secondi, il confronto audio aggiuntivo viene evitato. La prima richiesta dipende comunque dalla disponibilità del servizio; le durate discordanti restano indicate come proposte da verificare.
+
+Nei comandi del player gli indicatori compatti mostrano riassunto, sigla iniziale e finale: `--` se manca un intervallo, `A?` per una proposta AniSkip ancora da allineare, `A` per AniSkip compatibile o riallineato, `✓` per il riconoscimento audio, `✎` per una correzione manuale e `!` per un conflitto. Seleziona un indicatore con OK o un tocco per vedere i tempi di riferimento, quelli del video, l'offset applicato e il motivo dello stato. Il pulsante Salta usa subito una proposta AniSkip utilizzabile, poi si aggiorna dopo l'analisi; un conflitto sospende il salto interessato. Le correzioni manuali e la disattivazione della sigla mantengono la priorità.
+
+L'analisi prova prima una finestra ridotta attorno ai tempi AniSkip o alle impronte locali; se non trova riscontri sufficienti, allarga la ricerca. Le impronte verificate della finale vengono riutilizzate negli episodi successivi della stessa serie e lingua: quando corrispondono basta analizzare il video corrente. Il primo riconoscimento resta più oneroso. Il riallineamento confronta riferimenti della stessa edizione e può usare la finale riconosciuta come secondo riscontro; un riassunto che si sovrappone alla sigla viene segnalato come conflitto.
+
+Dopo un salto compare **Annulla salto** per cinque secondi. Riceve il focus solo se non ci sono altre azioni contestuali disponibili; Salta e Prossimo episodio hanno la precedenza. Ripristina la posizione precedente anche se il salto della finale ha già aperto l'episodio successivo.
+
+I comandi principali usano icone: episodio precedente/successivo, indietro/avanti di 30 secondi, pausa/riprendi e PiP. `SUB`/`ITA` cambia la versione del video; **Salti** gestisce gli intervalli. La didascalia sotto i comandi descrive il pulsante con il focus. Dopo un salto i comandi e il focus vengono rimossi; dopo la finale resta disponibile il pulsante del prossimo episodio quando è nella finestra di fine episodio, senza riprendere il focus; OK/frecce o un tocco richiamano i comandi.
+
+Nel player, il selettore **SUB / DUB ITA** sostituisce il precedente CC: sono sorgenti diverse, non tracce di sottotitoli. Mantiene lo stesso numero episodio e lo stato pausa/riproduzione, anche con ripresa automatica disattivata. Se le sigle di entrambe le versioni sono note e compatibili (correzioni, impronte audio o AniSkip validato), usa il loro offset per riallineare il punto a partire dalla sigla; prima della sigla o senza riferimenti affidabili mantiene i secondi esatti. Montaggi diversi possono comunque avere scene sfalsate. Non offre versioni prive dell'episodio richiesto; se la nuova sorgente fallisce o termina prima della posizione richiesta, prova a ripristinare la precedente al minuto originale.
+
+
+
+Nei caricamenti la frase cambia ogni cinque secondi e i puntini seguono il ciclo `.`, `..`, `...`. Questo vale anche per i loader compatti di catalogo, Esplora e lista personale; con movimento ridotto i puntini rimangono fermi.
+
+
+Se manca un intervallo della finale, negli ultimi sette minuti il player prova le impronte verificate già disponibili oppure il confronto audio degli ultimi cinque minuti con almeno due altri episodi. Richiede WebCodecs, video compatibili con richieste Range e un segmento ripetuto concorde di 45–150 secondi; può non trovare la sigla o non essere disponibile sul dispositivo. L'analisi si interrompe cambiando episodio e non rende obbligatorio il salto.
+
+Premendo **Salta sigla finale**, se dopo la sigla resta del video vieni portato alla fine della sigla per guardarlo. Il prossimo episodio viene aperto direttamente solo se l'intervallo arriva alla fine del file e l'episodio successivo ? disponibile. I soli timestamp non distinguono una scena post-crediti da un'anteprima o da immagini nere: in dubbio il contenuto restante viene conservato.
+
+Per i casi non riconosciuti apri **Salti** nei comandi del player, scegli riassunto, intro narrativa, sigla iniziale o finale, imposta inizio/fine in secondi e salva sul dispositivo. Le intro narrative e i riassunti diversi tra episodi non vengono riconosciuti con certezza tramite il solo confronto audio. I salti non contano come minuti effettivamente guardati per la soglia del visto.
+
 ## Prova su telefono
 
 La Smart TV resta la piattaforma principale. Su telefono il layout adattivo usa un menu hamburger in alto: tocca ☰ per aprirlo, scegli una voce oppure tocca lo sfondo per chiuderlo. Ricerca, filtri e comandi si adattano allo spazio disponibile. In **Impostazioni → Versione PC** puoi attivare il layout adattivo o tornare alle dimensioni TV; la preferenza resta sul dispositivo.

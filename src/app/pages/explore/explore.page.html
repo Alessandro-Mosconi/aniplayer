@@ -2,7 +2,7 @@
  <div class="mobile-explore-heading"><h1>Esplora</h1><div><button aria-label="Mostra filtri attivi" [attr.aria-expanded]="showFilters()" (click)="showFilters.set(!showFilters())">Filtri &middot; {{activeFilterChips().length}}</button><button aria-label="Come funzionano gli swipe" [attr.aria-expanded]="showHelp()" (click)="showHelp.set(!showHelp())">?</button></div></div>
  @if(showFilters()){<div class="mobile-explore-panel"><div class="filter-chips">@for(chip of activeFilterChips();track chip){<span>{{chip}}</span>}</div><button (click)="go('catalog')">Modifica filtri</button></div>}
  @if(showHelp()){<p class="mobile-explore-panel">Sulla copertina: destra Mi piace, sinistra Non mi interessa, su Preferiti, gi&ugrave; Salta. Puoi anche usare i pulsanti qui sotto.</p>}
- @if(message()){<p class="mobile-explore-message" role="status">{{message()}}</p>}
+ @if(busy()){<app-anime-loader variant="inline" message="Cerco il prossimo anime" />}@else if(message()){<p class="mobile-explore-message" role="status">{{message()}}</p>}
  @if(current();as anime){
  <section class="mobile-explore-card" [class.exit-left]="transition()==='left'" [class.exit-right]="transition()==='right'" [class.exit-down]="transition()==='down'" [class.favorite-pulse]="favoritePulse()" [class.card-enter]="entering()" [class.swipe-dragging]="drag()!==null" [style.transform]="drag() ? 'translate('+drag()!.x*0.4+'px,'+drag()!.y*0.25+'px) rotate('+drag()!.x*0.025+'deg)' : null" data-explore-card tabindex="0" (focus)="cardFocused()" [attr.aria-busy]="busy()" aria-label="Anime da esplorare">
  <div class="mobile-explore-cover explore-swipe-surface" (pointerdown)="swipeStart($event)" (pointermove)="swipeMove($event)" (pointerup)="swipeEnd($event)" (pointercancel)="cancelSwipe()" (lostpointercapture)="cancelSwipe()">
@@ -30,7 +30,7 @@
 
 <p class="explore-help">Sulla scheda: ← Non mi interessa · → Mi piace · ↑ Preferiti · ↓ Salta · OK Dettagli · Return Menu</p>
 @if(saved()){<p class="saved-message" role="status">{{saved()}}</p>}
-@if(message()){<p class="muted" role="status">{{message()}}</p>}
+@if(busy()){<app-anime-loader variant="inline" message="Cerco il prossimo anime" />}@else if(message()){<p class="muted" role="status">{{message()}}</p>}
 @if(current();as anime){
  <div class="explore-actions" data-focus-row><button [disabled]="busy()" (click)="react('dislike')">← Non mi interessa</button><button class="primary" [disabled]="busy()" (click)="react('like')">Mi piace →</button><button [disabled]="busy()" (click)="favorite()">{{isFavorite()?'★ Rimuovi dai preferiti':'☆ Aggiungi ai preferiti'}}</button><button [disabled]="busy()" (click)="skip()">Salta ↓</button><button (click)="openAnime(anime)">Apri dettagli</button></div>
  <section class="explore-card" [class.exit-left]="transition()==='left'" [class.exit-right]="transition()==='right'" [class.exit-down]="transition()==='down'" [class.favorite-pulse]="favoritePulse()" [class.card-enter]="entering()" [class.swipe-dragging]="drag()!==null" [style.transform]="drag() ? 'translate('+drag()!.x*0.4+'px,'+drag()!.y*0.25+'px) rotate('+drag()!.x*0.025+'deg)' : null" data-explore-card tabindex="0" (focus)="cardFocused()" aria-label="Scheda anime. Freccia sinistra non mi interessa, destra mi piace, su preferiti, giù salta, OK dettagli" [attr.aria-busy]="busy()">
