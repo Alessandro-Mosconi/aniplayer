@@ -7,7 +7,7 @@
   @if(layout.mobile()){<button class="mobile-menu-close" data-mobile-menu-close data-dialog-cancel aria-label="Chiudi menu" (click)="closeMobileMenu()">&#10005; Chiudi</button>}
   <div class="brand"><img class="brand-icon" src="assets/images/aniplayer-logo.png" alt="" /><span class="brand-word">ANI<span>PLAYER</span></span></div>
   <nav aria-label="Navigazione principale">
-   @for(item of sidebar.items();track item.id){@if(item.visible && (item.id!=='explore'||vm.storage.settings()['exploreEnabled']!==false) && (item.id!=='my-anime'||malLibrary.available())){<button [attr.data-focus]="'nav-'+item.id" [class.active]="nav.route().name===item.id" [attr.aria-current]="nav.route().name===item.id?'page':null" (click)="go(item.id)"><span class="nav-symbol">{{item.icon}}</span> {{item.label}}</button>}}
+   @for(item of sidebar.items();track item.id){@if(item.visible && (item.id!=='explore'||vm.storage.settings()['exploreEnabled']!==false) && (item.id!=='my-anime'||malLibrary.available())){<button [attr.data-focus]="'nav-'+item.id" [class.active]="nav.route().name===item.id" [attr.aria-current]="nav.route().name===item.id?'page':null" [attr.aria-label]="item.id==='favorites'&&vm.newFavoriteEpisodeCount()?item.label+', '+vm.newFavoriteEpisodeCount()+' anime con episodi recenti':null" (click)="go(item.id)"><span class="nav-symbol">{{item.icon}}</span> {{item.label}} @if(item.id==='favorites'&&vm.newFavoriteEpisodeCount()>0){<span class="nav-update-badge" aria-hidden="true">{{vm.newFavoriteEpisodeCount()>99?'99+':vm.newFavoriteEpisodeCount()}}</span>}</button>}}
   </nav>
   <div class="sidebar-bottom"><span class="pill">{{vm.tv.label}}</span><p>Le tue storie.<br />Il tuo schermo.</p></div>
  </aside>

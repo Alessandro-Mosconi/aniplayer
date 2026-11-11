@@ -5,6 +5,7 @@ import {IntroService} from '../core/intro.service';
 <button class="anime-card" [attr.data-focus]="'anime-'+anime().id" (click)="select.emit(anime())" [title]="animeTitle(anime())">
  <span class="poster"><img [src]="anime().imageurl||'assets/images/aniplayer-icon-512.png'" [alt]="animeTitle(anime())" loading="lazy" (error)="fallback($event)" />
  @if(anime().dub){<span class="dub-badge">ITA</span>}
+ @if(newEpisode()){<span class="new-episode-badge" title="È uscito un episodio dopo l’ultimo visto" aria-label="Nuovo episodio disponibile">EP+</span>}
  @if(introBadge()){<span class="intro-badge" title="Intervalli sigla presenti su AniSkip; verificare sempre la versione del video" aria-label="AniSkip rilevato">⏭ AS</span>}
  @if(progress()){<span class="card-progress"><span [style.width.%]="progress()"></span></span>}
  </span><span class="card-title">{{animeTitle(anime())}}</span>
@@ -12,7 +13,7 @@ import {IntroService} from '../core/intro.service';
  <span class="card-sub">{{anime().releaseDate||anime().date||anime().type||'Serie anime'}} @if(anime().season){ ? {{anime().season}} } @if(anime().score){ · ★ {{anime().score}} }</span>
 </button>`})
 export class AnimeCardComponent implements AfterViewInit,OnDestroy{
- readonly anime=input.required<Anime>();readonly progress=input(0);readonly select=output<Anime>();
+ readonly anime=input.required<Anime>();readonly progress=input(0);readonly newEpisode=input(false);readonly select=output<Anime>();
  readonly introBadge=signal(false);animeTitle=animeTitle;
  private service=inject(IntroService);private host=inject(ElementRef<HTMLElement>);private observer:IntersectionObserver|null=null;private destroyed=false;
  episodeDate(value:string){const match=/^(\d{4})-(\d{2})-(\d{2})/.exec(value);return match?`${match[3]}/${match[2]}/${match[1]}`:value;}

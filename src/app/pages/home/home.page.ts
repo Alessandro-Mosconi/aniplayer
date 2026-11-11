@@ -7,6 +7,7 @@ import {ExplorationService} from '../../core/exploration.service';
 @Component({selector:'app-home-page',standalone:true,imports:[CommonModule,AnimeCardComponent],templateUrl:'./home.page.html',styleUrl:'./home.page.scss'})
 export class HomePage extends PageBase {
  readonly exploration=inject(ExplorationService);
+  readonly hasNewEpisode=this.vm.hasNewEpisode.bind(this.vm);
  openRecent(){this.filters.set({order:'episode_desc'});this.searchText.set('');this.page.set(0);this.vm.catalogFocusHint='results';this.nav.open('catalog');}
  openExplored(){this.filters.set({explored:'seen'});this.searchText.set('');this.page.set(0);this.vm.catalogFocusHint='results';this.nav.open('catalog');}
  hero(): Anime|null {return this.featured()[0]||this.cards()[0]||null;}

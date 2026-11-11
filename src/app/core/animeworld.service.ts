@@ -43,7 +43,7 @@ export class AnimeWorldService {
   if(!matches.length){const fallback=values.filter(v=>v.titleOnly);if(new Set(fallback.map(v=>normalize(v.candidate.title_original||v.candidate.title||''))).size===1)matches=fallback;}
   return {candidates:all,matches:matches.sort((a,b)=>Number(b.candidate.dub)-Number(a.candidate.dub)).map(v=>({anime:{...anime,provider:'animeworld' as const,awSlug:v.candidate.awSlug,dub:v.candidate.dub,mal_id:anime.mal_id||v.page.mal_id},episodes:v.page.episodes,related:[],count:v.page.episodes.length}))};
  }
- async detail(anime:Anime):Promise<Detail>{const page=await this.page(anime);return {anime:{...anime,mal_id:anime.mal_id||page.mal_id,plot:anime.plot||page.plot},episodes:page.episodes,related:[],count:page.episodes.length};}
+ async detail(anime:Anime):Promise<Detail>{const page=await this.page(anime);return {anime:{...anime,mal_id:anime.mal_id||page.mal_id,anilist_id:anime.anilist_id||page.anilist_id,plot:anime.plot||page.plot},episodes:page.episodes,related:[],count:page.episodes.length};}
  async source(anime:Anime,episode:Episode):Promise<string>{const page=await this.page(anime),ep=page.episodes.find(e=>Number(e.number)===Number(episode.number));if(!ep?.token)throw Error('Episodio non trovato su AnimeWorld.');
   for(const alt of [0,1]){const raw=await this.request('/api/episode/info?id='+encodeURIComponent(ep.token)+'&alt='+alt);let json:any;try{json=JSON.parse(raw);}catch{throw Error('Risposta video non valida.');}if(!json.grabber)continue;
    const url=new URL(json.grabber);if(url.protocol!=='https:'||url.username||url.password||!url.pathname.toLowerCase().endsWith('.mp4'))throw Error('La sorgente non è un MP4 HTTPS diretto.');return url.href;}

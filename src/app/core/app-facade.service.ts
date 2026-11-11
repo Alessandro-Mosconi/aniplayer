@@ -11,6 +11,7 @@ import {LibraryService} from './library.service';
 import {TizenService} from './tizen.service';
 import {IntroPrefetchService} from './intro-prefetch.service';
 import {CatalogProgressService} from './catalog-progress.service';
+import {MalLibraryService} from './mal-library.service';
 import {pictureInPictureActive} from './picture-in-picture';
 @Injectable({providedIn:'root'})
 export class AppFacadeService {
@@ -18,12 +19,15 @@ export class AppFacadeService {
  readonly storage=inject(StorageService);readonly playback=inject(PlaybackService);readonly remote=inject(RemoteService);readonly mal=inject(MalService);
  readonly lib=inject(LibraryService);readonly tv=inject(TizenService);readonly prefetch=inject(IntroPrefetchService);
  readonly catalogProgress=inject(CatalogProgressService);
+ readonly malLibrary=inject(MalLibraryService);
  readonly catalogTotalExact=signal(true);readonly catalogHasMore=signal(false);
  readonly loading=signal(false);readonly error=signal('');readonly featured=signal<Anime[]>([]);readonly recent=signal<Anime[]>([]);
  readonly cards=signal<Anime[]>([]);readonly total=signal(0);readonly details=signal<Detail|null>(null);readonly related=signal<Anime[]>([]);
  readonly candidates=signal<Anime[]>([]);readonly audioMatches=signal<Detail[]>([]);readonly sourceNotice=signal('');
  readonly searchText=signal('');readonly filters=signal<CatalogFilters>({});readonly page=signal(0);readonly episodePage=signal(0);
  readonly activeDetail=signal<Anime|null>(null);readonly domainField=signal(this.catalog.domain());readonly malClient=signal(this.mal.clientId());readonly malRedirect=signal(this.mal.redirectUri());readonly malCallback=signal('');
+ readonly latestEpisodeUpdates=signal<Anime[]>([]);
+ readonly newFavoriteEpisodeCount=computed(()=>this.allFavorites().filter(anime=>!!this.latestUpdateFor(anime)).length);
  readonly selectLanguage=signal<'auto'|'dub'|'sub'>('auto');readonly allFavorites=computed(()=>Object.values(this.storage.favorites()));
  readonly allHistory=computed(()=>Object.values(this.storage.history()).sort((a,b)=>b.updated-a.updated));
  readonly viewTitle=animeTitle;
@@ -36,6 +40,7 @@ export class AppFacadeService {
   this.playback.audioVersionsProvider=()=>this.audioMatches();
   this.playback.onAudioChanged=detail=>{if(String(this.details()?.anime.id)===String(detail.anime.id))this.details.set({...detail,related:this.details()?.related||detail.related});};
   effect(()=>{const route=this.nav.route();untracked(()=>void this.load(route));});
+  setInterval(()=>{if(document.visibilityState==='visible')void this.catalog.recentPage().then(result=>this.latestEpisodeUpdates.set(result.records)).catch(()=>{});},15*60*1000);
   window.addEventListener('aniplayer-suspend',()=>{if(!pictureInPictureActive(window,document))this.playback.pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&!pictureInPictureActive(window,document))this.playback.pause();});
  }
@@ -61,7 +66,7 @@ export class AppFacadeService {
    if(route.name==='home'){
     const [h,c]=await Promise.allSettled([this.catalog.home(),this.catalog.catalog({},0)]);
     if(seq!==this.seq)return;
-    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);}if(c.status==='fulfilled'){this.cards.set(c.value.records);this.total.set(c.value.tot);}
+    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.latestEpisodeUpdates.set(h.value.recent);}if(c.status==='fulfilled'){this.cards.set(c.value.records);this.total.set(c.value.tot);}
     if(h.status==='rejected'&&c.status==='rejected')throw h.reason;
    }else {this.cards.set([]);this.total.set(0);this.catalogHasMore.set(false);this.catalogTotalExact.set(true);const result=await this.catalogProgress.page({...this.filters(),title:this.searchText()||false as any},this.page()*30);if(seq!==this.seq)return;this.cards.set(result.records);this.total.set(result.tot);this.catalogTotalExact.set(result.exact);this.catalogHasMore.set(result.hasMore);}
   }catch(e){if(seq===this.seq)this.error.set(cleanError(e));}finally{if(seq===this.seq)this.loading.set(false);}}
@@ -69,11 +74,14 @@ export class AppFacadeService {
     const anime=route.anime;let detail:Detail;
     if(anime.provider==='animeworld'){
       detail=await this.animeworld.detail(anime);
-      try{const alternative=await this.animeworld.match(detail.anime);if(seq!==this.seq)return;
-       this.audioMatches.set(alternative.matches);this.candidates.set(alternative.candidates);
-       const preferred=alternative.matches.find(m=>m.anime.awSlug===anime.awSlug);
+      const [matched,relations]=await Promise.allSettled([this.animeworld.match(detail.anime),this.catalog.relatedFor(detail.anime)]);
+      if(seq!==this.seq)return;
+      if(matched.status==='fulfilled'){
+       this.audioMatches.set(matched.value.matches);this.candidates.set(matched.value.candidates);
+       const preferred=matched.value.matches.find(m=>m.anime.awSlug===anime.awSlug);
        if(preferred&&preferred.episodes.length)detail={...preferred,anime:{...detail.anime,...preferred.anime},related:detail.related};
-      }catch{}
+      }
+      if(relations.status==='fulfilled')detail={...detail,related:relations.value};
     }
     else {
      const [catalogDetail,match]=await Promise.all([this.catalog.detail(anime),this.animeworld.match(anime)]);
@@ -96,6 +104,17 @@ export class AppFacadeService {
     }else if(route.name==='explore'&&document.querySelector('[data-explore-card]'))this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));
     else this.remote.first(document.getElementById('view')||undefined);
   },60);
+ }
+ hasNewEpisode(anime:Anime):boolean{
+  const latest=this.latestUpdateFor(anime);if(!latest)return false;
+  const history=Object.values(this.storage.history()).filter(row=>this.sameSeries(row.anime,anime)).map(row=>Number(row.episode.number)||0);
+  const watched=Math.max(this.malLibrary.progress(anime).watched,...history,0);
+  return Number(latest.lastEpisode)>watched;
+ }
+ private latestUpdateFor(anime:Anime):Anime|undefined{return this.latestEpisodeUpdates().find(item=>this.sameSeries(item,anime));}
+ private sameSeries(left:Anime,right:Anime){
+  if(String(left.id)===String(right.id))return true;
+  return Number(left.mal_id)>0&&Number(left.mal_id)===Number(right.mal_id)||Number(left.anilist_id)>0&&Number(left.anilist_id)===Number(right.anilist_id);
  }
  /** Fetch alternate catalog audio asynchronously so the detail page opens promptly. */
  private async findOtherAudioVersion(seq:number,anime:Anime,known:Detail[]){

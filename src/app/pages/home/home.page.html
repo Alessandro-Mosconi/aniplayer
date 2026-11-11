@@ -12,7 +12,7 @@
 } @else {
 <section class="page-heading"><p class="eyebrow">IL TUO MONDO ANIME</p><h1>La prossima storia ti aspetta.</h1><p class="muted">Sfoglia il catalogo e riprendi i tuoi anime preferiti.</p></section>
 }
-@if(allHistory().length){<section class="content-section"><div class="section-heading"><h2>Continua a guardare</h2><button data-focus="home-history-all" (click)="go('history')">Vedi tutti →</button></div><div class="card-row">@for(h of allHistory().slice(0,12);track h.anime.id){<app-anime-card [anime]="h.anime" [progress]="progress(h.anime)" (select)="openAnime($event)" />}</div></section>}
+@if(allHistory().length){<section class="content-section"><div class="section-heading"><h2>Continua a guardare</h2><button data-focus="home-history-all" (click)="go('history')">Vedi tutti →</button></div><div class="card-row">@for(h of allHistory().slice(0,12);track h.anime.id){<app-anime-card [anime]="h.anime" [progress]="progress(h.anime)" [newEpisode]="hasNewEpisode(h.anime)" (select)="openAnime($event)" />}</div></section>}
 
 @if(recent().length){<section class="content-section"><div class="section-heading"><h2>Ultimi episodi</h2><button data-focus="home-recent-all" (click)="openRecent()">Vedi tutti →</button></div><div class="card-row">@for(a of recent().slice(0,18);track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div></section>}
 @if(featured().length){<section class="content-section"><div class="section-heading"><h2>In evidenza</h2></div><div class="card-row">@for(a of featured().slice(0,18);track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div></section>}

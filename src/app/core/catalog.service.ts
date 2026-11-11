@@ -90,6 +90,17 @@ export class CatalogService {
  recentPage(page=1){page=Math.max(1,Math.floor(page));return this.memo('episode-updates:'+page,180,async()=>this.episodeUpdates(parse(await this.request(page===1?'/':'/?page='+page))));}
  home(){return this.memo('home',180,async()=>{const doc=parse(await this.request('/'));const featured=attrsToObj(doc.querySelector('the-carousel'),'animes',[]);const updates=this.episodeUpdates(doc);const seen=new Set<string>();const recent=updates.records.filter((a:Anime)=>{const id=String(a.id);if(seen.has(id))return false;seen.add(id);return true;});return {featured:Array.isArray(featured)?featured:[],recent};});}
  detail(anime:Anime):Promise<Detail>{return this.memo('detail:'+anime.id,300,async()=>{if(!anime.slug)throw Error('Identificativo della serie mancante.');const doc=parse(await this.request('/anime/'+anime.id+'-'+encodeURIComponent(anime.slug)));const element=doc.querySelector('video-player');const info=attrsToObj(element,'anime',null);const episodes=attrsToObj(element,'episodes',[]);if(!info||String(info.id)!==String(anime.id)||!Array.isArray(episodes))throw Error('Dettaglio AnimeUnity non riconosciuto.');const related=Array.isArray(info.related)?info.related.filter((a:any)=>a&&a.id&&a.slug):[];return {anime:{...anime,...info},episodes:episodes.filter((e:any)=>e?.id),related,count:Number(element?.getAttribute('episodes_count'))||episodes.length};});}
+ async relatedFor(anime:Anime):Promise<Anime[]>{
+  const ids=(['mal_id','anilist_id'] as const).filter(key=>Number(anime[key])>0);
+  if(!ids.length)return [];
+  const titles=[...new Set([anime.title_eng,anime.title_it,anime.title].filter((value):value is string=>!!value).map(value=>value.trim()).filter(Boolean))];
+  for(const title of titles){
+   const result=await this.catalog({title},0);
+   const match=result.records.find(candidate=>ids.some(key=>Number(candidate[key])===Number(anime[key]))&&ids.every(key=>!Number(candidate[key])||Number(candidate[key])===Number(anime[key])));
+   if(match)return (await this.detail(match)).related;
+  }
+  return [];
+ }
  episodes(anime:Anime,anchor:string|number,start:number,end:number):Promise<Episode[]>{const path='/info_api/'+anime.id+'/'+encodeURIComponent(String(anchor))+'?start_range='+start+'&end_range='+end;return this.memo(path,300,async()=>{const result=json(await this.request(path),null);if(!Array.isArray(result?.episodes))throw Error('Episodi non disponibili.');return result.episodes;});}
 }
 
