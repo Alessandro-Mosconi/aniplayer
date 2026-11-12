@@ -1102,3 +1102,11 @@ test('Remote navigation reveals both ends of long settings pages',()=>{
  const remote=new RemoteService({setKeys(){}});remote.focusables=()=>[document.activeElement];
  remote.move('down');remote.move('up');assert.deepEqual(calls,[2600,0]);
 });
+
+test('An empty genre field is checked with the provider before filtering recent episodes',async()=>{
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');const row={id:1,title:'A',genres:[]};let calls=0;
+ const catalog={domain:()=> 'test',recentPage:async()=>({records:[row],lastPage:1}),catalog:async()=>{calls++;return {records:[row],tot:1};}};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:1})},exploration={fingerprint:()=>'',matches:()=>true};
+ const result=await new CatalogProgressService(catalog,library,{},exploration).page({order:'episode_desc',genres:[7]},0);
+ assert.deepEqual(Array.from(result.records,a=>a.id),[1]);assert.equal(calls,1);
+});
