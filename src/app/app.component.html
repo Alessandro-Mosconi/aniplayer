@@ -1,4 +1,4 @@
-﻿<div id="shell" [hidden]="playback.state().opened">
+<div id="shell" [class.explore-fullscreen]="nav.route().name==='explore'" [hidden]="playback.state().opened">
  @if(layout.mobile()){
   <header class="mobile-header" [attr.inert]="layout.menuOpen()?'':null"><button data-mobile-menu-open aria-label="Apri menu" aria-controls="main-navigation" [attr.aria-expanded]="layout.menuOpen()" (click)="openMobileMenu()">&#9776;</button><img src="assets/images/aniplayer-logo.png" alt=""><strong>ANIPLAYER</strong></header>
   @if(layout.menuOpen()){<button class="mobile-menu-backdrop" aria-label="Chiudi menu" tabindex="-1" (click)="closeMobileMenu()"></button>}
@@ -12,11 +12,11 @@
   <div class="sidebar-bottom"><span class="pill">{{vm.tv.label}}</span><p>Le tue storie.<br />Il tuo schermo.</p></div>
  </aside>
  <div class="workspace" [attr.inert]="layout.mobile()&&layout.menuOpen()?'':null">
-  <header class="topbar"><div class="provider-status" role="status"><span [class.connected]="catalog.online()">{{catalog.online()?'AnimeUnity · connesso':'AnimeUnity · verifica connessione'}}</span><span [class.connected]="animeworld.online()" [class.disconnected]="animeworld.connectionStatus()==='offline'" [attr.title]="animeworld.connectionError() || null">AnimeWorld · {{animeworld.connectionStatus()==='online'?'connesso':animeworld.connectionStatus()==='checking'?'verifica in corso':animeworld.connectionStatus()==='offline'?'non raggiungibile':'da verificare'}}</span></div><span>Frecce per navigare · OK per scegliere · Return per tornare</span></header>
+  <header class="topbar"><div class="provider-status" role="status"><span [class.connected]="catalog.online()">{{catalog.online()?'AnimeUnity · connesso':'AnimeUnity · verifica connessione'}}</span><span [class.connected]="animeworld.online()" [class.disconnected]="animeworld.connectionStatus()==='offline'" [attr.title]="animeworld.connectionError() || null">AnimeWorld · {{animeworld.connectionStatus()==='online'?'connesso':animeworld.connectionStatus()==='checking'?'verifica in corso':animeworld.connectionStatus()==='offline'?'non raggiungibile':'da verificare'}}</span></div></header>
   <main id="view" [attr.aria-busy]="loading()">
-   @if(nav.route().name==='detail'||nav.route().name==='related'||nav.route().name==='mal'||nav.route().name==='diagnostics'){<button class="touch-back" (click)="vm.back()">← Indietro</button>}
+   @if(nav.route().name==='detail'||nav.route().name==='related'||nav.route().name==='mal'){<button class="touch-back" (click)="vm.back()">← Indietro</button>}
    @if(error()) {<section class="error-panel" role="status"><span>{{error()}}</span><button (click)="error.set('')">Chiudi</button></section>}
-   @if(loading() && nav.route().name!=='catalog') {<app-anime-loader message="Caricamento catalogo…" />}
+   @if(loading() && nav.route().name!=='catalog') {<app-loading-skeleton [variant]="nav.route().name==='home'?'home':nav.route().name==='detail'?'detail':'grid'" message="Caricamento…" />}@else{
 
    @switch (nav.route().name) {
     @case ('home') { <app-home-page /> }
@@ -31,6 +31,7 @@
     @case ('mal') { <app-mal-page /> }
     @case ('diagnostics') { <app-diagnostics-page /> }
    }
+   }
   </main>
  </div>
 </div>
@@ -41,5 +42,8 @@
   <div class="toolbar" data-focus-row><button data-tv-click data-dialog-cancel data-exit-cancel (click)="vm.cancelExit()">Annulla</button><button data-tv-click class="primary" (click)="vm.confirmExit()">Chiudi app</button></div>
  </section></div>
 }
+
+
+
 
 

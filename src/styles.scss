@@ -76,3 +76,10 @@ button.skip-indicator{min-height:36px;cursor:pointer;font-weight:normal;transiti
 .new-episode-badge{position:absolute;left:9px;top:9px;padding:5px 8px;border-radius:7px;background:#e7a83be8;color:#1b1720;font-size:14px;font-weight:800;line-height:1.1;box-shadow:0 2px 8px #0008;pointer-events:none}
 .sidebar nav button{display:flex;align-items:center;gap:0}.nav-update-badge{display:inline-flex;align-items:center;justify-content:center;margin-left:auto;min-width:28px;height:28px;padding:0 7px;border-radius:20px;background:#e7a83b;color:#171b28;font-size:15px;font-weight:800;line-height:1}
 @media(max-width:900px){.sidebar nav button{position:relative}.nav-update-badge{position:absolute;top:2px;right:2px;min-width:21px;height:21px;padding:0 4px;font-size:12px}}
+#shell.explore-fullscreen>.sidebar,#shell.explore-fullscreen .topbar,#shell.explore-fullscreen>.mobile-header,#shell.explore-fullscreen>.mobile-menu-backdrop{display:none}
+#shell.explore-fullscreen #view{min-height:100vh;padding:35px clamp(35px,6vw,110px)}
+@media(max-width:760px){#shell.explore-fullscreen #view{padding:16px}}
+.setting-card .setting-controls app-tv-switch button{margin:0}
+/* Let each card fill its grid cell; the browser button padding otherwise shrinks the poster. */
+.browser-layout .catalog-grid .anime-card{padding:0}
+@media(min-width:1001px){.browser-layout .catalog-grid{grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),1fr));gap:32px 22px}}

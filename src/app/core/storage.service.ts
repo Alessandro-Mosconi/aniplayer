@@ -8,7 +8,7 @@ export class StorageService {
  readonly favorites=signal<Record<string,Anime>>(this.read('favorites',{}));
  readonly history=signal<Record<string,SavedProgress>>(this.read('history',{}));
  readonly seen=signal<Record<string,number>>(this.read('seen',{}));
- readonly settings=signal<Record<string,any>>({...{autonext:true,engine:'auto',resume:true,introDetection:true,introPrefetch:true},...this.read('settings',{})});
+ readonly settings=signal<Record<string,any>>({...{autonext:true,engine:'auto',resume:true,introDetection:true,introPrefetch:true,exploreEnabled:false},...this.read('settings',{})});
  readonly watchEvents=signal<Record<string,{at:number;malId:number|null;number:string;animeId:string|number}>>(this.read('watchEvents',{}));
  readonly watchCoverage=signal<Record<string,any>>(this.read('watchCoverage',{}));
  readonly seenResets=signal<Record<string,{from:number;to:number|null;at:number}[]>>(this.read('seenResets',{})||{});
@@ -33,3 +33,4 @@ export class StorageService {
  }
  progress(anime:Anime,episode:Episode,position:number,duration:number,completed=false){if(!Number.isFinite(position)||position<0)return;const old=this.history();const next={...old,[String(anime.id)]:{anime,episode,position:Math.floor(position),duration,completed:completed||this.isSeen(anime,episode),updated:Date.now()}};const keys=Object.keys(next).sort((a,b)=>next[b].updated-next[a].updated);for(const key of keys.slice(100))delete next[key];this.history.set(next);this.write('history',next);if(completed)this.markSeen(anime,episode);}
 }
+

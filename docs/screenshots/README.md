@@ -24,4 +24,5 @@ $env:CHROME_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 node tools/capture-screenshots.mjs
 ```
 
-Lo script apre un profilo Chrome isolato, naviga nell’app e inserisce dati dimostrativi solo nella sessione di cattura. Non legge il profilo del browser abituale né i backup della TV. Il catalogo e le immagini richiedono una connessione ai provider; se il caricamento fallisce lo script si interrompe. Ricontrolla sempre la resa visiva, perché contenuti e layout possono cambiare.
+Lo script apre un profilo Chrome isolato, naviga nell’app e inserisce dati dimostrativi solo nella sessione di cattura. Non legge il profilo del browser abituale né i backup della TV. Esplora, disattivata per impostazione predefinita, viene attivata solo nel profilo dimostrativo per catturare la schermata. Il catalogo e le immagini richiedono una connessione ai provider; se il caricamento fallisce lo script si interrompe. Ricontrolla sempre la resa visiva, perché contenuti e layout possono cambiare.
+

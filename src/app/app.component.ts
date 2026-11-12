@@ -3,7 +3,7 @@ import {LayoutService} from './core/layout.service';
 import {Component,inject,effect,HostListener} from '@angular/core';
 import {AppFacadeService} from './core/app-facade.service';
 import {PlayerComponent} from './components/player.component';
-import {AnimeLoaderComponent} from './components/anime-loader.component';
+import {LoadingSkeletonComponent} from './components/loading-skeleton.component';
 import {HomePage} from './pages/home/home.page';
 import {CatalogPage} from './pages/catalog/catalog.page';
 import {AnimeDetailPage} from './pages/anime-detail/anime-detail.page';
@@ -16,7 +16,7 @@ import {DiagnosticsPage} from './pages/diagnostics/diagnostics.page';
 import {MyAnimePage} from './pages/my-anime/my-anime.page';
 import {MalLibraryService} from './core/mal-library.service';
 import {ExplorePage} from './pages/explore/explore.page';
-@Component({selector:'app-root',standalone:true,imports:[PlayerComponent,AnimeLoaderComponent,HomePage,CatalogPage,AnimeDetailPage,RelatedPage,FavoritesPage,HistoryPage,SettingsPage,MalPage,DiagnosticsPage,MyAnimePage,ExplorePage],templateUrl:'./app.component.html'})
+@Component({selector:'app-root',standalone:true,imports:[PlayerComponent,LoadingSkeletonComponent,HomePage,CatalogPage,AnimeDetailPage,RelatedPage,FavoritesPage,HistoryPage,SettingsPage,MalPage,DiagnosticsPage,MyAnimePage,ExplorePage],templateUrl:'./app.component.html'})
 export class AppComponent {
   // A small shell: app state, layout and cross-page player are shared.
   readonly sidebar=inject(SidebarService);
@@ -42,3 +42,4 @@ export class AppComponent {
   }
   go(name: Parameters<AppFacadeService['go']>[0]){this.layout.menuOpen.set(false);this.vm.go(name);}
 }
+

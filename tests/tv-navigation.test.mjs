@@ -501,8 +501,8 @@ test('Release order recovers omitted seasons via paginated season filters before
 
 test('Sidebar preferences persist order and visibility while settings cannot be hidden',()=>{
  const {SidebarService,normalizeSidebar}=load('src/app/core/sidebar.service.ts');let settings={};const store={settings:()=>settings,setSetting:(key,value)=>{settings={...settings,[key]:value};}};
- const service=new SidebarService(store);service.toggle('history');service.move('explore',-1);assert.equal(service.items()[1].id,'explore');assert.equal(service.items().find(item=>item.id==='history').visible,false);
- const reloaded=new SidebarService(store);assert.equal(reloaded.items()[1].id,'explore');assert.equal(reloaded.items().find(item=>item.id==='history').visible,false);reloaded.toggle('settings');assert.equal(reloaded.items().find(item=>item.id==='settings').visible,true);
+ const service=new SidebarService(store);assert.ok(service.items().findIndex(item=>item.id==='favorites')<service.items().findIndex(item=>item.id==='explore'));service.toggle('history');service.move('explore',-1);assert.equal(service.items()[2].id,'explore');assert.equal(service.items().find(item=>item.id==='history').visible,false);
+ const reloaded=new SidebarService(store);assert.equal(reloaded.items()[2].id,'explore');assert.equal(reloaded.items().find(item=>item.id==='history').visible,false);reloaded.toggle('settings');assert.equal(reloaded.items().find(item=>item.id==='settings').visible,true);
  const valid=normalizeSidebar({order:['history','history','invalid'],hidden:['settings','invalid','home']});assert.equal(valid.order.length,7);assert.equal(valid.order[0],'history');assert.deepEqual(Array.from(valid.hidden),['home']);
  service.reset();assert.equal(service.items()[0].id,'home');assert.ok(service.items().every(item=>item.visible));
 });
@@ -848,4 +848,196 @@ test('A verified ending fingerprint needs only the current episode and a narrow 
  const service=new EndingDetectorService({read:(key,f)=>data[key]??f,write:(key,v)=>{data[key]=v;return true;}},{page:async()=>({episodes:[{number:'1'},{number:'2'}]}),source:async(a,e)=>'https://example.com/'+e.number});
  const result=await service.detect({awSlug:'same',dub:0},{number:'2'},1470,new AbortController().signal);
  assert.equal(result.source,'fingerprint');assert.ok(Math.abs(result.start-1330)<1.5);assert.equal(calls.length,1);assert.equal(calls[0].end-calls[0].start,150);
+});
+
+test('Explore is experimental and disabled by default while saved preferences are preserved',()=>{
+ const values=new Map();
+ const localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+ const {StorageService}=load('src/app/core/storage.service.ts',{localStorage});
+ assert.equal(new StorageService().settings().exploreEnabled,false);
+ values.set('autv.settings',JSON.stringify({exploreEnabled:true}));
+ assert.equal(new StorageService().settings().exploreEnabled,true);
+});
+
+test('Explore accepts a catalog genre with an empty search and renders its filter chips',()=>{
+ const source=readFileSync('src/app/pages/explore/explore.page.ts','utf8');
+ const method=source.slice(source.indexOf(' activeFilterChips(){'),source.indexOf(' ngOnInit(){'));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);
+ const fixture=new context.exports.Fixture();
+ fixture.catalog={genres:()=>[{id:7,name:'Sport'}]};
+ fixture.activeFilters={title:false,genres:[7],watch:'never',explored:'never'};
+ assert.deepEqual(Array.from(fixture.activeFilterChips()),['Mai visti','Mai esplorati','Genere: Sport']);
+ fixture.activeFilters.title='  calcio  ';
+ assert.equal(fixture.activeFilterChips()[0],'Ricerca: calcio');
+});
+
+test('Explore favorite saves the choice and advances upwards, with undo data',async()=>{
+ const source=readFileSync('src/app/pages/explore/explore.page.ts','utf8');
+ const method=source.slice(source.indexOf(' async favorite(){'),source.indexOf(' undo(){'));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);
+ const fixture=new context.exports.Fixture(),anime={id:42};let favorite=false,remembered=null,direction=null,saved='';
+ Object.assign(fixture,{current:()=>anime,busy:()=>false,actionLocked:false,remember:value=>remembered={anime:value,favorite},storage:{toggleFavorite:()=>favorite=!favorite},isFavorite:()=>favorite,viewTitle:()=> 'Sport',saved:{set:value=>saved=value},animate:async value=>{direction=value;},message:{set:()=>{throw Error('unexpected error');}}});
+ await fixture.favorite();
+ assert.equal(favorite,true);assert.equal(remembered.anime,anime);assert.equal(remembered.favorite,false);assert.equal(direction,'up');assert.match(saved,/Aggiunto ai preferiti/);
+});
+
+test('Ascending score and popularity reverse the complete catalog across page boundaries',async()=>{
+ const {CatalogOrderService}=load('src/app/core/catalog-order.service.ts');
+ const rows=Array.from({length:65},(_,i)=>({id:i+1}));
+ const requested=[];
+ const catalog={catalog:async(filters,offset)=>{requested.push(filters.order);return {records:rows.slice(offset,offset+30),tot:rows.length};}};
+ const service=new CatalogOrderService(catalog);
+ for(const [order,providerOrder] of [['score_asc','Valutazione'],['popularity_asc','Popolarità']]){
+  requested.length=0;
+  const pages=await Promise.all([0,30,60,90].map(offset=>service.page({order},offset)));
+  assert.deepEqual(pages.flatMap(p=>Array.from(p.records,x=>x.id)),Array.from({length:65},(_,i)=>65-i));
+  assert.ok(requested.every(value=>value===providerOrder));
+ }
+});
+
+test('Explore Back returns to the previous screen regardless of origin',()=>{
+ const source=readFileSync('src/app/pages/explore/explore.page.ts','utf8');
+ const method=source.slice(source.indexOf(' exploreBack(){'),source.indexOf(' ngOnDestroy(){'));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);
+ const fixture=new context.exports.Fixture();let origin='catalog',menu=false,action='';
+ Object.assign(fixture,{nav:{route:()=>({exploreOrigin:origin}),back:()=>action='catalog'},exploreMenuOpen:()=>menu,closeExploreMenu:()=>action='close',focusMenu:()=>action='menu'});
+ fixture.exploreBack();assert.equal(action,'catalog');
+ origin=undefined;fixture.exploreBack();assert.equal(action,'catalog');
+ menu=true;fixture.exploreBack();assert.equal(action,'catalog');
+});
+
+
+
+test('Explore artwork uses verified AniList IDs, batches covers and tolerates failure',async()=>{
+ let requests=0;
+ const fetch=async(_url,options)=>{requests++;const body=JSON.parse(options.body);assert.deepEqual(Array.from(body.variables.ids),[12,13]);assert.deepEqual(Array.from(body.variables.mal),[22]);return {ok:true,json:async()=>({data:{byId:{media:[{id:12,idMal:10,coverImage:{extraLarge:'https://images.example/large.jpg'}},{id:13,idMal:99,coverImage:{extraLarge:'https://images.example/wrong.jpg'}}]},byMal:{media:[{id:25,idMal:22,coverImage:{large:'https://images.example/mal.jpg'}}]}}})};};
+ const {ExploreArtworkService}=load('src/app/core/explore-artwork.service.ts',{fetch,AbortController});
+ const service=new ExploreArtworkService(),rows=[{anilist_id:12,mal_id:10},{anilist_id:13,mal_id:11},{mal_id:22},{id:1}];
+ await service.prefetch(rows);
+ assert.equal(service.get(rows[0]),'https://images.example/large.jpg');assert.equal(service.get(rows[1]),'');assert.equal(service.get(rows[2]),'https://images.example/mal.jpg');assert.equal(service.get(rows[3]),'');
+ await service.prefetch([rows[0],rows[2]]);assert.equal(requests,1);
+ const offline=load('src/app/core/explore-artwork.service.ts',{fetch:async()=>{throw Error('offline')},AbortController});
+ const fallback=new offline.ExploreArtworkService();await fallback.prefetch(rows);assert.equal(fallback.get(rows[0]),'');
+});
+
+test('Excluded genres are checked across catalog pages and keep ordering',async()=>{
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');
+ const rows=Array.from({length:65},(_,i)=>({id:i+1,title:'Series '+(i+1)}));
+ const catalog={domain:()=> 'test',catalog:async(filters,offset)=>{const row=rows.find(a=>a.title===filters.title);const matches=row&&row.id%3===0?[row]:[];return {records:matches.slice(offset,offset+30),tot:matches.length};}};
+ const ordered={page:async(_filters,offset)=>({records:rows.slice(offset,offset+30),tot:rows.length})};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:1})};
+ const exploration={fingerprint:()=>'',matches:()=>true};
+ const service=new CatalogProgressService(catalog,library,ordered,exploration),filters={genres:[1],excludedGenres:[2]};
+ const pages=await Promise.all([0,30].map(offset=>service.page(filters,offset)));
+ const expected=rows.filter(a=>a.id%3!==0).map(a=>a.id);
+ assert.deepEqual(pages.flatMap(p=>Array.from(p.records,a=>a.id)),expected);
+ assert.equal(pages[1].exact,true);assert.equal(pages[1].hasMore,false);
+});
+
+test('Excluded genres also apply to latest episodes and explored titles',async()=>{
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');
+ const rows=[{id:1,title:'Keep'},{id:2,title:'Exclude'}];
+ const catalog={domain:()=> 'test',recentPage:async()=>({records:rows,lastPage:1}),catalog:async(filters)=>({records:filters.title==='Exclude'?[rows[1]]:[],tot:filters.title==='Exclude'?1:0})};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:1})};
+ const exploration={fingerprint:()=>'',matches:()=>true,recent:()=>rows.map(anime=>({anime}))};
+ const service=new CatalogProgressService(catalog,library,{},exploration);
+ for(const filters of [{order:'episode_desc',excludedGenres:[5]},{explored:'seen',excludedGenres:[5]}]){
+  const result=await service.page(filters,0);assert.deepEqual(Array.from(result.records,a=>a.id),[1]);
+ }
+});
+
+test('Genre selection cycles include, exclude and neutral only when enabled',()=>{
+ const source=readFileSync('src/app/pages/catalog/catalog.page.ts','utf8');
+ const methods=source.slice(source.indexOf('  selectedGenres(){'),source.indexOf('  refreshCatalog(){'));
+ const js=ts.transpileModule('class Fixture {'+methods+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);
+ let state={},enabled=true;const fixture=new context.exports.Fixture();
+ Object.assign(fixture,{filters:Object.assign(()=>state,{update:fn=>state=fn(state)}),storage:{settings:()=>({excludeGenresEnabled:enabled})}});
+ for(const expected of ['include','exclude','neutral']){fixture.toggleGenre(5);assert.equal(fixture.genreState(5),expected);}
+ enabled=false;fixture.toggleGenre(5);assert.equal(fixture.genreState(5),'include');fixture.toggleGenre(5);assert.equal(fixture.genreState(5),'neutral');
+});
+
+test('Removing a watched episode asks for confirmation only with a connected MAL account',()=>{
+ const source=readFileSync('src/app/pages/anime-detail/anime-detail.page.ts','utf8');
+ const method=source.slice(source.indexOf('  mark(anime:'),source.indexOf('  cancelUnwatch()'));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{},document:{activeElement:null},setTimeout:()=>0};vm.runInNewContext(js,context);
+ const fixture=new context.exports.Fixture(),anime={mal_id:12},ep={number:'6'};let connected=false,choice=null,applied=null;
+ Object.assign(fixture,{marking:()=>false,lib:{isSeen:()=>true},mal:{get connected(){return connected;}},unwatch:{set:value=>choice=value},applyMark:(_anime,_ep,value)=>applied=value});
+ fixture.mark(anime,ep);assert.equal(applied,false);assert.equal(choice,null);
+ connected=true;applied=null;fixture.mark(anime,ep);assert.equal(applied,null);assert.equal(choice.remote,true);
+});
+
+test('Latest episodes reuse known genre IDs and preserve positive and negative filters',async()=>{
+ const rows=[{id:1,title:'A',genres:[{id:7},{id:8}]},{id:2,title:'B',genres:[{id:7}]},{id:3,title:'C',genres:[{id:9}]}];let calls=0;
+ const catalog={domain:()=> 'test',recentPage:async()=>({records:rows,lastPage:1}),catalog:async()=>{calls++;throw Error('Unexpected lookup');}};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:1})},exploration={fingerprint:()=>'',matches:()=>true};
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');
+ const result=await new CatalogProgressService(catalog,library,{},exploration).page({order:'episode_desc',genres:[7],excludedGenres:[8]},0);
+ assert.deepEqual(Array.from(result.records,a=>a.id),[2]);assert.equal(calls,0);
+});
+
+test('Latest episodes retry one temporary 503 during genre lookup',async()=>{
+ let calls=0;const row={id:1,title:'A'};
+ const catalog={domain:()=> 'test',recentPage:async()=>({records:[row],lastPage:1}),catalog:async()=>{calls++;if(calls===1)throw Object.assign(Error('unavailable'),{status:503});return {records:[row],tot:1};}};
+ const library={progressKey:()=>'',progress:()=>({watched:0,remaining:1})},exploration={fingerprint:()=>'',matches:()=>true};
+ const {CatalogProgressService}=load('src/app/core/catalog-progress.service.ts');
+ const result=await new CatalogProgressService(catalog,library,{},exploration).page({order:'episode_desc',genres:[7]},0);
+ assert.deepEqual(Array.from(result.records,a=>a.id),[1]);assert.equal(calls,2);
+});
+
+test('Recent episodes mode restores the prior catalog order when switched off',()=>{
+ const source=readFileSync('src/app/pages/catalog/catalog.page.ts','utf8');
+ const method=source.slice(source.indexOf('  toggleRecentEpisodes(){'),source.indexOf('  toggleGenre('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);const fixture=new context.exports.Fixture();let filters={order:'Valutazione'},expanded='order',searches=0;
+ Object.assign(fixture,{filters:()=>filters,vm:{catalogPreviousOrder:false},setFilter:(key,value)=>filters={...filters,[key]:value},expanded:{set:value=>expanded=value},refreshCatalog:()=>{searches++;expanded=null;}});
+ fixture.toggleRecentEpisodes();assert.equal(filters.order,'episode_desc');assert.equal(fixture.vm.catalogPreviousOrder,'Valutazione');assert.equal(expanded,null);
+ fixture.toggleRecentEpisodes();assert.equal(filters.order,'Valutazione');assert.equal(searches,2);
+});
+
+
+test('Home discovery opens the catalog with the displayed selection seed and clears old filters',()=>{
+ const source=readFileSync('src/app/pages/home/home.page.ts','utf8');
+ const method=source.slice(source.indexOf(' openDiscover(){'),source.indexOf('  readonly hasNewEpisode='));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);const fixture=new context.exports.Fixture();
+ const selection={order:'random',randomSeed:12345};let filters=null,text='old',page=3,route='';
+ Object.assign(fixture,{vm:{homeDiscoverFilters:()=>selection,catalogPreviousOrder:'Valutazione'},filters:{set:value=>filters=value},searchText:{set:value=>text=value},page:{set:value=>page=value},nav:{open:value=>route=value}});
+ fixture.openDiscover();assert.equal(filters.order,'random');assert.equal(filters.randomSeed,12345);assert.notEqual(filters,selection);assert.equal(text,'');assert.equal(page,0);assert.equal(route,'catalog');assert.equal(fixture.vm.catalogFocusHint,'results');
+});
+
+
+test('Home shuffle updates its seed with the displayed results and preserves them on failure',async()=>{
+ const source=readFileSync('src/app/core/app-facade.service.ts','utf8');
+ const method=source.slice(source.indexOf(' async shuffleHomeDiscover(){'),source.indexOf(' private async load('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{},Math};vm.runInNewContext(js,context);
+ const signal=value=>Object.assign(()=>value,{set:next=>value=next});
+ const fixture=new context.exports.Fixture();let fail=false;
+ Object.assign(fixture,{seq:1,homeDiscoverRequest:0,homeDiscoverBusy:signal(false),homeDiscoverMessage:signal(''),homeDiscoverFilters:signal({}),homeDiscover:signal([]),catalogProgress:{page:async()=>{if(fail)throw Error('offline');return {records:[{id:8}]};}}});
+ await fixture.shuffleHomeDiscover();const seed=fixture.homeDiscoverFilters().randomSeed;
+ assert.equal(fixture.homeDiscoverFilters().order,'random');assert.equal(fixture.homeDiscover()[0].id,8);assert.equal(fixture.homeDiscoverBusy(),false);
+ fail=true;await fixture.shuffleHomeDiscover();assert.equal(fixture.homeDiscoverFilters().randomSeed,seed);assert.equal(fixture.homeDiscover()[0].id,8);assert.match(fixture.homeDiscoverMessage(),/Riprova/);
+});
+
+test('Personal list supports included and excluded genres and minimum personal score',()=>{
+ const {filterMalRows}=load('src/app/core/mal-library.ts');
+ const rows=[{id:1,title:'A',watched:1,total:12,status:'watching',score:8,anime:{genres:['Sport','Comedy']}},{id:2,title:'B',watched:1,total:12,status:'watching',score:9,anime:{genres:['Sport']}},{id:3,title:'C',watched:1,total:12,status:'watching',score:0,anime:{genres:['Sport']}}];
+ const filters={query:'',status:'',type:'',genres:['Sport'],excludedGenres:['Comedy'],minScore:7,watch:'all',order:'title'};
+ assert.deepEqual(Array.from(filterMalRows(rows,filters),r=>r.id),[2]);
+ assert.deepEqual(Array.from(filterMalRows(rows,{...filters,minScore:0,excludedGenres:[]}),r=>r.id),[1,2,3]);
+});
+
+test('Personal list order supports both directions and a stable random seed',()=>{
+ const {filterMalRows}=load('src/app/core/mal-library.ts');
+ const rows=Array.from({length:15},(_,i)=>({id:i+1,title:String(i+1).padStart(2,'0'),watched:1,total:12,status:'watching',score:i%10+1,anime:{genres:[]}}));
+ const filters={query:'',status:'',type:'',genres:[],watch:'all',order:'title'};
+ assert.equal(filterMalRows(rows,filters)[0].title,'01');assert.equal(filterMalRows(rows,{...filters,order:'title_desc'})[0].title,'15');
+ const shuffled=filterMalRows(rows,{...filters,order:'random',randomSeed:123}).map(r=>r.id);
+ assert.deepEqual(Array.from(shuffled),Array.from(filterMalRows(rows,{...filters,order:'random',randomSeed:123}),r=>r.id));
+ assert.notDeepEqual(Array.from(shuffled),Array.from(filterMalRows(rows,{...filters,order:'random',randomSeed:456}),r=>r.id));
 });

@@ -1,4 +1,4 @@
-﻿@if(details();as detail) {
+@if(details();as detail) {
      <section class="detail-hero">
       @if(detail.anime.imageurl_cover){<img class="detail-art" [src]="detail.anime.imageurl_cover" alt="" />}
       <img class="detail-poster" [src]="detail.anime.imageurl||'assets/images/aniplayer-icon-512.png'" alt="Copertina" />
@@ -20,4 +20,5 @@
      </section>
      @if(detail.related.length){<section class="content-section"><div class="section-heading"><h2>Serie e film collegati</h2><button (click)="nav.open('related',{anime:activeDetail()||detail.anime})">Vedi tutti →</button></div><div class="card-row">@for(a of detail.related.slice(0,12);track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div></section>}
     }
-@if(unwatch();as choice){<div class="watch-confirm-overlay"><section class="watch-confirm" data-tv-dialog role="dialog" aria-modal="true" aria-labelledby="unwatch-title"><h2 id="unwatch-title">Segnare come non visto?</h2>@if(choice.remote){<p>MAL salva il progresso come numero di episodi visti.</p><p>Il progresso torner? all?episodio {{+choice.episode.number-1}}. Questo episodio e quelli successivi risulteranno non visti anche su MAL e AniPlayer.</p>}@else{<p>Vuoi togliere il visto dall?episodio {{choice.episode.number}}?</p>}<div class="toolbar" data-focus-row><button data-dialog-cancel (click)="cancelUnwatch()">Annulla</button><button class="primary" (click)="confirmUnwatch()">S?, segna non visto</button></div></section></div>}
+@if(unwatch();as choice){<div class="watch-confirm-overlay"><section class="watch-confirm" data-tv-dialog role="dialog" aria-modal="true" aria-labelledby="unwatch-title"><h2 id="unwatch-title">Segnare come non visto?</h2>@if(choice.remote){<p>MAL salva il progresso come numero di episodi visti.</p><p>Il progresso torner&agrave; all&#39;episodio {{+choice.episode.number-1}}. Questo episodio e quelli successivi risulteranno non visti anche su MAL e AniPlayer.</p>}@else{<p>Vuoi togliere il visto dall&#39;episodio {{choice.episode.number}}?</p>}<div class="toolbar" data-focus-row><button data-dialog-cancel (click)="cancelUnwatch()">Annulla</button><button class="primary" (click)="confirmUnwatch()">S&igrave;, segna non visto</button></div></section></div>}
+

@@ -10,6 +10,8 @@ Il catalogo usa AnimeUnity, mentre gli episodi vengono cercati su AnimeWorld. Il
 
 *Home su TV simulata a 1920×1080.*
 
+Dal menu apri **Catalogo**; per **Esplora** attiva prima la funzione in **Impostazioni → Catalogo**. **I miei anime** compare dopo l’importazione di una lista pubblica o il collegamento MyAnimeList.
+
 | Catalogo | Esplora | I miei anime |
 | --- | --- | --- |
 | ![Ricerca e filtri del catalogo](docs/screenshots/catalog-tv.png) | ![Esplora un anime alla volta](docs/screenshots/explore-tv.png) | ![Dashboard con statistiche dimostrative](docs/screenshots/dashboard-tv.png) |
@@ -60,10 +62,11 @@ Su Android puoi anche installare l’APK sperimentale usato per Android TV. [Ist
 ## Come si usa
 
 - **Telecomando:** usa le frecce per spostarti, **OK** per scegliere e **Return** per tornare indietro. Premi OK su un campo per scrivere.
-- **Catalogo:** cerca per titolo o scegli filtri, generi e voto minimo, poi premi **Applica filtri e cerca**. Puoi filtrare anche anime già visti ed esplorati e ordinare per ultimo episodio pubblicato, uscita dell’anime o in modo casuale.
-- **Esplora:** scopri un anime alla volta. Sulla scheda usa sinistra/destra per esprimere una preferenza, su per i preferiti e giù per saltare. Su telefono puoi fare swipe sulla copertina.
+- **Home:** «Scopri gli anime» propone una selezione casuale. Usa **Mescola** per cambiarla o **Vedi tutti** per aprire la stessa sequenza nel catalogo.
+- **Catalogo:** cerca per titolo o scegli filtri, generi e voto minimo, poi premi **Applica filtri**. Puoi ordinare per titolo, uscita dell’anime, popolarità o valutazione, anche in modo casuale. **Ultimi episodi** mostra invece gli anime presenti negli aggiornamenti di AnimeUnity, dal più recente. Nelle impostazioni puoi abilitare l’esclusione dei generi: premi OK su un genere per passare tra incluso, escluso e neutro.
+- **Esplora:** la funzione è sperimentale e disattivata per impostazione predefinita; puoi abilitarla nelle impostazioni. Mostra un anime alla volta: sulla scheda usa sinistra/destra per esprimere una preferenza, su per i preferiti, giù per saltare e OK per i dettagli. Return torna alla schermata precedente. Su telefono puoi fare swipe sulla copertina.
 - **Player:** riprendi gli episodi e, quando disponibili, salta riassunto, sigla iniziale o finale. Dopo un salto hai cinque secondi per annullarlo. I pulsanti `SUB`/`ITA` cambiano versione audio quando disponibili.
-- **Impostazioni:** personalizza le voci del menu, le opzioni di riproduzione e i dati salvati sul dispositivo.
+- **Impostazioni:** scegli una categoria per gestire menu, catalogo, riproduzione, MyAnimeList e dati salvati.
 
 [Guida completa all’uso e al telecomando](docs/GUIDA.md#telecomando-e-navigazione) · [Come funzionano i salti](docs/GUIDA.md#salta-riassunti-e-sigle).
 
@@ -71,8 +74,8 @@ Su Android puoi anche installare l’APK sperimentale usato per Android TV. [Ist
 
 Le due funzioni sono indipendenti:
 
-1. **Visti da username:** in **Impostazioni → Visti da username MAL** inserisci uno username con lista pubblica. AniPlayer importa i progressi e mostra **I miei anime**, senza modificare la lista MAL.
-2. **Aggiornamento automatico:** in **Impostazioni → Aggiorna MAL automaticamente** collega l’account e autorizza AniPlayer. Potrai inviare i progressi a MAL, mettere in pausa gli aggiornamenti o disconnetterti.
+1. **Visti da username:** in **Impostazioni → MyAnimeList → Allinea i visti · Senza login** inserisci uno username con lista pubblica. AniPlayer importa i progressi e mostra **I miei anime**, senza modificare la lista MAL.
+2. **Aggiornamento automatico:** in **Impostazioni → MyAnimeList → Collega account MAL** collega l’account e autorizza AniPlayer. Potrai inviare i progressi a MAL, mettere in pausa gli aggiornamenti o disconnetterti.
 
 Per il collegamento tramite telefono e PC, avvia `npm run mal:relay` sul PC e segui le istruzioni mostrate sulla TV. [Procedura completa e problemi comuni](docs/GUIDA.md#myanimelist).
 
@@ -89,8 +92,9 @@ Guide: [installazione, backup e risoluzione problemi](docs/GUIDA.md) · [piattaf
 
 ## Crediti e utilizzo
 
-AniPlayer usa [AnimeUnity](https://www.animeunity.co/) per il catalogo, [AnimeWorld](https://www.animeworld.ac/) per gli episodi, [AniSkip](https://aniskip.com/) per gli intervalli di salto, [MyAnimeList](https://myanimelist.net/) per liste e progressi e [AniList](https://anilist.co/) per informazioni sulle date. Grazie anche ad [ani-cli-it](https://github.com/nicolagalassi/ani-cli-it), [Angular](https://angular.dev/) e [QRCode.js](https://github.com/davidshimjs/qrcodejs). [Crediti e licenze delle componenti](THIRD_PARTY.md).
+AniPlayer usa [AnimeUnity](https://www.animeunity.co/) per il catalogo, [AnimeWorld](https://www.animeworld.ac/) per gli episodi, [AniSkip](https://aniskip.com/) per gli intervalli di salto, [MyAnimeList](https://myanimelist.net/) per liste e progressi e [AniList](https://anilist.co/) per date e copertine. Grazie anche ad [ani-cli-it](https://github.com/nicolagalassi/ani-cli-it), [Angular](https://angular.dev/) e [QRCode.js](https://github.com/davidshimjs/qrcodejs). [Crediti e licenze delle componenti](THIRD_PARTY.md).
 
 AniPlayer è un progetto indipendente: non ospita video e non è affiliato ai servizi elencati. Usa l’app solo per contenuti e servizi ai quali hai diritto di accedere. Nomi, immagini e opere appartengono ai rispettivi titolari. [Disclaimer completo](docs/GUIDA.md#disclaimer-copyright-e-uso-consentito).
 
 Il progetto non ha ancora una licenza generale; consulta [THIRD_PARTY.md](THIRD_PARTY.md) per le componenti incluse e derivate.
+

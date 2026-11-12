@@ -1,2 +1,13 @@
 /* La pagina riusa le classi grafiche dell'originale, definite in styles.scss. */
 .explored-tile{width:210px;flex:none}.explored-tile p{font-size:18px;margin-top:10px}
+.hero{min-height:430px;padding:42px 55px;margin-bottom:32px}
+.hero h1{font-size:clamp(38px,4vw,56px)}
+.hero .hero-meta{margin:14px 0}
+.hero .hero-plot{font-size:20px;line-height:1.4;max-height:112px;margin:18px 0}
+.hero .toolbar{margin-top:20px}
+:host-context(.browser-layout) .hero{min-height:clamp(300px,40vh,440px);padding:clamp(24px,3vw,45px)}
+:host-context(.browser-layout) .hero .hero-plot{max-height:100px;margin:16px 0}
+@media(max-width:760px){:host-context(.mobile-layout) .hero{min-height:290px;padding:22px 20px}:host-context(.mobile-layout) .hero .hero-plot{font-size:16px;max-height:90px}}
+.discover-title{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.discover-title button{white-space:nowrap}.discover-title button[aria-disabled=true]{opacity:.65}
+@media(max-width:760px){.discover-title{gap:8px}.discover-title button{font-size:14px;padding:9px 12px}}
+

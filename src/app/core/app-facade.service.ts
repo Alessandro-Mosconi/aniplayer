@@ -22,6 +22,10 @@ export class AppFacadeService {
  readonly malLibrary=inject(MalLibraryService);
  readonly catalogTotalExact=signal(true);readonly catalogHasMore=signal(false);
  readonly loading=signal(false);readonly error=signal('');readonly featured=signal<Anime[]>([]);readonly recent=signal<Anime[]>([]);
+ readonly homeDiscover=signal<Anime[]>([]);
+ readonly homeDiscoverFilters=signal<CatalogFilters>({});
+ readonly homeDiscoverBusy=signal(false);readonly homeDiscoverMessage=signal('');private homeDiscoverRequest=0;
+ readonly settingsCategory=signal<'general'|'catalog'|'playback'|'mal'|'data'>('general');settingsFocusHint:string|null=null;
  readonly cards=signal<Anime[]>([]);readonly total=signal(0);readonly details=signal<Detail|null>(null);readonly related=signal<Anime[]>([]);
  readonly candidates=signal<Anime[]>([]);readonly audioMatches=signal<Detail[]>([]);readonly sourceNotice=signal('');
  readonly searchText=signal('');readonly filters=signal<CatalogFilters>({});readonly page=signal(0);readonly episodePage=signal(0);
@@ -32,7 +36,7 @@ export class AppFacadeService {
  readonly allHistory=computed(()=>Object.values(this.storage.history()).sort((a,b)=>b.updated-a.updated));
  readonly viewTitle=animeTitle;
  genreText(anime:Anime){const g=anime.genres as any;return Array.isArray(g)?g.map(x=>typeof x==='string'?x:x.name||'').filter(Boolean).join(' / '):typeof g==='string'?g:'';}
- private seq=0; catalogFocusHint:'search'|'results'|'filters'|null=null;
+ private seq=0; catalogFocusHint:'search'|'results'|'filters'|null=null; catalogPreviousOrder:string|false=false;
  constructor(){
   void this.animeworld.checkConnection();
   this.remote.configure({player:e=>this.playback.handleKey(e),back:()=>this.back(),playerActive:()=>this.playback.state().opened});
@@ -61,12 +65,21 @@ export class AppFacadeService {
  }
  go(name:RouteState['name']){if(name==='explore'&&this.storage.settings()['exploreEnabled']===false)return;this.nav.open(name);}
  openAnime(anime:Anime){this.nav.open('detail',{anime});}
+ async shuffleHomeDiscover(){
+  if(this.homeDiscoverBusy())return;
+  const seq=this.seq,request=++this.homeDiscoverRequest,discoverFilters:CatalogFilters={order:'random',randomSeed:Math.floor(Math.random()*4294967296)};
+  this.homeDiscoverBusy.set(true);this.homeDiscoverMessage.set('');
+  try{const result=await this.catalogProgress.page({...discoverFilters,title:false as any},0);if(seq===this.seq&&result.records.length){this.homeDiscoverFilters.set(discoverFilters);this.homeDiscover.set(result.records);}else if(seq===this.seq)this.homeDiscoverMessage.set('Nessun anime trovato.');}
+  catch{if(seq===this.seq)this.homeDiscoverMessage.set('Impossibile mescolare. Riprova.');}
+  finally{if(request===this.homeDiscoverRequest)this.homeDiscoverBusy.set(false);}
+ }
  private async load(route:RouteState){const seq=++this.seq;this.error.set('');this.loading.set(false);this.details.set(null);this.audioMatches.set([]);this.sourceNotice.set('');
   if(['home','catalog'].includes(route.name)){this.loading.set(true);try{
    if(route.name==='home'){
     const [h,c]=await Promise.allSettled([this.catalog.home(),this.catalog.catalog({},0)]);
     if(seq!==this.seq)return;
-    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.latestEpisodeUpdates.set(h.value.recent);}if(c.status==='fulfilled'){this.cards.set(c.value.records);this.total.set(c.value.tot);}
+    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.latestEpisodeUpdates.set(h.value.recent);}this.homeDiscoverFilters.set({});if(c.status==='fulfilled'){this.cards.set(c.value.records);this.homeDiscover.set(c.value.records);this.total.set(c.value.tot);}else this.homeDiscover.set([]);
+    this.homeDiscoverBusy.set(false);void this.shuffleHomeDiscover();
     if(h.status==='rejected'&&c.status==='rejected')throw h.reason;
    }else {this.cards.set([]);this.total.set(0);this.catalogHasMore.set(false);this.catalogTotalExact.set(true);const result=await this.catalogProgress.page({...this.filters(),title:this.searchText()||false as any},this.page()*30);if(seq!==this.seq)return;this.cards.set(result.records);this.total.set(result.tot);this.catalogTotalExact.set(result.exact);this.catalogHasMore.set(result.hasMore);}
   }catch(e){if(seq===this.seq)this.error.set(cleanError(e));}finally{if(seq===this.seq)this.loading.set(false);}}
@@ -101,7 +114,8 @@ export class AppFacadeService {
       const hint=this.catalogFocusHint;this.catalogFocusHint=null;
       const target=this.error()?document.querySelector<HTMLElement>('[data-focus=catalog-submit]'):hint==='results'?document.querySelector<HTMLElement>('.catalog-grid .anime-card'):hint==='filters'?document.querySelector<HTMLElement>('[data-focus=filter-audio]'):document.querySelector<HTMLElement>('[data-focus=catalog-search]');
       this.remote.focus(target||document.querySelector<HTMLElement>('[data-focus=catalog-submit]'));
-    }else if(route.name==='explore'&&document.querySelector('[data-explore-card]'))this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));
+    }else if(route.name==='settings'&&this.settingsFocusHint){const hint=this.settingsFocusHint;this.settingsFocusHint=null;this.remote.focus(document.querySelector<HTMLElement>(`[data-focus="${hint}"]`)||document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]'));}
+    else if(route.name==='explore'&&document.querySelector('[data-explore-card]'))this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));
     else this.remote.first(document.getElementById('view')||undefined);
   },60);
  }

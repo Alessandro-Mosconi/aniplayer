@@ -1,31 +1,41 @@
-﻿<section class="page-heading"><p class="eyebrow">ESPLORA</p><h1>Catalogo anime</h1><p class="muted">Scrivi un titolo, scegli i filtri e premi Cerca.</p></section>
-<div class="search-line" data-focus-row><input data-tv-input readonly #search class="search-input" type="search" aria-label="Cerca un anime" placeholder="Cerca un anime…" [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" (keydown.enter)="refreshCatalog()" data-focus="catalog-search" /><button class="primary" data-focus="catalog-submit" (click)="refreshCatalog()">Cerca</button></div>
-<p class="muted remote-help">↑ ↓ per cambiare riga · ← → tra i filtri · OK per scegliere</p>
-<div class="filter-bar" data-focus-row>
- @for(group of groups;track group.key){<button data-tv-click [attr.data-focus]="'filter-'+(group.key==='dubbed'?'audio':group.key)" [attr.aria-expanded]="expanded()===group.key" aria-controls="filter-options" (click)="togglePanel(group.key)">{{group.label}}: {{filterLabel(group.key)}}</button>}
- <button data-focus="filter-genres" [attr.aria-expanded]="expanded()==='genres'" aria-controls="filter-options" (click)="togglePanel('genres')">Generi: {{selectedGenres().length || 'Tutti'}}</button>
+<section class="page-heading"><p class="eyebrow">ESPLORA</p><h1>Catalogo anime</h1></section>
+<div class="search-line" data-focus-row><input data-tv-input readonly #search class="search-input" type="search" aria-label="Cerca un anime" placeholder="Cerca un anime…" [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" (keydown.enter)="refreshCatalog()" data-focus="catalog-search" /><button class="primary" data-focus="catalog-submit" (click)="refreshCatalog()">Cerca</button><button data-tv-click data-focus="filter-recent-episodes" class="recent-episodes-toggle" [attr.aria-pressed]="filters().order==='episode_desc'" (click)="toggleRecentEpisodes()"><span aria-hidden="true">▶</span> Ultimi episodi</button></div>
+
+<div class="catalog-filter-heading"><h2>Filtri</h2></div><div class="filter-bar" data-focus-row>
+  <button data-focus="filter-genres" [attr.aria-expanded]="expanded()==='genres'" aria-controls="filter-options" (click)="togglePanel('genres')"><span class="filter-icon" aria-hidden="true">{{filterIcons['genres']}}</span><span>Generi: {{selectedGenres().length || excludedGenres().length ? '+'+selectedGenres().length+' / −'+excludedGenres().length : 'Tutti'}}</span></button>
+ @for(group of groups.slice(0,-1);track group.key){@if(group.key!=='explored'||storage.settings()['exploreEnabled']!==false){<button data-tv-click [attr.data-focus]="'filter-'+(group.key==='dubbed'?'audio':group.key)" [attr.aria-expanded]="expanded()===group.key" aria-controls="filter-options" (click)="togglePanel(group.key)"><span class="filter-icon" aria-hidden="true">@switch(group.key){@case('watch'){<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>}@case('explored'){<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.1 5.5-5.5 2.1 2.1-5.5 5.5-2.1Z"/></svg>}@case('type'){<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8m-4-3v3m-2-12 5 2.5L10 14V9Z"/></svg>}@default{{{filterIcons[group.key]}}}}</span><span>{{group.label}}: {{filterLabel(group.key)}}</span></button>}}
 </div>
+@if(filters().order!=='episode_desc'){<div class="catalog-sort" data-focus-row><span>ORDINA PER</span><button class="sort-select" data-tv-click data-focus="filter-order" [attr.aria-expanded]="expanded()==='order'" aria-controls="filter-options" (click)="togglePanel('order')"><span class="sort-select-label">{{filterLabel('order')}}</span><span class="sort-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5 5 5-5"/></svg></span></button>@if(directionLabel()){<button data-tv-click class="sort-direction" aria-label="Inverti direzione ordinamento" (click)="toggleDirection()">⇅ {{directionLabel()}}</button>}</div>}
 @if(expanded();as key){
  <section id="filter-options" class="filter-panel">
  @if(key==='genres'){
-  <h2>Generi · selezione multipla</h2><p class="muted">Seleziona i generi, poi premi Fatto e Cerca.</p>
-  <div class="genre-options"><button [attr.aria-pressed]="!selectedGenres().length" (click)="setFilter('genres',[])">Tutti i generi</button>
-  @for(genre of catalog.genres();track genre.id){<button [attr.aria-pressed]="selectedGenres().includes(genre.id)" (click)="toggleGenre(genre.id)">{{selectedGenres().includes(genre.id)?'✓ ':''}}{{genre.name}}</button>}</div>
+  <h2>Generi <small>{{storage.settings()['excludeGenresEnabled']===true?'OK: includi → escludi → nessuno':'Selezione multipla'}}</small></h2>
+  <div class="genre-options"><button [attr.aria-pressed]="!selectedGenres().length && !excludedGenres().length" (click)="clearGenres()">Tutti i generi</button>
+  @for(genre of catalog.genres();track genre.id){<button [class.genre-excluded]="genreState(genre.id)==='exclude'" [attr.aria-pressed]="genreState(genre.id)!=='neutral'" [attr.aria-label]="genre.name + (genreState(genre.id)==='include'?' · incluso':genreState(genre.id)==='exclude'?' · escluso':' · nessun filtro')" (click)="toggleGenre(genre.id)">{{genreState(genre.id)==='include'?'＋ ':genreState(genre.id)==='exclude'?'− ':''}}{{genre.name}}</button>}</div>
   @if(!catalog.genres().length){<p>Generi non disponibili. Riprova il caricamento del catalogo.</p>}
  }@else{
-  @for(group of groups;track group.key){@if(group.key===key){<h2>{{group.label}}</h2><div class="option-row" data-focus-row>@for(option of group.options;track option.label){<button data-tv-click [attr.aria-pressed]="(filters()[group.key]??false)===option.value" (click)="setFilter(group.key,option.value)">{{option.label}}</button>}</div>}}
+  @for(group of groups;track group.key){@if(group.key===key){<h2>{{group.label}}</h2><div class="option-row" data-focus-row>@for(option of group.options;track option.label){<button data-tv-click [class.random-option]="group.key==='order' && option.value==='random'" [class.order-option]="group.key==='order'" [attr.aria-pressed]="optionSelected(group.key,option.value)" (click)="setFilter(group.key,option.value)">@if(group.key==='order'){<span class="order-icon" aria-hidden="true">{{orderIcon(option.value)}}</span>}{{option.label}}</button>}</div>}}
  }
  <button data-filter-close (click)="closePanel()">Fatto</button>
  </section>
 }
-<div class="catalog-actions" data-focus-row>@if(filters().order==='random'){<button [disabled]="loading()" (click)="refreshCatalog()">Rimescola</button>}<button class="primary" [disabled]="loading()" (click)="refreshCatalog()">@if(loading()){Ricerca in corso<app-loading-dots />}@else{{{'Applica filtri e cerca'}}}</button><button (click)="resetFilters()">Azzera ricerca e filtri</button>@if(storage.settings()['exploreEnabled']!==false){<button class="explore-secondary" aria-label="Esplora questi anime" title="Esplora questi anime" (click)="openExplore()"><span aria-hidden="true">&#10023;</span> Esplora</button>}</div>
-@if(filters().order==='release_desc' || filters().order==='release_asc'){<p class="muted">Ordine per data di uscita. Le schede con solo anno o stagione hanno una data approssimativa.</p>}
-@if(filters().order==='episode_desc'){<p class="muted">Ordinati per ultimo episodio pubblicato su AnimeUnity. Sono mostrati i titoli presenti negli aggiornamenti del provider.</p>}
-@if(filters().minScore){<p class="muted">Il voto è quello del catalogo. Gli anime senza voto sono esclusi; la ricerca può proseguire nelle pagine successive.</p>}
-@if(loading()){<app-anime-loader variant="inline" message="Ricerca in corso" />}@else{<p class="muted" role="status">{{error()?'Ricerca non completata. Correggi i filtri o riprova.':total()+(catalogTotalExact()?' anime nel risultato':' risultati trovati finora · ricerca progressiva')}}</p>}
-<div class="catalog-grid">@for(a of cards();track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div>
+<div class="catalog-actions" data-focus-row>@if(filters().order==='random'){<button [disabled]="loading()" (click)="refreshCatalog()">Rimescola</button>}<button class="primary" [disabled]="loading()" (click)="refreshCatalog()">@if(loading()){Ricerca in corso<app-loading-dots />}@else{{{'Applica filtri'}}}</button><button (click)="resetFilters()">Azzera</button>@if(storage.settings()['exploreEnabled']!==false){<button class="explore-secondary" aria-label="Esplora questi anime" title="Esplora questi anime" (click)="openExplore()"><span aria-hidden="true">&#10023;</span> Esplora</button>}</div>
+@if(filters().order==='release_desc' || filters().order==='release_asc'){<p class="muted">Date con anno o stagione: ordine approssimativo.</p>}
+@if(filters().minScore){<p class="muted">Sono esclusi gli anime senza voto.</p>}
+@if(loading()){<app-loading-skeleton variant="grid" message="Ricerca in corso" />}@else{<p class="muted" role="status">{{error()?'Ricerca non completata. Correggi i filtri o riprova.':total()+(catalogTotalExact()?' anime nel risultato':' risultati trovati finora · ricerca progressiva')}}</p>}
+@if(!loading()){<div class="catalog-grid">@for(a of cards();track a.id){<app-anime-card [anime]="a" (select)="openAnime($event)" />}</div>}
 @if(!loading() && !error() && !cards().length && !catalogHasMore()){<p class="empty">Nessun anime trovato. Modifica la ricerca o azzera i filtri.</p>}
-<div class="pager"><button [disabled]="loading() || page()===0" (click)="catalogPage(page()-1)">← Precedenti</button><span>Pagina {{page()+1}}</span><button [disabled]="loading() || !catalogHasMore()" (click)="catalogPage(page()+1)">{{!catalogTotalExact() && cards().length<30?'Continua ricerca':'Successivi →'}}</button><button (click)="remote.focus(search)">Torna alla ricerca</button></div>
+@if(!loading()){<div class="pager"><button [disabled]="loading() || page()===0" (click)="catalogPage(page()-1)">← Precedenti</button><span>Pagina {{page()+1}}</span><button [disabled]="loading() || !catalogHasMore()" (click)="catalogPage(page()+1)">{{!catalogTotalExact() && cards().length<30?'Continua ricerca':'Successivi →'}}</button><button (click)="remote.focus(search)">Torna alla ricerca</button></div>}
+
+
+
+
+
+
+
+
+
+
 
 
 

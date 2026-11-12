@@ -1,14 +1,25 @@
 ﻿import {Injectable,signal} from '@angular/core';
 import {Anime,AudioKind,Detail,Episode} from './models';
+import {StorageService} from './storage.service';
+import {normalizeServiceOrigin} from './service-endpoints.service';
 const BASE='https://www.animeworld.ac';
 function html(body:string){return new DOMParser().parseFromString(body,'text/html');}
 function normalize(value:string){return String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s*\(ita\)\s*$/i,'').replace(/[^a-z0-9]+/g,' ').trim();}
 @Injectable({providedIn:'root'})
 export class AnimeWorldService {
+ readonly domain=signal(BASE);
  readonly online=signal(false);
  readonly connectionStatus=signal<'unchecked'|'checking'|'online'|'offline'>('unchecked');
  readonly connectionError=signal('');
  private cache=new Map<string,{at:number;value:any}>();
+ constructor(private storage:StorageService){try{this.domain.set(normalizeServiceOrigin(this.storage?.read('animeworldDomain',BASE)||BASE));}catch{}}
+ async setDomain(value:string){
+  const next=normalizeServiceOrigin(value),previous=this.domain(),oldOnline=this.online(),oldStatus=this.connectionStatus(),oldError=this.connectionError();
+  this.domain.set(next);
+  if(!await this.checkConnection()){const reason=this.connectionError();this.domain.set(previous);this.online.set(oldOnline);this.connectionStatus.set(oldStatus);this.connectionError.set(oldError);throw Error(reason||'AnimeWorld non raggiungibile.');}
+  if(this.storage&&!this.storage.write('animeworldDomain',next)){this.domain.set(previous);this.online.set(oldOnline);this.connectionStatus.set(oldStatus);this.connectionError.set(oldError);throw Error('Impossibile salvare il dominio.');}
+  this.cache.clear();
+ }
  async checkConnection():Promise<boolean>{
   this.connectionStatus.set('checking');
   try{
@@ -17,15 +28,15 @@ export class AnimeWorldService {
    return true;
   }catch(error){this.online.set(false);this.connectionStatus.set('offline');this.connectionError.set(error instanceof Error?error.message:String(error));return false;}
  }
- private async request(path:string){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
-  try{const response=await fetch(BASE+path,{mode:'cors',credentials:'include',redirect:'follow',cache:'no-store',signal:controller.signal});if(new URL(response.url||BASE+path).origin!==BASE)throw Error('AnimeWorld ha cambiato dominio.');if(!response.ok)throw Error('AnimeWorld HTTP '+response.status);const body=await response.text();if(/<title>[^<]*(just a moment|attention required)|id=["']challenge-form/.test(body))throw Error('AnimeWorld richiede una verifica browser.');this.online.set(true);this.connectionStatus.set('online');this.connectionError.set('');return body;
-  }catch(error){this.online.set(false);this.connectionStatus.set('offline');this.connectionError.set(error instanceof Error?error.message:String(error));throw error;}finally{clearTimeout(timer);}}
+ private async request(path:string){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000),base=this.domain();
+  try{const response=await fetch(base+path,{mode:'cors',credentials:'include',redirect:'follow',cache:'no-store',signal:controller.signal});if(new URL(response.url||base+path).origin!==base)throw Error('AnimeWorld ha cambiato dominio.');if(!response.ok)throw Error('AnimeWorld HTTP '+response.status);const body=await response.text();if(/<title>[^<]*(just a moment|attention required)|id=["']challenge-form/.test(body))throw Error('AnimeWorld richiede una verifica browser.');if(this.domain()===base){this.online.set(true);this.connectionStatus.set('online');this.connectionError.set('');}return body;
+  }catch(error){if(this.domain()===base){this.online.set(false);this.connectionStatus.set('offline');this.connectionError.set(error instanceof Error?error.message:String(error));}throw error;}finally{clearTimeout(timer);}}
  private memo<T>(key:string,fn:()=>Promise<T>):Promise<T>{const cached=this.cache.get(key);if(cached&&Date.now()-cached.at<180000)return Promise.resolve(cached.value);return fn().then(value=>{this.cache.set(key,{at:Date.now(),value});if(this.cache.size>60)this.cache.delete(this.cache.keys().next().value!);return value;});}
  slug(input:Anime|string){const value=typeof input==='string'?input:input.awSlug||input.slug||'';if(!/^[a-zA-Z0-9._-]+$/.test(value))throw Error('Slug AnimeWorld non valido.');return value;}
  search(query:string,language:AudioKind='auto'):Promise<Anime[]>{query=String(query).trim().slice(0,150);if(!query)return Promise.resolve([]);return this.memo('search:'+query+':'+language,async()=>{
   const doc=html(await this.request('/search?keyword='+encodeURIComponent(query))),scope=doc.querySelector('#main .content')||doc,records=new Map<string,Anime>();
   for(const item of scope.querySelectorAll('.film-list .item,.item')){const link=item.querySelector<HTMLAnchorElement>('a.name[href^="/play/"]');if(!link)continue;const slug=link.getAttribute('href')!.slice(6).split('/')[0];if(!/^[a-zA-Z0-9._-]+$/.test(slug))continue;const dub=!!item.querySelector('.dub');if(language==='dub'&&!dub||language==='sub'&&dub)continue;
-   const imageEl=item.querySelector<HTMLImageElement>('img');let imageurl='';try{const u=new URL(imageEl?.getAttribute('data-src')||imageEl?.getAttribute('src')||'',BASE);if(u.protocol==='https:')imageurl=u.href;}catch{}
+   const imageEl=item.querySelector<HTMLImageElement>('img');let imageurl='';try{const u=new URL(imageEl?.getAttribute('data-src')||imageEl?.getAttribute('src')||'',this.domain());if(u.protocol==='https:')imageurl=u.href;}catch{}
    const a:Anime={id:'aw:'+slug,slug,awSlug:slug,provider:'animeworld',title:link.textContent?.trim()||'',title_original:link.getAttribute('data-jtitle')||'',dub:Number(dub),imageurl};if(a.title)records.set(slug,a);
   }return [...records.values()].sort((a,b)=>Number(b.dub)-Number(a.dub));});}
  page(anime:Anime|string):Promise<{episodes:Episode[];plot:string;mal_id?:number;anilist_id?:number}>{const slug=this.slug(anime);return this.memo('page:'+slug,async()=>{

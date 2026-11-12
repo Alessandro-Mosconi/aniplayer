@@ -38,6 +38,7 @@ export class RemoteService {
     if(!this.playerActive()&&this.exploreHandler?.(e)){e.preventDefault();e.stopPropagation();return;}
     const dialog=document.querySelector<HTMLElement>('[data-tv-dialog]');
     if(dialog&&['Back','BrowserBack','Escape'].includes(key)){e.preventDefault();e.stopPropagation();if(!e.repeat)dialog.querySelector<HTMLElement>('[data-dialog-cancel]')?.click();return;}
+    if(!dialog&&['Back','BrowserBack','Escape'].includes(key)&&document.querySelector('app-diagnostics-page')){e.preventDefault();e.stopPropagation();if(!e.repeat)this.backHandler();return;}
     const field=document.activeElement;
     if((field instanceof HTMLInputElement||field instanceof HTMLTextAreaElement)&&field.hasAttribute('data-tv-input')){
       if(key==='Enter'){
@@ -74,7 +75,7 @@ export class RemoteService {
         if(active.closest('.search-line')){
           e.preventDefault();e.stopPropagation();active.blur();
           this.verticalX=null;
-          const personal=!!active.closest('app-my-anime-page');const next=key==='ArrowDown'?document.querySelector<HTMLElement>(personal?'[data-focus="my-filter-status"]':'[data-focus="filter-audio"]'):document.querySelector<HTMLElement>(personal?'[data-focus="nav-my-anime"]':'[data-focus="nav-catalog"]');
+          const personal=!!active.closest('app-my-anime-page');const next=key==='ArrowDown'?document.querySelector<HTMLElement>(personal?'[data-focus="my-filter-genres"]':'[data-focus="filter-genres"]'):document.querySelector<HTMLElement>(personal?'[data-focus="nav-my-anime"]':'[data-focus="nav-catalog"]');
           this.focus(next||document.querySelector<HTMLElement>('.sidebar nav button'));return;
         }
       }

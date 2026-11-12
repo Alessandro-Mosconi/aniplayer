@@ -1,4 +1,18 @@
-﻿<section class="page-heading"><p class="eyebrow">DIAGNOSTICA</p><h1>Verifica la connessione.</h1><p class="muted">Test diretti dalla TV senza proxy.</p></section>
-    <section class="setting-card form-card"><h2>Dominio AnimeUnity</h2><label>URL HTTPS<input data-tv-input readonly [ngModel]="domainField()" (ngModelChange)="domainField.set($event)"></label><div class="toolbar"><button class="primary" (click)="changeDomain()">Verifica e salva</button><button (click)="testNetwork()">Esegui test</button></div><p>Il dominio viene salvato soltanto dopo una richiesta di catalogo riuscita.</p></section>
-    <section class="setting-card"><h2>Dispositivo</h2><p>Piattaforma: {{tv.label}} · AVPlay: {{tv.getAvplay()?'disponibile':'non disponibile'}}</p><p>Connessione: {{tv.online()?'online':'offline'}}</p></section>
-
+<section class="diagnostics-heading"><div><p class="eyebrow">IMPOSTAZIONI</p><h1>Servizi e connessioni</h1><p class="diagnostics-subtitle">Controlla i servizi e i loro indirizzi.</p></div><button data-tv-click class="diagnostics-back" (click)="back()">← Indietro</button></section>
+<div class="services-grid">
+ @for(service of services;track service.key){
+ <section class="service-card" [attr.aria-busy]="busy()===service.key">
+  <div class="service-heading"><div><h2>{{service.name}}</h2><p>{{service.purpose}}</p></div>@if(results()[service.key];as result){<span class="service-status" [class.ok]="result.ok" [class.failed]="!result.ok">{{result.ok?'Verificato':'Non disponibile'}}</span>}@else if(busy()===service.key){<span class="service-status">Verifica…</span>}</div>
+  @if(service.key!=='mal'){
+   <label [attr.for]="'service-'+service.key">Indirizzo HTTPS</label>
+   <input data-tv-input readonly type="url" [id]="'service-'+service.key" [attr.data-focus]="'service-'+service.key" [ngModel]="draft()[service.key]" (ngModelChange)="setDraft(service.key,$event)" />
+   <div class="service-actions" data-focus-row><button data-tv-click class="primary" [attr.aria-disabled]="busy()!==null" (click)="save(service.key)">Verifica e salva</button><button data-tv-click [attr.aria-disabled]="busy()!==null" (click)="test(service.key)">Testa {{service.key==='unity'||service.key==='world'?'attuale':''}}</button></div>
+  }@else{
+   <p class="service-address">api.myanimelist.net · indirizzo ufficiale</p>
+   <div class="service-actions" data-focus-row><button data-tv-click [attr.aria-disabled]="busy()!==null" (click)="test('mal')">Testa connessione</button><button data-tv-click (click)="openMal()">Configura account</button></div>
+  }
+  @if(results()[service.key];as result){<p class="service-result" role="status" [class.failed]="!result.ok">{{result.text}}</p>}
+ </section>
+ }
+</div>
+<section class="device-strip"><span>Dispositivo</span><strong>{{tv.label}}</strong><span>{{tv.online()?'Online':'Offline'}}</span><span>AVPlay {{tv.getAvplay()?'disponibile':'non disponibile'}}</span></section>
