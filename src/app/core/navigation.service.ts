@@ -1,7 +1,7 @@
 import {Injectable,signal} from '@angular/core';
 import {Anime} from './models';
 export type RouteName='home'|'catalog'|'detail'|'favorites'|'history'|'settings'|'mal'|'diagnostics'|'related'|'my-anime'|'explore';
-export interface RouteState {name:RouteName;anime?:Anime;page?:number;filters?:Record<string,unknown>;}
+export interface RouteState {name:RouteName;anime?:Anime;page?:number;filters?:Record<string,unknown>;exploreOrigin?:'catalog';}
 export function isBaseRoute(name:RouteName){return ['home','catalog','explore','my-anime','favorites','history','settings'].includes(name);}
 @Injectable({providedIn:'root'})
 export class NavigationService {

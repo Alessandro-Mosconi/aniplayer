@@ -31,7 +31,7 @@ Per i casi non riconosciuti apri **Salti** nei comandi del player, scegli riassu
 
 ## Prova su telefono
 
-La Smart TV resta la piattaforma principale. Su telefono il layout adattivo usa un menu hamburger in alto: tocca ☰ per aprirlo, scegli una voce oppure tocca lo sfondo per chiuderlo. Ricerca, filtri e comandi si adattano allo spazio disponibile. In **Impostazioni → Versione PC** puoi attivare il layout adattivo o tornare alle dimensioni TV; la preferenza resta sul dispositivo.
+La Smart TV resta la piattaforma principale. Su telefono il layout adattivo usa un menu hamburger in alto: tocca ☰ per aprirlo, scegli una voce oppure tocca lo sfondo per chiuderlo. Ricerca, filtri e comandi si adattano allo spazio disponibile. In **Impostazioni → Generali → Versione PC** puoi attivare il layout adattivo o tornare alle dimensioni TV; la preferenza resta sul dispositivo.
 
 - **Android (APK, Android 8 o superiore):** installa `Release/AniPlayer-AndroidTV-debug.apk`, lo stesso pacchetto delle TV Android. Su telefono usa le dimensioni dello schermo e consente la rotazione; su Android TV mantiene il layout TV orizzontale. Per aggiornare reinstalla con la stessa firma.
 - **Browser del telefono:** sul PC avvia `npm start`, poi apri `http://IP_DEL_PC:4200` dal telefono sulla stessa rete Wi-Fi. Consenti Node.js nel firewall per la rete privata. Usa l'IP locale del PC, non `localhost`. Il server di sviluppo deve restare acceso per fornire anche il proxy necessario alle richieste dei provider.
@@ -398,13 +398,13 @@ Le scelte sono locali e non modificano MAL. Mi piace e preferiti sono indipenden
 
 ### Visti da username, senza login
 
-Apri **Impostazioni → Visti da username MAL → Allinea i visti · Senza login**, inserisci lo username e importa. La lista MAL deve essere pubblica.
+Apri **Impostazioni → MyAnimeList → Allinea i visti · Senza login**, inserisci lo username e importa. La lista MAL deve essere pubblica.
 
 Questa modalità mostra i progressi in AniPlayer e abilita **I miei anime**, con dashboard e lista personale. Non modifica MAL. Per aggiornare la copia locale, ripeti l’allineamento.
 
 ### Collegare l’account per inviare i progressi
 
-Apri **Impostazioni → Aggiorna MAL automaticamente**. Dopo il consenso puoi attivare o mettere in pausa gli invii con lo switch.
+Apri **Impostazioni → MyAnimeList → Collega account MAL**. Dopo il consenso puoi attivare o mettere in pausa gli invii con lo switch.
 
 Il percorso consigliato usa telefono e PC, evitando i limiti del browser TV e il taglio degli URL lunghi da parte di SmartThings:
 
@@ -560,3 +560,4 @@ Per segnalare un problema indica modello e firmware TV, schermata, passi per rip
 Per una modifica esegui `npm run test:all` e descrivi le verifiche effettuate, distinguendo test automatici, browser e TV reale.
 
 Riconoscimenti e licenze delle componenti incluse o derivate: [THIRD_PARTY.md](../THIRD_PARTY.md) e [LICENSE.ani-cli-it](../LICENSE.ani-cli-it). Al momento manca un file `LICENSE` generale del progetto: pubblicare il repository non assegna automaticamente una licenza ai sorgenti e agli asset; prima di redistribuirli verifica le rispettive condizioni.
+

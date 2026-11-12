@@ -12,7 +12,7 @@ export interface Episode {id:string|number; number:string; token?:string; public
 export interface Detail {anime:Anime; episodes:Episode[]; related:Anime[]; count:number;}
 export interface PlaybackState {playing:boolean;position:number;duration:number;opened:boolean;buffering:boolean;title:string;episode:number;error:string;}
 export interface SavedProgress {anime:Anime;episode:Episode;position:number;duration:number;completed:boolean;updated:number;}
-export interface CatalogFilters {title?:string;type?:string|number|false;status?:string|number|false;genres?:number[]|false;year?:number|false;season?:string|false;order?:string|false;dubbed?:boolean|number|false;minScore?:number|false;watch?:'all'|'never'|'unwatched';explored?:'all'|'seen'|'like'|'dislike'|'never';randomSeed?:number;}
+export interface CatalogFilters {title?:string;type?:string|number|false;status?:string|number|false;genres?:number[]|false;excludedGenres?:number[];year?:number|false;season?:string|false;order?:string|false;dubbed?:boolean|number|false;minScore?:number|false;watch?:'all'|'never'|'unwatched';explored?:'all'|'never'|'seen'|'like'|'dislike';randomSeed?:number;}
 export const animeTitle=(a:Anime)=>a.title_eng||a.title_it||a.title||'Titolo non disponibile';
 export const animeImage=(a:Anime)=>a.imageurl_cover||a.imageurl||'';
 export function cleanError(e:unknown){return e instanceof Error?e.message:String(e);}

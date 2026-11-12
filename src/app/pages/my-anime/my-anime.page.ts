@@ -18,16 +18,23 @@ export class MyAnimePage extends PageBase implements OnInit,OnDestroy {
  readonly types=computed(()=>[...new Set(this.library.rows().map(r=>r.anime?.type).filter((x):x is string=>!!x))].sort());
  readonly statuses=[{value:'',label:'Tutti'},{value:'watching',label:'In corso'},{value:'completed',label:'Completati'},{value:'on_hold',label:'In pausa'},{value:'dropped',label:'Interrotti'},{value:'plan_to_watch',label:'Da iniziare'}];
  readonly watches=[{value:'all',label:'Tutti'},{value:'seen',label:'Con episodi visti'},{value:'never',label:'Mai visti'},{value:'remaining',label:'Con episodi da vedere'}];
- readonly orders=[{value:'title',label:'Titolo A–Z'},{value:'release_desc',label:'Uscita · Più recenti'},{value:'release_asc',label:'Uscita · Più antichi'},{value:'score',label:'Il mio voto'},{value:'remaining',label:'Più episodi da vedere'},{value:'updated',label:'Aggiornati su MAL'}];
+ readonly orders=[{value:'title',label:'Titolo',icon:'Aa'},{value:'random',label:'Casuale',icon:'⤨'},{value:'release_desc',label:'Uscita anime',icon:'▣'},{value:'score',label:'Il mio voto',icon:'★'},{value:'remaining',label:'Episodi da vedere',icon:'▶'},{value:'updated',label:'Aggiornati su MAL',icon:'◷'}];
+ readonly scores=[0,5,6,7,7.5,8,8.5,9,9.5];
  private destroyed=false;
  ngOnInit(){if(this.listPage()*30>=this.filtered().length)this.listPage.set(0);if(this.library.available()&&this.library.rows().some(r=>!r.anime?.title))void this.refreshList();}
  async refreshList(){await this.library.refresh();if(this.listPage()*30>=this.filtered().length)this.listPage.set(0);}
  ngOnDestroy(){this.destroyed=true;}
  statusLabel(status:string){return this.statuses.find(s=>s.value===status)?.label||status;}
  watchLabel(){return this.watches.find(s=>s.value===this.listFilters().watch)?.label||'Tutti';}
- orderLabel(){return this.orders.find(s=>s.value===this.listFilters().order)?.label||'Titolo A–Z';}
+ orderLabel(){const aliases:Record<string,string>={title_desc:'title',release_asc:'release_desc',score_asc:'score',remaining_asc:'remaining',updated_asc:'updated'};const order=this.listFilters().order;return this.orders.find(s=>s.value===(aliases[order]||order))?.label||'Titolo';}
+ orderSelected(value:string){return this.orderLabel()===this.orders.find(s=>s.value===value)?.label;}
+ directionLabel(){switch(this.listFilters().order){case 'title':return 'A → Z';case 'title_desc':return 'Z → A';case 'release_desc':return 'Più recenti';case 'release_asc':return 'Più antichi';case 'score':case 'remaining':case 'updated':return 'Decrescente';case 'score_asc':case 'remaining_asc':case 'updated_asc':return 'Crescente';default:return '';}}
+ toggleDirection(){const opposite:Record<string,string>={title:'title_desc',title_desc:'title',release_desc:'release_asc',release_asc:'release_desc',score:'score_asc',score_asc:'score',remaining:'remaining_asc',remaining_asc:'remaining',updated:'updated_asc',updated_asc:'updated'};const order=opposite[this.listFilters().order];if(order)this.setFilter('order',order);}
+ selectOrder(value:string){if(value==='random')this.listFilters.update(f=>({...f,order:value,randomSeed:Math.floor(Math.random()*4294967296)}));else this.setFilter('order',value);this.listPage.set(0);}
  setFilter(key:keyof MalListFilters,value:any){this.listFilters.update(f=>({...f,[key]:value,...(key==='status'?{watch:'all'}:{})}));this.listPage.set(0);}
- toggleGenre(name:string){const selected=this.listFilters().genres;this.setFilter('genres',selected.includes(name)?selected.filter(x=>x!==name):[...selected,name]);}
+ genreState(name:string){return this.listFilters().genres.includes(name)?'include':(this.listFilters().excludedGenres||[]).includes(name)?'exclude':'neutral';}
+ clearGenres(){this.listFilters.update(f=>({...f,genres:[],excludedGenres:[]}));this.listPage.set(0);}
+ toggleGenre(name:string){const state=this.genreState(name),advanced=this.storage.settings()['excludeGenresEnabled']===true;this.listFilters.update(f=>({...f,genres:state==='neutral'?[...f.genres,name]:f.genres.filter(g=>g!==name),excludedGenres:state==='include'&&advanced?[...(f.excludedGenres||[]).filter(g=>g!==name),name]:(f.excludedGenres||[]).filter(g=>g!==name)}));this.listPage.set(0);}
  reset(){this.listFilters.set({query:'',status:'',type:'',genres:[],watch:'seen',order:'title'});this.listPage.set(0);}
  showStatus(status:string){this.reset();this.setFilter('status',status);this.view.set('list');}
  showGenre(name:string){this.reset();this.setFilter('genres',[name]);this.view.set('list');}

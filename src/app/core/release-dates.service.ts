@@ -1,12 +1,13 @@
 import {Injectable} from '@angular/core';
 import {Anime} from './models';
 import {StorageService} from './storage.service';
+import {ServiceEndpointsService,PUBLIC_SERVICE_DEFAULTS} from './service-endpoints.service';
 const QUERY='query($ids:[Int]){Page(page:1,perPage:50){media(idMal_in:$ids,type:ANIME){idMal startDate{year month day}}}}';
 /** Public release metadata; no login or user data is sent. */
 @Injectable({providedIn:'root'})
 export class ReleaseDatesService {
  private pending=new Map<string,Promise<Record<string,string>>>();
- constructor(private storage:StorageService){}
+ constructor(private storage:StorageService,private endpoints:ServiceEndpointsService){}
  async enrich(records:Anime[]):Promise<Anime[]>{
   const cache=this.storage.read<Record<string,{date:string;at:number}>>('releaseDates',{})||{},now=Date.now();
   const ids=[...new Set(records.filter(a=>!a.releaseDate&&Number(a.mal_id)>0).map(a=>Number(a.mal_id)))];
@@ -23,7 +24,7 @@ export class ReleaseDatesService {
  private async fetchDates(ids:number[]){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
   try{
-   const response=await fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({query:QUERY,variables:{ids}}),signal:controller.signal});
+   const response=await fetch(this.endpoints?.origin('anilist')||PUBLIC_SERVICE_DEFAULTS.anilist,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({query:QUERY,variables:{ids}}),signal:controller.signal});
    if(!response.ok)throw Error('Date di uscita non disponibili');const result=await response.json();
    if(result.errors||!Array.isArray(result.data?.Page?.media))throw Error('Risposta date non valida');
    const dates:Record<string,string>={};for(const row of result.data.Page.media){const d=row.startDate;if(!ids.includes(row.idMal)||!Number.isInteger(d?.year)||!Number.isInteger(d.month)||!Number.isInteger(d.day)||d.month<1||d.month>12||d.day<1||d.day>31)continue;dates[row.idMal]=`${d.year}-${String(d.month).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`;}return dates;

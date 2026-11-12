@@ -4,8 +4,8 @@ import {RouteName} from './navigation.service';
 
 export const sidebarItems:{id:RouteName;label:string;icon:string}[]=[
  {id:'home',label:'Home',icon:'⌂'}, {id:'catalog',label:'Catalogo',icon:'⌕'},
- {id:'explore',label:'Esplora',icon:'✧'}, {id:'my-anime',label:'I miei anime',icon:'▥'},
- {id:'favorites',label:'Preferiti',icon:'♡'}, {id:'history',label:'Cronologia',icon:'◷'},
+ {id:'favorites',label:'Preferiti',icon:'♡'}, {id:'explore',label:'Esplora',icon:'✧'},
+ {id:'my-anime',label:'I miei anime',icon:'▥'}, {id:'history',label:'Cronologia',icon:'◷'},
  {id:'settings',label:'Impostazioni',icon:'⚙'}
 ];
 export function normalizeSidebar(saved:any){

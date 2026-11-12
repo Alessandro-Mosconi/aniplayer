@@ -18,6 +18,13 @@ export class CatalogOrderService {
  private scans=new Map<string,OrderedScan>();
  constructor(private catalog:CatalogService,private dates?:ReleaseDatesService){}
  async page(filters:CatalogFilters,offset=0):Promise<{records:Anime[];tot:number}>{
+  if(filters.order==='score_asc'||filters.order==='popularity_asc'){
+   const raw={...filters,order:filters.order==='score_asc'?'Valutazione':'Popolarità'};
+   const first=await this.catalog.catalog(raw,0),start=Math.max(0,first.tot-offset-30);
+   if(offset>=first.tot)return {records:[],tot:first.tot};
+   const page=start===0?first:await this.catalog.catalog(raw,start);
+   return {records:page.records.slice(0,Math.min(30,first.tot-offset)).reverse(),tot:first.tot};
+  }
   if(!['random','release_desc','release_asc'].includes(String(filters.order)))return this.catalog.catalog(filters,offset);
   const key=this.catalog.domain()+JSON.stringify(filters);let state=this.scans.get(key);
   if(!state||Date.now()-state.at>120000){state={at:Date.now(),records:[],total:0,initialized:false,year:Number(filters.year)||(filters.order==='release_asc'?1900:new Date().getFullYear()+1),indices:[],cursor:0,done:false,pending:Promise.resolve(),raw:{...filters,order:'Lista A-Z',dubbed:filters.order==='random'&&filters.dubbed===0?false:filters.dubbed}};this.scans.set(key,state);while(this.scans.size>3)this.scans.delete(this.scans.keys().next().value!);}

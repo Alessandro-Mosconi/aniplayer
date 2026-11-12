@@ -2,6 +2,7 @@ import {alignSkip,SkipAlignment} from './skip-alignment';
 import {Injectable} from '@angular/core';
 import {Anime,Episode} from './models';
 import {StorageService} from './storage.service';
+import {ServiceEndpointsService,PUBLIC_SERVICE_DEFAULTS} from './service-endpoints.service';
 export type IntroSource='local'|'aniskip'|'audio'|'fingerprint';
 export interface IntroWindow{start:number;end:number;source:IntroSource;}
 export type ExtraSegment='recap'|'prologue'|'ending';
@@ -15,7 +16,8 @@ export class IntroService{
  private memo=new Map<string,{time:number;promise:Promise<any[]>}>();
  private badgeJobs=new Map<number,Promise<boolean>>();private badgeQueue:Promise<unknown>=Promise.resolve();
  badgeCooldown=0;
- constructor(private store:StorageService){}
+ private memoOrigin='';
+ constructor(private store:StorageService,private endpoints:ServiceEndpointsService){}
  context(anime:Anime,episode:Episode,duration:number):IntroContext{
   const mal=Number(anime.mal_id),number=Number(episode.number);
   return {mal,number,duration,key:[Number.isSafeInteger(mal)&&mal>0?'mal:'+mal:'anime:'+anime.id,anime.provider||'animeworld',anime.awSlug||anime.slug,Number(anime.dub)?'dub':'sub',String(episode.number)].join('|')};
@@ -58,6 +60,7 @@ export class IntroService{
   Object.keys(stored).sort((a,b)=>stored[b].checkedAt-stored[a].checkedAt).slice(1000).forEach(k=>delete stored[k]);this.store.write('aniskipAvailability',stored);return true;
  }
  async fetchTimes(ctx:IntroContext):Promise<any[]>{
+  const origin=this.endpoints?.origin('aniskip')||PUBLIC_SERVICE_DEFAULTS.aniskip;if(origin!==this.memoOrigin){this.memo.clear();this.memoOrigin=origin;}
   const base=ctx.mal+':'+ctx.number,now=Date.now();
   // Fetch all timings while the video is preparing; validate duration locally later.
   const warmed=this.memo.get(base+':0');if(ctx.duration>0&&warmed&&now-warmed.time<900000)return warmed.promise;
@@ -70,7 +73,7 @@ export class IntroService{
   if(cached&&Date.now()-cached.time<900000)return cached.promise;
   const request=(async()=>{
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
-   try{const url=`https://api.aniskip.com/v2/skip-times/${ctx.mal}/${ctx.number}?types%5B%5D=op&types%5B%5D=ed&types%5B%5D=recap&episodeLength=${ctx.duration.toFixed(3)}`;
+   try{const url=`${origin}/v2/skip-times/${ctx.mal}/${ctx.number}?types%5B%5D=op&types%5B%5D=ed&types%5B%5D=recap&episodeLength=${ctx.duration.toFixed(3)}`;
     const r=await fetch(url,{mode:'cors',credentials:'omit',signal:controller.signal});if(r.status===404){if(ctx.duration===0)this.cacheTimes(base,[]);return [];}
     if(r.status===429)this.badgeCooldown=Date.now()+300000;
     if(!r.ok)throw Error('AniSkip HTTP '+r.status);

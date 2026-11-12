@@ -1,12 +1,12 @@
-@if(layout.mobile()){
+<div>@if(layout.mobile()){
  <div class="mobile-explore-heading"><h1>Esplora</h1><div><button aria-label="Mostra filtri attivi" [attr.aria-expanded]="showFilters()" (click)="showFilters.set(!showFilters())">Filtri &middot; {{activeFilterChips().length}}</button><button aria-label="Come funzionano gli swipe" [attr.aria-expanded]="showHelp()" (click)="showHelp.set(!showHelp())">?</button></div></div>
  @if(showFilters()){<div class="mobile-explore-panel"><div class="filter-chips">@for(chip of activeFilterChips();track chip){<span>{{chip}}</span>}</div><button (click)="go('catalog')">Modifica filtri</button></div>}
  @if(showHelp()){<p class="mobile-explore-panel">Sulla copertina: destra Mi piace, sinistra Non mi interessa, su Preferiti, gi&ugrave; Salta. Puoi anche usare i pulsanti qui sotto.</p>}
- @if(busy()){<app-anime-loader variant="inline" message="Cerco il prossimo anime" />}@else if(message()){<p class="mobile-explore-message" role="status">{{message()}}</p>}
- @if(current();as anime){
- <section class="mobile-explore-card" [class.exit-left]="transition()==='left'" [class.exit-right]="transition()==='right'" [class.exit-down]="transition()==='down'" [class.favorite-pulse]="favoritePulse()" [class.card-enter]="entering()" [class.swipe-dragging]="drag()!==null" [style.transform]="drag() ? 'translate('+drag()!.x*0.4+'px,'+drag()!.y*0.25+'px) rotate('+drag()!.x*0.025+'deg)' : null" data-explore-card tabindex="0" (focus)="cardFocused()" [attr.aria-busy]="busy()" aria-label="Anime da esplorare">
+ @if(busy()){<app-loading-skeleton variant="explore" message="Cerco il prossimo anime" />}@else if(message()){<p class="mobile-explore-message" role="status">{{message()}}</p>}
+ @if(!busy() && current();as anime){
+ <section class="mobile-explore-card" [class.exit-left]="transition()==='left'" [class.exit-right]="transition()==='right'" [class.exit-down]="transition()==='down'" [class.exit-up]="transition()==='up'" [class.card-enter]="entering()" [class.swipe-dragging]="drag()!==null" [style.transform]="drag() ? 'translate('+drag()!.x*0.4+'px,'+drag()!.y*0.25+'px) rotate('+drag()!.x*0.025+'deg)' : null" data-explore-card tabindex="0" [attr.aria-busy]="busy()" aria-label="Anime da esplorare">
  <div class="mobile-explore-cover explore-swipe-surface" (pointerdown)="swipeStart($event)" (pointermove)="swipeMove($event)" (pointerup)="swipeEnd($event)" (pointercancel)="cancelSwipe()" (lostpointercapture)="cancelSwipe()">
- <img draggable="false" class="explore-poster" [src]="anime.imageurl||anime.imageurl_cover||'assets/images/aniplayer-icon-512.png'" [alt]="viewTitle(anime)" (error)="fallback($event)">
+ <img draggable="false" class="explore-poster" [src]="artworkUrl()||anime.imageurl||anime.imageurl_cover||'assets/images/aniplayer-icon-512.png'" [alt]="viewTitle(anime)" (error)="fallback($event)">
  @if(swipeHint()){<span class="swipe-feedback" aria-hidden="true">{{swipeHint()}}</span>}
  @if(isFavorite()){<span class="mobile-favorite-badge" aria-label="Nei preferiti">&#9733;</span>}
  <div class="mobile-explore-caption"><h2>{{viewTitle(anime)}}</h2><p>{{anime.type||'ANIME'}} &middot; {{anime.date||'Anno n.d.'}} &middot; {{anime.dub?'DUB ITA':'SUB ITA'}}</p></div>
@@ -25,28 +25,31 @@
  }
  <span class="mobile-explore-live" role="status">{{saved()}}</span>
 }@else{
-<section class="page-heading"><p class="eyebrow">UNA NUOVA SCOPERTA</p><div class="explore-heading-row"><h1>Esplora</h1><button data-tv-click data-focus="explore-menu" (click)="focusMenu()">&#9776; Menu <small>Return / Esc</small></button></div><p class="muted">Un anime alla volta. Le tue scelte vengono salvate su questa TV.</p></section>
-<div class="explore-filter-summary" aria-label="Filtri attivi">@if(activeFilterChips().length){<span class="filter-summary-label">Filtri attivi</span><ul class="filter-chips">@for(chip of activeFilterChips();track chip){<li>{{chip}}</li>}</ul>}@else{<span class="filter-summary-label">Nessun filtro attivo</span>}<span class="explore-order">Ordine casuale</span></div>
-
-<p class="explore-help">Sulla scheda: ← Non mi interessa · → Mi piace · ↑ Preferiti · ↓ Salta · OK Dettagli · Return Menu</p>
+<header class="explore-header"><div><p class="eyebrow">LA TUA PROSSIMA SCOPERTA</p><h1>Esplora</h1></div><div class="explore-header-actions">@if(undoAvailable()){<button data-tv-click (click)="undo()">&#8630; Annulla</button>}</div></header>
+<div class="explore-filter-summary" aria-label="Filtri attivi"><span class="filter-summary-label">IN SCOPERTA</span><ul class="filter-chips">@for(chip of activeFilterChips();track chip){<li>{{chip}}</li>}</ul><span class="explore-order">&#10022; Casuale</span></div>
 @if(saved()){<p class="saved-message" role="status">{{saved()}}</p>}
-@if(busy()){<app-anime-loader variant="inline" message="Cerco il prossimo anime" />}@else if(message()){<p class="muted" role="status">{{message()}}</p>}
-@if(current();as anime){
- <div class="explore-actions" data-focus-row><button [disabled]="busy()" (click)="react('dislike')">← Non mi interessa</button><button class="primary" [disabled]="busy()" (click)="react('like')">Mi piace →</button><button [disabled]="busy()" (click)="favorite()">{{isFavorite()?'★ Rimuovi dai preferiti':'☆ Aggiungi ai preferiti'}}</button><button [disabled]="busy()" (click)="skip()">Salta ↓</button><button (click)="openAnime(anime)">Apri dettagli</button></div>
- <section class="explore-card" [class.exit-left]="transition()==='left'" [class.exit-right]="transition()==='right'" [class.exit-down]="transition()==='down'" [class.favorite-pulse]="favoritePulse()" [class.card-enter]="entering()" [class.swipe-dragging]="drag()!==null" [style.transform]="drag() ? 'translate('+drag()!.x*0.4+'px,'+drag()!.y*0.25+'px) rotate('+drag()!.x*0.025+'deg)' : null" data-explore-card tabindex="0" (focus)="cardFocused()" aria-label="Scheda anime. Freccia sinistra non mi interessa, destra mi piace, su preferiti, giù salta, OK dettagli" [attr.aria-busy]="busy()">
+@if(busy()){<app-loading-skeleton variant="explore" message="Cerco il prossimo anime" />}@else if(message()){<p class="muted" role="status">{{message()}}</p>}
+@if(!busy() && current();as anime){
+ <section class="explore-card" [class.exit-left]="transition()==='left'" [class.exit-right]="transition()==='right'" [class.exit-down]="transition()==='down'" [class.exit-up]="transition()==='up'" [class.card-enter]="entering()" [class.swipe-dragging]="drag()!==null" [style.transform]="drag() ? 'translate('+drag()!.x*0.4+'px,'+drag()!.y*0.25+'px) rotate('+drag()!.x*0.025+'deg)' : null" data-explore-card tabindex="0" aria-label="Scheda anime. Freccia sinistra non mi interessa, destra mi piace, su preferiti, giù salta, OK dettagli" [attr.aria-busy]="busy()">
  <div class="explore-swipe-surface" (pointerdown)="swipeStart($event)" (pointermove)="swipeMove($event)" (pointerup)="swipeEnd($event)" (pointercancel)="cancelSwipe()" (lostpointercapture)="cancelSwipe()">
- <img draggable="false" class="explore-poster" [src]="anime.imageurl||anime.imageurl_cover||'assets/images/aniplayer-icon-512.png'" [alt]="viewTitle(anime)" (error)="fallback($event)">
+ <img draggable="false" class="explore-poster" [src]="artworkUrl()||anime.imageurl||anime.imageurl_cover||'assets/images/aniplayer-icon-512.png'" [alt]="viewTitle(anime)" (error)="fallback($event)">
  @if(swipeHint()){<span class="swipe-feedback" aria-hidden="true">{{swipeHint()}}</span>}
- <p class="swipe-help">Scorri sulla copertina:<br>&#8592; Non mi interessa &middot; Mi piace &#8594;<br>&#8593; Preferiti &middot; Salta &#8595;<br><small>Scorri sul testo per muovere la pagina.</small></p>
  </div>
- <div class="explore-info"><p class="eyebrow">{{anime.type||'ANIME'}} · {{anime.date||'Anno non disponibile'}} · {{anime.dub?'DUB ITA':'SUB ITA'}}</p><h2>{{viewTitle(anime)}}</h2><p class="explore-genres">{{genreText(anime)}}</p><p class="explore-plot">{{plot()||'Descrizione non disponibile nel catalogo.'}}</p>@if(isFavorite()){<p class="favorite-note">★ Nei tuoi preferiti</p>}</div>
+ <div class="explore-info"><div class="explore-kicker"><span>SCELTO PER TE</span>@if(isFavorite()){<span class="favorite-note">&#9733; Preferito</span>}</div><h2>{{viewTitle(anime)}}</h2><p class="explore-meta"><span>{{anime.type||'ANIME'}}</span><span>{{anime.date||'Anno n.d.'}}</span><span>{{anime.dub?'DUB ITA':'SUB ITA'}}</span></p><p class="explore-genres">{{genreText(anime)}}</p><p class="explore-plot">{{plot()||'Descrizione non disponibile.'}}</p><div class="remote-guide" aria-label="Comandi telecomando"><span><b>↩</b> Indietro</span><span><b>←</b> No</span><span><b>→</b> Mi piace</span><span><b>↑</b> Preferiti</span><span><b>↓</b> Salta</span><span><b>OK</b> Dettagli</span></div></div>
  </section>
-
+ <div class="explore-actions explore-quick-actions" data-focus-row><button [disabled]="busy()" (click)="react('dislike')"><span>✕</span> No</button><button class="primary" [disabled]="busy()" (click)="react('like')"><span>♡</span> Mi piace</button><button [disabled]="busy()" (click)="favorite()"><span>{{isFavorite()?'★':'☆'}}</span> Preferiti</button><button [disabled]="busy()" (click)="skip()"><span>↓</span> Salta</button><button (click)="openAnime(anime)">Dettagli <span>↗</span></button></div>
 }@else if(!busy()){
  <div class="explore-actions" data-focus-row><button class="primary" (click)="next()">Continua ricerca</button><button (click)="restart()">Rivedi anche gli esplorati</button><button (click)="go('catalog')">Scegli filtri nel catalogo</button></div>
 }
-<p class="muted">{{exploration.stats().total}} esplorati · {{exploration.stats().liked}} mi piace · {{exploration.stats().disliked}} non mi interessa</p>
 
-<div class="explore-actions" data-focus-row>@if(undoAvailable()){<button (click)="undo()">Annulla ultima azione</button>}@if(current();as anime){@if(exploration.get(anime)?.feedback==='like'||exploration.get(anime)?.feedback==='dislike'){<button (click)="resetCurrent()">Elimina preferenza di questo anime</button>}}<button (click)="go('settings')">Gestisci scelte salvate</button></div>
+
+
 
 }
+
+
+</div>
+
+
+
+

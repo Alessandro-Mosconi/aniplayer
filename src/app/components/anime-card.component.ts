@@ -10,7 +10,7 @@ import {IntroService} from '../core/intro.service';
  @if(progress()){<span class="card-progress"><span [style.width.%]="progress()"></span></span>}
  </span><span class="card-title">{{animeTitle(anime())}}</span>
  @if(anime().lastEpisodeDate){<span class="card-sub">Ep. {{anime().lastEpisode}} · {{episodeDate(anime().lastEpisodeDate!)}}</span>}
- <span class="card-sub">{{anime().releaseDate||anime().date||anime().type||'Serie anime'}} @if(anime().season){ ? {{anime().season}} } @if(anime().score){ · ★ {{anime().score}} }</span>
+ <span class="card-sub">{{anime().releaseDate||anime().date||anime().type||'Serie anime'}} @if(anime().season){ &middot; {{anime().season}} } @if(anime().score){ · ★ {{anime().score}} }</span>
 </button>`})
 export class AnimeCardComponent implements AfterViewInit,OnDestroy{
  readonly anime=input.required<Anime>();readonly progress=input(0);readonly newEpisode=input(false);readonly select=output<Anime>();
@@ -28,3 +28,4 @@ export class AnimeCardComponent implements AfterViewInit,OnDestroy{
  ngOnDestroy(){this.destroyed=true;this.observer?.disconnect();}
  fallback(e:Event){const target=e.target as HTMLImageElement;if(!target.src.endsWith('aniplayer-icon-512.png'))target.src='assets/images/aniplayer-icon-512.png';}
 }
+

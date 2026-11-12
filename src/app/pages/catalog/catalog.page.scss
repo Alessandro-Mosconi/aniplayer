@@ -1,7 +1,48 @@
-﻿.filter-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.filter-bar button{text-align:left;font-size:20px;padding:16px 12px;overflow-wrap:anywhere}.filter-panel{padding:24px;background:#161f30;border:1px solid #536692;border-radius:16px;margin-bottom:24px}.option-row,.catalog-actions{display:flex;flex-wrap:wrap;gap:18px;margin:18px 0}.genre-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:24px}button[aria-pressed="true"]{background:#4a579d;border-color:#c3caff}.remote-help{margin-top:18px}.catalog-actions{margin-bottom:28px}
+.filter-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.filter-bar button{text-align:left;font-size:20px;padding:16px 12px;overflow-wrap:anywhere}.filter-panel{padding:24px;background:#161f30;border:1px solid #536692;border-radius:16px;margin-bottom:24px}.option-row,.catalog-actions{display:flex;flex-wrap:wrap;gap:18px;margin:18px 0}.genre-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:24px}button[aria-pressed="true"]{background:#4a579d;border-color:#c3caff}.remote-help{margin-top:18px}.catalog-actions{margin-bottom:28px}
 .search-line{position:sticky;top:0;z-index:5;background:var(--bg,#0b1120);padding:28px 0 18px}.search-line input,.search-line button{scroll-margin-top:48px}:host button,:host .catalog-grid{scroll-margin-top:160px;scroll-margin-bottom:56px}
 
 @media(max-width:1100px){.filter-bar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 
 .catalog-actions .explore-secondary{margin-left:auto;background:transparent;font-size:19px;color:#b5c2dd}.explore-secondary span{font-size:27px}
+.catalog-filter-heading{margin:20px 0 10px}.catalog-filter-heading h2{margin:0;color:#b7c4de;font-size:14px;letter-spacing:.12em;text-transform:uppercase}
+.filter-bar{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0}.filter-bar button,.catalog-sort button{min-height:55px;font-size:17px;padding:12px 15px;border-radius:10px}
+.catalog-sort{display:flex;align-items:center;gap:14px;margin:18px 0}.catalog-sort>span{font-size:13px;letter-spacing:.12em;color:#9cacc9;font-weight:700}.catalog-sort button{min-width:230px;text-align:left;display:flex;justify-content:space-between;gap:20px}
+.filter-panel h2 small{font-size:15px;font-weight:400;color:#b2bfd7}.catalog-actions{gap:10px;margin:20px 0 28px;align-items:center}.catalog-actions button{font-size:17px;min-height:52px;padding:11px 18px}.catalog-actions .explore-secondary{font-size:17px}
+@media(max-width:1100px){.filter-bar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.catalog-sort{align-items:stretch;flex-direction:column;gap:8px}.catalog-sort button{width:100%}.catalog-actions .explore-secondary{margin-left:0}}
+.catalog-sort .sort-direction{min-width:0;justify-content:center;white-space:nowrap}
+/* Keep the primary actions together and aligned at every width. */
+.catalog-actions .explore-secondary{margin-left:0;min-height:52px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.catalog-actions .explore-secondary span{font-size:22px;line-height:1}
+.option-row{align-items:stretch;gap:10px}.option-row button{min-height:52px;padding:11px 16px}
+/* Align labels and icons without changing the action layout. */
+.catalog-sort button,.catalog-actions button,.option-row button{display:inline-flex;align-items:center;justify-content:center;line-height:1.2}
+.catalog-sort button:not(.sort-direction){justify-content:space-between}
+.catalog-actions .explore-secondary{margin-left:auto;border-color:#92a4e8;background:#19243acc;color:#e0e7ff;box-shadow:0 0 14px #798ef04a,inset 0 0 12px #9eacff12}
+.catalog-actions .explore-secondary:hover{background:#283754;border-color:#bdc9ff}
+@media(max-width:600px){.catalog-actions .explore-secondary{margin-left:0}}
+.option-row .random-option{margin-left:auto;gap:9px;color:#f6eaff;background:linear-gradient(120deg,#3d315f,#303a6a);border-color:#a28ad4;box-shadow:0 0 16px #9d75ef38}
+.option-row .random-option span{font-size:22px;line-height:1;color:#ffda87}
+.option-row .random-option:hover,.option-row .random-option[aria-pressed="true"]{background:linear-gradient(120deg,#7150a1,#515eb4);border-color:#e0c9ff;color:#fff}
+@media(max-width:600px){.option-row .random-option{margin-left:0}}
+.genre-options button.genre-excluded[aria-pressed="true"]{background:#593443;border-color:#f2a8b5;color:#fff1f2}
+.option-row .random-option{margin-left:0}
+.filter-bar button{display:flex;align-items:center;gap:12px}
+.filter-icon{display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border-radius:8px;background:#ffffff10;color:#c4ceff;font-size:18px;line-height:1}
+.option-row .order-option{gap:8px}.option-row button .order-icon{display:inline-grid;place-items:center;flex:none;width:23px;color:#bfcbf4;font-size:17px;font-weight:700;line-height:1}
+.option-row .random-option .order-icon{color:#ffda87;font-size:22px}
+.filter-icon svg{display:block;width:22px;height:22px}
+.recent-episodes-toggle>span:first-child{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#ffffff10;color:#becbff;font-size:15px}
+.recent-episodes-toggle[aria-pressed=true]{background:#354a70;border-color:#aebdff;color:#fff}
+
+.search-line .recent-episodes-toggle{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:55px;white-space:nowrap}
+.search-line .recent-episodes-toggle[aria-pressed=true]{background:#5269c7;border-color:#aab9ff;color:#fff}
+@media(max-width:760px){.search-line .recent-episodes-toggle{min-height:44px;white-space:normal}}
+.catalog-sort .sort-select{min-height:56px;padding:9px 10px 9px 18px;gap:22px;border-color:#526487;background:#202e49;border-radius:12px}
+.sort-select-label{min-width:0;line-height:1.3}
+.sort-chevron{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:9px;background:#ffffff0d;color:#cbd5ff}
+.sort-chevron svg{display:block;width:20px;height:20px;transition:transform .18s ease}
+.sort-select[aria-expanded=true] .sort-chevron svg{transform:rotate(180deg)}
+.sort-select:hover .sort-chevron,.sort-select:focus .sort-chevron{background:#ffffff1b;color:#fff}
+@media(prefers-reduced-motion:reduce){.sort-chevron svg{transition:none}}

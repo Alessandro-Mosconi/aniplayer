@@ -10,12 +10,41 @@ export class CatalogProgressService {
  private scans=new Map<string,{at:number;records:Anime[];offset:number;done:boolean;pending:Promise<void>}>();
  private episodeScans=new Map<string,{at:number;records:Anime[];seen:Set<string>;page:number;done:boolean;pending:Promise<void>}>();
  constructor(private catalog:CatalogService,private library:MalLibraryService,private ordered:CatalogOrderService,private exploration:ExplorationService){}
+ private knownGenres(anime:Anime):number[]|null{
+  const genres=anime.genres;
+  if(!Array.isArray(genres)||!genres.every((g:any)=>Number.isInteger(Number(g?.id))&&Number(g.id)>0))return null;
+  return genres.map((g:any)=>Number(g.id));
+ }
+ private async genrePage(filters:CatalogFilters,offset:number){
+  try{return await this.catalog.catalog(filters,offset);}
+  catch(error){if((error as any)?.status!==503)throw error;await new Promise(resolve=>setTimeout(resolve,600));return this.catalog.catalog(filters,offset);}
+ }
+ private async excludesNone(anime:Anime,excluded:number[]|undefined){
+  if(!excluded?.length)return true;
+  const known=this.knownGenres(anime);if(known)return !excluded.some(id=>known.includes(id));
+  const title=anime.title||anime.title_eng||anime.title_it||anime.title_original;
+  if(!title){
+   const detail=await this.catalog.detail(anime),genres=detail.anime.genres;
+   if(!Array.isArray(genres)||genres.some((g:any)=>!Number(g?.id)))throw Error('Impossibile verificare i generi esclusi per un anime.');
+   return !excluded.some(id=>genres.some((g:any)=>Number(g.id)===id));
+  }
+  for(const id of excluded){
+   for(let start=0;;start+=30){const page=await this.genrePage({title,genres:[id]},start);if(page.records.some(a=>String(a.id)===String(anime.id)))return false;if(!page.records.length||start+page.records.length>=page.tot)break;}
+  }
+  return true;
+ }
+ private async withoutExcluded(records:Anime[],excluded:number[]|undefined){
+  if(!excluded?.length)return records;
+  const result:Anime[]=[];
+  for(let i=0;i<records.length;i+=2){const batch=records.slice(i,i+2),keep=await Promise.all(batch.map(a=>this.excludesNone(a,excluded)));result.push(...batch.filter((_,index)=>keep[index]));}
+  return result;
+ }
  private async episodePage(filters:CatalogFilters,offset:number){
   const key=this.catalog.domain()+JSON.stringify(filters)+this.library.progressKey()+this.exploration.fingerprint();let scan=this.episodeScans.get(key);
   if(!scan||Date.now()-scan.at>120000){scan={at:Date.now(),records:[],seen:new Set(),page:1,done:false,pending:Promise.resolve()};this.episodeScans.set(key,scan);while(this.episodeScans.size>4)this.episodeScans.delete(this.episodeScans.keys().next().value!);}
   const state=scan;
   const work=state.pending.then(async()=>{
-   for(let pages=0;pages<12&&!state.done&&state.records.length<offset+31;pages++){
+   for(let pages=0;pages<4&&!state.done&&state.records.length<offset+30;pages++){
     const result=await this.catalog.recentPage(state.page),seen=new Set(state.seen),candidates:Anime[]=[];
     for(const anime of result.records){const id=String(anime.id);if(seen.has(id))continue;seen.add(id);
      if(!scoreMatches(anime,filters.minScore))continue;
@@ -28,14 +57,16 @@ export class CatalogProgressService {
     let matches=candidates;
     if(filters.genres&&filters.genres.length){
      matches=[];
-     for(let i=0;i<candidates.length;i+=4){const batch=candidates.slice(i,i+4);const included=await Promise.all(batch.map(async anime=>{
+     for(let i=0;i<candidates.length;i+=2){const batch=candidates.slice(i,i+2);const included=await Promise.all(batch.map(async anime=>{
+      const known=this.knownGenres(anime);if(known)return !!filters.genres&&filters.genres.every(id=>known.includes(id));
       const title=anime.title||anime.title_eng||anime.title_it||anime.title_original;
       if(!title){const detail=await this.catalog.detail(anime),genres=detail.anime.genres;return Array.isArray(genres)&&filters.genres!==false&&!!filters.genres?.every(id=>genres.some((g:any)=>Number(g?.id)===id));}
       const query={title,genres:filters.genres};
-      for(let start=0;;start+=30){const page=await this.catalog.catalog(query,start);if(page.records.some(a=>String(a.id)===String(anime.id)))return true;if(!page.records.length||start+page.records.length>=page.tot)return false;}
+      for(let start=0;;start+=30){const page=await this.genrePage(query,start);if(page.records.some(a=>String(a.id)===String(anime.id)))return true;if(!page.records.length||start+page.records.length>=page.tot)return false;}
      }));matches.push(...batch.filter((_,index)=>included[index]));}
     }
     // Commit the page only after all its checks succeed, so retry never skips titles.
+    matches=await this.withoutExcluded(matches,filters.excludedGenres);
     state.seen=seen;state.records.push(...matches);state.done=state.page>=result.lastPage;state.page++;
    }
   });state.pending=work.catch(()=>{});await work;
@@ -53,22 +84,24 @@ export class CatalogProgressService {
     const genres=Array.isArray(anime.genres)?anime.genres as any[]:[];if((filters.genres||[]).some(id=>!genres.some(g=>Number(g?.id)===id)))return false;
     const progress=this.library.progress(anime);return !filters.watch||filters.watch==='all'||filters.watch==='never'&&progress.watched===0||filters.watch==='unwatched'&&progress.remaining>0;
    });
+   records=await this.withoutExcluded(records,filters.excludedGenres);
    if(filters.order==='random')records=seededShuffle(records.sort((a,b)=>animeTitle(a).localeCompare(animeTitle(b))),filters.randomSeed??1);
    else if(filters.order==='release_desc'||filters.order==='release_asc')records.sort((a,b)=>compareRelease(a,b,filters.order==='release_desc'));
    else if(filters.order==='Lista A-Z'||filters.order==='Lista Z-A')records.sort((a,b)=>animeTitle(a).localeCompare(animeTitle(b))*(filters.order==='Lista Z-A'?-1:1));
-   else if(filters.order==='Valutazione')records.sort((a,b)=>Number(b.score||0)-Number(a.score||0));
-   else if(filters.order==='Popolarità')records.sort((a,b)=>Number((b as any).visite||0)-Number((a as any).visite||0));
+   else if(filters.order==='Valutazione'||filters.order==='score_asc')records.sort((a,b)=>(Number(b.score||0)-Number(a.score||0))*(filters.order==='score_asc'?-1:1));
+   else if(filters.order==='Popolarità'||filters.order==='popularity_asc')records.sort((a,b)=>(Number((b as any).visite||0)-Number((a as any).visite||0))*(filters.order==='popularity_asc'?-1:1));
    return {records:records.slice(offset,offset+30),tot:records.length,exact:true,hasMore:offset+30<records.length};
   }
-  if(!filters.minScore&&(!filters.watch||filters.watch==='all')&&(!filters.explored||filters.explored==='all')){const result=await this.ordered.page(filters,offset);return {...result,exact:true,hasMore:offset+result.records.length<result.tot};}
+  if(!filters.excludedGenres?.length&&!filters.minScore&&(!filters.watch||filters.watch==='all')&&(!filters.explored||filters.explored==='all')){const result=await this.ordered.page(filters,offset);return {...result,exact:true,hasMore:offset+result.records.length<result.tot};}
   const key=this.catalog.domain()+JSON.stringify(filters)+this.library.progressKey()+this.exploration.fingerprint();let scan=this.scans.get(key);
   if(!scan||Date.now()-scan.at>120000){scan={at:Date.now(),records:[],offset:0,done:false,pending:Promise.resolve()};this.scans.set(key,scan);while(this.scans.size>4)this.scans.delete(this.scans.keys().next().value!);}
   const state=scan;
   const work=state.pending.then(async()=>{
    // Bounded work: Continue search resumes the same scan instead of skipping matches.
-   for(let pages=0;pages<12&&!state.done&&state.records.length<offset+31;pages++){
+   for(let pages=0;pages<(filters.excludedGenres?.length?4:12)&&!state.done&&state.records.length<offset+31;pages++){
     const result=await this.ordered.page(filters,state.offset);
-    state.records.push(...result.records.filter(anime=>{const progress=this.library.progress(anime);return scoreMatches(anime,filters.minScore)&&(!filters.watch||filters.watch==='all'||filters.watch==='never'&&progress.watched===0||filters.watch==='unwatched'&&progress.remaining>0)&&this.exploration.matches(anime,filters.explored);}));
+    const candidates=result.records.filter(anime=>{const progress=this.library.progress(anime);return scoreMatches(anime,filters.minScore)&&(!filters.watch||filters.watch==='all'||filters.watch==='never'&&progress.watched===0||filters.watch==='unwatched'&&progress.remaining>0)&&this.exploration.matches(anime,filters.explored);});
+    state.records.push(...await this.withoutExcluded(candidates,filters.excludedGenres));
     state.offset+=result.records.length;state.done=!result.records.length||state.offset>=result.tot;
    }
   });state.pending=work.catch(()=>{});await work;
