@@ -1043,8 +1043,8 @@ test('Personal list order supports both directions and a stable random seed',()=
 });
 
 test('Public service addresses are verified before saving and failures preserve the old endpoint',async()=>{
- let settings={},fail=false;
- const store={settings:Object.assign(()=>settings,{set:value=>settings=value}),write:()=>true};
+ let settings={},fail=false,writeFail=false;
+ const store={settings:Object.assign(()=>settings,{set:value=>settings=value}),write:key=>key==='settings'?!writeFail:true};
  const fetch=async(url)=>{if(fail)throw Error('offline');return {ok:true,url,json:async()=>url.includes('aniskip')?{found:false}:{data:{Media:{id:1}}}};};
  const {ServiceEndpointsService,normalizeServiceOrigin}=load('src/app/core/service-endpoints.service.ts',{fetch,AbortController});
  const service=new ServiceEndpointsService(store);
@@ -1052,6 +1052,7 @@ test('Public service addresses are verified before saving and failures preserve 
  assert.throws(()=>normalizeServiceOrigin('https://example.com/private'),/HTTPS/);
  await service.save('anilist','https://graphql.anilist.co');assert.equal(service.origin('anilist'),'https://graphql.anilist.co');
  fail=true;await assert.rejects(service.save('anilist','https://other.example'),/offline/);assert.equal(service.origin('anilist'),'https://graphql.anilist.co');
+ fail=false;writeFail=true;await assert.rejects(service.save('anilist','https://other.example'),/salvare/);assert.equal(service.origin('anilist'),'https://graphql.anilist.co');
 });
 
 test('AnimeWorld domain changes only after a verified response and are restored on failure',async()=>{
@@ -1062,6 +1063,13 @@ test('AnimeWorld domain changes only after a verified response and are restored 
  const service=new AnimeWorldService(storage);
  await service.setDomain('https://new.example');assert.equal(service.domain(),'https://new.example');assert.equal(saved,'https://new.example');
  valid=false;await assert.rejects(service.setDomain('https://bad.example'),/non riconosciuta/);assert.equal(service.domain(),'https://new.example');assert.equal(saved,'https://new.example');
+});
+
+test('AnimeWorld keeps its current address while a new one is being verified',async()=>{
+ let finish;const fetch=url=>new Promise(resolve=>{finish=()=>resolve({ok:true,url,text:async()=>'<title>AnimeWorld</title>'});});
+ const {AnimeWorldService}=load('src/app/core/animeworld.service.ts',{fetch,AbortController});
+ const service=new AnimeWorldService({read:(_key,fallback)=>fallback,write:()=>true});
+ const change=service.setDomain('https://new.example');assert.equal(service.domain(),'https://www.animeworld.ac');finish();await change;assert.equal(service.domain(),'https://new.example');
 });
 
 test('Escape from diagnostics returns directly even while editing its input',()=>{
@@ -1082,4 +1090,15 @@ test('Minimum-score search keeps scanning sparse pages without discarding existi
  Object.assign(fixture,{seq:1,catalogScanning:signal(false),catalogScanMessage:signal(''),cards:signal([{id:1}]),total:signal(1),catalogTotalExact:signal(false),catalogHasMore:signal(true),catalogProgress:{page:async()=>pages[calls++]}});
  await fixture.continueScoreScan(1,{minScore:9},0);
  assert.equal(calls,2);assert.equal(fixture.cards().length,30);assert.equal(fixture.total(),31);assert.equal(fixture.catalogScanning(),false);assert.equal(fixture.catalogTotalExact(),false);
+});
+
+test('Remote navigation reveals both ends of long settings pages',()=>{
+ const calls=[],window={innerHeight:720,innerWidth:1280,scrollTo:options=>calls.push(options.top)};
+ const scroll={scrollHeight:2600,scrollTo(){}},view={contains:()=>true,scrollHeight:2600,scrollTo(){}};
+ class Element{getBoundingClientRect(){return {left:100,right:300,top:500,bottom:550,width:200,height:50};}closest(selector){return selector==='app-settings-page,app-diagnostics-page'?this:null;}}
+ class Input extends Element{};class TextArea extends Element{};
+ const document={activeElement:new Element(),scrollingElement:scroll,body:{scrollHeight:2600},querySelector:()=>null,getElementById:()=>view,addEventListener(){}};
+ const {RemoteService}=load('src/app/core/remote.service.ts',{document,window,HTMLElement:Element,HTMLInputElement:Input,HTMLTextAreaElement:TextArea,HTMLSelectElement:class{}});
+ const remote=new RemoteService({setKeys(){}});remote.focusables=()=>[document.activeElement];
+ remote.move('down');remote.move('up');assert.deepEqual(calls,[2600,0]);
 });

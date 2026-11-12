@@ -77,7 +77,7 @@ export class IntroService{
     const r=await fetch(url,{mode:'cors',credentials:'omit',signal:controller.signal});if(r.status===404){if(ctx.duration===0)this.cacheTimes(base,[]);return [];}
     if(r.status===429)this.badgeCooldown=Date.now()+300000;
     if(!r.ok)throw Error('AniSkip HTTP '+r.status);
-    const data=await r.json();if(data.found===false){if(ctx.duration===0)this.cacheTimes(base,[]);return [];}if(!Array.isArray(data.results))throw Error('Risposta AniSkip non valida');
+    const data=await r.json();if((this.endpoints?.origin('aniskip')||PUBLIC_SERVICE_DEFAULTS.aniskip)!==origin)return [];if(data.found===false){if(ctx.duration===0)this.cacheTimes(base,[]);return [];}if(!Array.isArray(data.results))throw Error('Risposta AniSkip non valida');
     if(ctx.duration===0)this.cacheTimes(base,data.results);
     this.record(ctx.mal,ctx.number,data.results,ctx.duration);return data.results;
    }finally{clearTimeout(timer);}
