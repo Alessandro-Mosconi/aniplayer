@@ -108,7 +108,7 @@ html.mobile-menu-open body{overflow:hidden}
   .topbar{display:none}#view{padding:16px 14px 28px;min-height:calc(100dvh - 58px)}
   .search-line{top:58px}.mobile-explore-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
   .mobile-explore-heading h1{font-size:24px;margin:0}.mobile-explore-heading>div{display:flex;gap:8px}.mobile-explore-heading button{font-size:13px;padding:8px 12px;min-height:38px}
-  .mobile-explore-card{border:1px solid #3e4f70;border-radius:20px;overflow:hidden;background:#142037;transition:transform .28s ease-in,opacity .28s ease-in;transform-origin:center}
+  .mobile-explore-card{border:1px solid #3e4f70;border-radius:20px;overflow:hidden;background:#142037;transition:transform .52s ease-in,opacity .52s ease-in;transform-origin:center}
   .mobile-explore-card:focus{outline:none;box-shadow:none}.mobile-explore-card.swipe-dragging{transition:none;animation:none}
   .mobile-explore-card.exit-left{transform:translateX(-65%) rotate(-9deg);opacity:0}.mobile-explore-card.exit-right{transform:translateX(65%) rotate(9deg);opacity:0}.mobile-explore-card.exit-down{transform:translateY(120px) scale(.9);opacity:0}
   .mobile-explore-cover.explore-swipe-surface{width:100%;height:clamp(230px,calc(100svh - 295px),600px);max-width:none;position:relative;touch-action:none;user-select:none}
@@ -125,3 +125,4 @@ html.mobile-menu-open body{overflow:hidden}
  }
 }
 .mobile-layout .mobile-explore-card.exit-up{transform:translateY(-120px) scale(.9);opacity:0}
+@media(prefers-reduced-motion:reduce){.mobile-layout .mobile-explore-card{transition:none}}

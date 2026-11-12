@@ -55,6 +55,12 @@ test('Right and Left follow the filter row',()=>{
  setItems([audio,type,result]);audio.focus();remote.move('right');assert.equal(document.activeElement,type);
  remote.move('left');assert.equal(document.activeElement,audio);
 });
+test('Horizontal navigation in a settings grid chooses the control physically to the right',()=>{
+ const {remote,document,Element,setItems}=remoteFixture();
+ const row={contains:el=>el.row===row},excludeGenres=new Element(0,100,220,60,row),below=new Element(0,280,220,60,row),exploreAnime=new Element(400,120,220,60,row);
+ setItems([excludeGenres,below,exploreAnime]);excludeGenres.focus();remote.move('right');assert.equal(document.activeElement,exploreAnime);
+ remote.move('left');assert.equal(document.activeElement,excludeGenres);
+});
 test('MAL input releases Down/Up while Left stays available to the caret',()=>{
  const {remote,document,Input,Element,setItems}=remoteFixture();
  const client=new Input(0,0,1000),redirect=new Input(0,100,1000),save=new Element(0,200);
@@ -423,9 +429,9 @@ test('Latest episode genre filtering handles entries without the primary title',
 
 test('Provider episode updates preserve publication date and exclude hidden or undated episodes',()=>{
  const {CatalogService}=load('src/app/core/catalog.service.ts');const service=new CatalogService({read:(_key,fallback)=>fallback});
- const data={last_page:2,data:[{number:3,created_at:'2026-11-11 19:02:21',public:1,hidden:0,anime:{id:1,slug:'one'}},{number:2,created_at:'2026-11-10 10:00:00',public:1,hidden:1,anime:{id:2,slug:'hidden'}},{number:1,public:1,anime:{id:3,slug:'undated'}}]};
+ const data={last_page:2,data:[{id:301,number:3,created_at:'2026-11-11 19:02:21',public:1,hidden:0,anime:{id:1,slug:'one'}},{number:2,created_at:'2026-11-10 10:00:00',public:1,hidden:1,anime:{id:2,slug:'hidden'}},{number:1,public:1,anime:{id:3,slug:'undated'}}]};
  const result=service.episodeUpdates({querySelector:()=>({getAttribute:()=>JSON.stringify(data)})});
- assert.equal(result.lastPage,2);assert.equal(result.records.length,1);assert.equal(result.records[0].lastEpisode,'3');assert.equal(result.records[0].lastEpisodeDate,'2026-11-11 19:02:21');
+ assert.equal(result.lastPage,2);assert.equal(result.records.length,1);assert.equal(result.records[0].lastEpisode,'3');assert.equal(result.records[0].lastEpisodeId,301);assert.equal(result.records[0].lastEpisodeDate,'2026-11-11 19:02:21');
 });
 test('Discovery feedback persists, unifies audio variants and filters liked records locally',async()=>{
  const memory=new Map(),store={read:(key,fallback)=>memory.get(key)??fallback,write:(key,value)=>{memory.set(key,value);return true;}};
@@ -881,6 +887,34 @@ test('Explore favorite saves the choice and advances upwards, with undo data',as
  Object.assign(fixture,{current:()=>anime,busy:()=>false,actionLocked:false,remember:value=>remembered={anime:value,favorite},storage:{toggleFavorite:()=>favorite=!favorite},isFavorite:()=>favorite,viewTitle:()=> 'Sport',saved:{set:value=>saved=value},animate:async value=>{direction=value;},message:{set:()=>{throw Error('unexpected error');}}});
  await fixture.favorite();
  assert.equal(favorite,true);assert.equal(remembered.anime,anime);assert.equal(remembered.favorite,false);assert.equal(direction,'up');assert.match(saved,/Aggiunto ai preferiti/);
+});
+
+test('Explore preloads without duplicating cards or applying a stale batch after restart',async()=>{
+ const source=readFileSync('src/app/pages/explore/explore.page.ts','utf8');
+ const method=source.slice(source.indexOf(' private fillPool()'),source.indexOf(' private remember('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);const fixture=new context.exports.Fixture();let resolveBatch,calls=0;
+ Object.assign(fixture,{pool:[{id:2}],deckSeen:new Set(['1']),deckGeneration:0,pendingBatch:null,hasMore:true,offset:0,destroyed:false,activeFilters:{explored:'never'},exploration:{key:anime=>String(anime.id)},source:{page:()=>{calls++;return new Promise(resolve=>resolveBatch=resolve);}},loadArtwork:async()=>{}});
+ const first=fixture.fillPool();assert.equal(fixture.fillPool(),first);resolveBatch({records:[{id:1},{id:2},{id:3}],hasMore:true});await first;
+ assert.deepEqual(Array.from(fixture.pool,anime=>anime.id),[2,3]);assert.equal(calls,1);
+ const stale=fixture.fillPool();fixture.deckGeneration++;fixture.pool=[];fixture.pendingBatch=null;resolveBatch({records:[{id:4}],hasMore:false});await stale;
+ assert.equal(fixture.pool.length,0);assert.equal(fixture.hasMore,true);
+});
+
+test('Episode badges agree on unwatched updates, versions and later feed pages',async()=>{
+ const source=readFileSync('src/app/core/app-facade.service.ts','utf8');
+ const methods=source.slice(source.indexOf(' private async refreshEpisodeUpdates()'),source.indexOf(' /** Fetch alternate catalog audio'));
+ const js=ts.transpileModule('class Fixture {'+methods+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{}};vm.runInNewContext(js,context);const fixture=new context.exports.Fixture();let updates=[],saved=[],heavySeen=false;
+ const favorite={id:1,mal_id:10,dub:0},watched={id:2,mal_id:20,dub:0},historyOnly={id:3,mal_id:30,dub:0},dub={id:4,mal_id:40,dub:1},heavy={id:7632,mal_id:59741,dub:1};
+ const history=[{anime:favorite,episode:{number:'3'},completed:true},{anime:watched,episode:{number:'4'},completed:true},{anime:historyOnly,episode:{number:'2'},completed:true},{anime:dub,episode:{number:'1'},completed:true},{anime:heavy,episode:{number:'20'},completed:false}];
+ Object.assign(fixture,{episodeUpdateRequest:0,latestEpisodeUpdates:Object.assign(()=>updates,{set:value=>updates=value}),allFavorites:()=>[favorite,watched,dub,heavy],allHistory:()=>history,storage:{history:()=>Object.fromEntries(history.map(row=>[row.anime.id,row])),write:(_key,value)=>{saved=value;}},lib:{isSeen:anime=>anime.id===7632&&heavySeen},catalog:{recentPage:async page=>page===1?{records:[{...favorite,lastEpisode:'4'},{...watched,lastEpisode:'4'},{id:44,mal_id:40,dub:0,lastEpisode:'8'},{id:7632,mal_id:59741,dub:0,lastEpisode:'20',lastEpisodeId:1234}],lastPage:2}:{records:[{...historyOnly,lastEpisode:'3'}],lastPage:2}}});
+ await fixture.refreshEpisodeUpdates();
+ assert.equal(fixture.hasNewEpisode(favorite),true);assert.equal(fixture.hasNewEpisode(watched),false);assert.equal(fixture.hasNewEpisode(dub),false);
+ assert.equal(fixture.hasTrackedNewEpisode(historyOnly),true);assert.equal(fixture.hasTrackedNewEpisode({id:99,mal_id:99,dub:0}),false);
+ assert.equal(fixture.hasNewEpisode(heavy),true);assert.equal(fixture.allFavorites().filter(anime=>fixture.hasNewEpisode(anime)).length,2);
+ updates=[...saved];fixture.catalog.recentPage=async()=>({records:[],lastPage:1});await fixture.refreshEpisodeUpdates();
+ assert.equal(fixture.hasNewEpisode(heavy),true);heavySeen=true;assert.equal(fixture.hasNewEpisode(heavy),false);heavySeen=false;assert.equal(fixture.hasNewEpisode(heavy),true);
 });
 
 test('Ascending score and popularity reverse the complete catalog across page boundaries',async()=>{

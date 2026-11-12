@@ -1,4 +1,4 @@
-param([string]$TvIp='192.168.1.103',[int]$Port=26101,[switch]$SkipBackup,[switch]$Build)
+param([string]$TvIp='192.168.1.83',[int]$Port=26101,[switch]$SkipBackup,[switch]$Build)
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 $toolRoot=Join-Path $env:USERPROFILE '.tizen-extension-platform/server/sdktools/data/tools'
