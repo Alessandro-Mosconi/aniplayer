@@ -1044,7 +1044,7 @@ test('Personal list order supports both directions and a stable random seed',()=
 
 test('Public service addresses are verified before saving and failures preserve the old endpoint',async()=>{
  let settings={},fail=false;
- const store={settings:()=>settings,setSetting:(key,value)=>settings={...settings,[key]:value},write:()=>true};
+ const store={settings:Object.assign(()=>settings,{set:value=>settings=value}),write:()=>true};
  const fetch=async(url)=>{if(fail)throw Error('offline');return {ok:true,url,json:async()=>url.includes('aniskip')?{found:false}:{data:{Media:{id:1}}}};};
  const {ServiceEndpointsService,normalizeServiceOrigin}=load('src/app/core/service-endpoints.service.ts',{fetch,AbortController});
  const service=new ServiceEndpointsService(store);
