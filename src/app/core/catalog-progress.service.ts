@@ -12,7 +12,7 @@ export class CatalogProgressService {
  constructor(private catalog:CatalogService,private library:MalLibraryService,private ordered:CatalogOrderService,private exploration:ExplorationService){}
  private knownGenres(anime:Anime):number[]|null{
   const genres=anime.genres;
-  if(!Array.isArray(genres)||!genres.every((g:any)=>Number.isInteger(Number(g?.id))&&Number(g.id)>0))return null;
+  if(!Array.isArray(genres)||!genres.length||!genres.every((g:any)=>Number.isInteger(Number(g?.id))&&Number(g.id)>0))return null;
   return genres.map((g:any)=>Number(g.id));
  }
  private async genrePage(filters:CatalogFilters,offset:number){

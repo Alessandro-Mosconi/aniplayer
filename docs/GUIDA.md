@@ -368,15 +368,15 @@ Nel player, Return annulla prima lo spostamento sulla timeline o chiude un panne
 
 1. Apri **Catalogo**, raggiungi il campo di ricerca e premi OK per scrivere.
 2. Scegli i filtri. I generi permettono selezione multipla; premi **Fatto** per chiudere il pannello.
-3. Premi **Applica filtri e cerca** o **Cerca**.
+3. Premi **Applica filtri** o **Cerca**.
 
 I filtri dei visti sono **Tutti**, **Mai visti**, **Con episodi da vedere**. Quelli di esplorazione distinguono già esplorati, mi piace, non mi interessa e mai esplorati.
 
-Il filtro **Voto minimo** usa la valutazione del catalogo AnimeUnity. Con una soglia attiva esclude i titoli senza un voto valido; con **Tutti** non filtra il voto. Se la ricerca è progressiva, usa **Continua ricerca** per esaminare altre pagine. Il filtro rimane attivo anche quando apri Esplora dal catalogo.
+Il filtro **Voto minimo** usa la valutazione del catalogo AnimeUnity. Con una soglia attiva esclude i titoli senza un voto valido; con **Tutti** non filtra il voto. Se i risultati iniziali non riempiono una pagina, la ricerca continua automaticamente in secondo piano. Il numero indicato è provvisorio finché compare «risultati trovati finora»; per proseguire nelle pagine successive usa **Continua ricerca**. Il filtro rimane attivo anche quando apri Esplora dal catalogo.
 
 L’ordine casuale resta stabile tra pagine fino a **Rimescola**. Per l’uscita, l’app prova a recuperare date complete da AniList tramite gli ID MAL e le conserva in cache; senza date complete o in caso di errore usa anno e stagione. La data visibile sulla scheda permette di verificare la precisione disponibile.
 
-**Ultimo episodio · Più recenti** usa invece la data di pubblicazione dell'episodio su AnimeUnity, dalla più recente, e mostra una volta sola ogni versione dell'anime. È l'ordine usato da **Vedi tutti** nella sezione Ultimi episodi della Home. La ricerca scorre progressivamente gli aggiornamenti del provider: mostra i titoli presenti in quel flusso e non necessariamente tutti quelli del catalogo. Con filtri selettivi può essere necessario premere **Continua ricerca**. La data di pubblicazione sul provider può differire dalla prima messa in onda originale.
+Il pulsante **Ultimi episodi** accanto a Cerca mostra gli aggiornamenti AnimeUnity dal più recente, una volta per ogni versione dell’anime. È la vista usata da **Vedi tutti** nella sezione Ultimi episodi della Home. La ricerca scorre progressivamente gli aggiornamenti del provider: mostra i titoli presenti in quel flusso e non necessariamente tutti quelli del catalogo. Con filtri selettivi può essere necessario premere **Continua ricerca**. La data di pubblicazione sul provider può differire dalla prima messa in onda originale.
 
 ### Esplora
 
@@ -386,7 +386,7 @@ Con il focus sulla scheda grande:
 | --- | --- |
 | Sinistra | Non mi interessa |
 | Destra | Mi piace |
-| Su | Aggiunge o rimuove dai preferiti |
+| Su | Aggiunge o rimuove dai preferiti e passa al prossimo anime |
 | Giù | Salta |
 | OK | Apre il dettaglio |
 
@@ -459,6 +459,8 @@ Dettagli dell’algoritmo e dei requisiti: [INTRO_AUDIO.md](INTRO_AUDIO.md).
 ## Impostazioni e dati locali
 
 Gli interruttori mostrano **Attivo/Disattivo** e si azionano con OK. Puoi cambiare ordine e visibilità del menu; **Impostazioni** resta accessibile. **I miei anime** compare con un account MAL attivo o un allineamento pubblico.
+
+In **Impostazioni → Dati e rete → Gestisci servizi** puoi verificare le connessioni e cambiare gli indirizzi HTTPS di AnimeUnity, AnimeWorld, AniSkip e AniList: il nuovo indirizzo viene salvato dopo la verifica. MyAnimeList usa gli indirizzi ufficiali e la configurazione account dedicata. Nel browser di sviluppo il proxy integrato copre gli indirizzi predefiniti; indirizzi diversi devono consentire le richieste dal browser.
 
 Preferiti, cronologia, copertura video, scelte, impostazioni e accesso MAL sono nel LocalStorage della TV, con prefisso `autv.`. Non esiste un account AniPlayer che sincronizzi questi dati tra dispositivi.
 
