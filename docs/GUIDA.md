@@ -110,6 +110,8 @@ I comandi seguenti si eseguono dalla cartella del progetto. Gli IP sono esempi: 
    ares-launch --device miaLG org.aniplayer.tv
    ```
 
+Se l’app si avvia da riga di comando ma l’icona sulla TV non risponde, riavvia la TV e riprova ad aprirla dall’icona.
+
 **Per aggiornare:** installa il nuovo IPK con lo stesso ID senza disinstallare prima. Non è incluso un backup automatico LG. Controlla la scadenza del Developer Mode nell’app LG e rinnova la sessione secondo le indicazioni del produttore. [Guida ufficiale LG](https://webostv.developer.lge.com/develop/getting-started/developer-mode-app).
 
 ### Android TV e Google TV

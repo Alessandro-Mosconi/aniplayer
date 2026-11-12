@@ -36,6 +36,8 @@ Per la TV già configurata in questo progetto, `npm run dist` installa il pacche
 
 Installa l’app **Developer Mode** sulla TV, attivala e configura la CLI LG sul PC. Poi installa il pacchetto `.ipk` e avvia AniPlayer. [Guida LG passo per passo](docs/GUIDA.md#lg-webos).
 
+Se dopo l’installazione l’icona non apre l’app, riavvia la TV e riprova.
+
 ### Android TV e Google TV
 
 Su Android 8 o superiore, trasferisci `AniPlayer-AndroidTV-debug.apk` sulla TV, aprilo con un gestore file e autorizza l’installazione se richiesta. È possibile installarlo anche con ADB. [Guida Android TV](docs/GUIDA.md#android-tv-e-google-tv).
