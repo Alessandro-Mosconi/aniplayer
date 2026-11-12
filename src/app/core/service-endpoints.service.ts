@@ -26,8 +26,9 @@ export class ServiceEndpointsService {
   }finally{clearTimeout(timer);}
  }
  async save(service:PublicService,value:string){
-  const origin=await this.probe(service,value),settings=this.storage.settings()['serviceEndpoints']||{};
-  this.storage.setSetting('serviceEndpoints',{...settings,[service]:origin});
+  const origin=await this.probe(service,value),settings=this.storage.settings(),next={...settings,serviceEndpoints:{...(settings['serviceEndpoints']||{}),[service]:origin}};
+  if(!this.storage.write('settings',next))throw Error('Impossibile salvare l’indirizzo.');
+  this.storage.settings.set(next);
   if(service==='aniskip'){this.storage.write('skipTimesCache',{});this.storage.write('aniskipAvailability',{});}
  }
 }

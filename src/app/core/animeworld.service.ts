@@ -14,11 +14,10 @@ export class AnimeWorldService {
  private cache=new Map<string,{at:number;value:any}>();
  constructor(private storage:StorageService){try{this.domain.set(normalizeServiceOrigin(this.storage?.read('animeworldDomain',BASE)||BASE));}catch{}}
  async setDomain(value:string){
-  const next=normalizeServiceOrigin(value),previous=this.domain(),oldOnline=this.online(),oldStatus=this.connectionStatus(),oldError=this.connectionError();
-  this.domain.set(next);
-  if(!await this.checkConnection()){const reason=this.connectionError();this.domain.set(previous);this.online.set(oldOnline);this.connectionStatus.set(oldStatus);this.connectionError.set(oldError);throw Error(reason||'AnimeWorld non raggiungibile.');}
-  if(this.storage&&!this.storage.write('animeworldDomain',next)){this.domain.set(previous);this.online.set(oldOnline);this.connectionStatus.set(oldStatus);this.connectionError.set(oldError);throw Error('Impossibile salvare il dominio.');}
-  this.cache.clear();
+  const next=normalizeServiceOrigin(value),body=await this.request('/',next);
+  if(!/<title>[^<]*animeworld/i.test(body))throw Error('Pagina AnimeWorld non riconosciuta.');
+  if(this.storage&&!this.storage.write('animeworldDomain',next))throw Error('Impossibile salvare il dominio.');
+  this.domain.set(next);this.cache.clear();this.online.set(true);this.connectionStatus.set('online');this.connectionError.set('');
  }
  async checkConnection():Promise<boolean>{
   this.connectionStatus.set('checking');
@@ -28,7 +27,7 @@ export class AnimeWorldService {
    return true;
   }catch(error){this.online.set(false);this.connectionStatus.set('offline');this.connectionError.set(error instanceof Error?error.message:String(error));return false;}
  }
- private async request(path:string){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000),base=this.domain();
+ private async request(path:string,base=this.domain()){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
   try{const response=await fetch(base+path,{mode:'cors',credentials:'include',redirect:'follow',cache:'no-store',signal:controller.signal});if(new URL(response.url||base+path).origin!==base)throw Error('AnimeWorld ha cambiato dominio.');if(!response.ok)throw Error('AnimeWorld HTTP '+response.status);const body=await response.text();if(/<title>[^<]*(just a moment|attention required)|id=["']challenge-form/.test(body))throw Error('AnimeWorld richiede una verifica browser.');if(this.domain()===base){this.online.set(true);this.connectionStatus.set('online');this.connectionError.set('');}return body;
   }catch(error){if(this.domain()===base){this.online.set(false);this.connectionStatus.set('offline');this.connectionError.set(error instanceof Error?error.message:String(error));}throw error;}finally{clearTimeout(timer);}}
  private memo<T>(key:string,fn:()=>Promise<T>):Promise<T>{const cached=this.cache.get(key);if(cached&&Date.now()-cached.at<180000)return Promise.resolve(cached.value);return fn().then(value=>{this.cache.set(key,{at:Date.now(),value});if(this.cache.size>60)this.cache.delete(this.cache.keys().next().value!);return value;});}

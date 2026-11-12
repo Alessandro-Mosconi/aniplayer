@@ -21,6 +21,7 @@ export class AppFacadeService {
  readonly catalogProgress=inject(CatalogProgressService);
  readonly malLibrary=inject(MalLibraryService);
  readonly catalogTotalExact=signal(true);readonly catalogHasMore=signal(false);
+ readonly catalogScanning=signal(false);readonly catalogScanMessage=signal('');
  readonly loading=signal(false);readonly error=signal('');readonly featured=signal<Anime[]>([]);readonly recent=signal<Anime[]>([]);
  readonly homeDiscover=signal<Anime[]>([]);
  readonly homeDiscoverFilters=signal<CatalogFilters>({});
@@ -73,7 +74,17 @@ export class AppFacadeService {
   catch{if(seq===this.seq)this.homeDiscoverMessage.set('Impossibile mescolare. Riprova.');}
   finally{if(request===this.homeDiscoverRequest)this.homeDiscoverBusy.set(false);}
  }
- private async load(route:RouteState){const seq=++this.seq;this.error.set('');this.loading.set(false);this.details.set(null);this.audioMatches.set([]);this.sourceNotice.set('');
+ private async continueScoreScan(seq:number,filters:CatalogFilters,offset:number){
+  this.catalogScanning.set(true);this.catalogScanMessage.set('');
+  try{while(seq===this.seq){
+   await new Promise(resolve=>setTimeout(resolve,350));if(seq!==this.seq)return;
+   const result=await this.catalogProgress.page(filters,offset);if(seq!==this.seq)return;
+   this.cards.set(result.records);this.total.set(result.tot);this.catalogTotalExact.set(result.exact);this.catalogHasMore.set(result.hasMore);
+   if(result.exact||!result.hasMore||result.records.length>=30)return;
+  }}catch{if(seq===this.seq)this.catalogScanMessage.set('Ricerca sospesa. Premi Continua ricerca per riprovare.');}
+  finally{if(seq===this.seq)this.catalogScanning.set(false);}
+ }
+ private async load(route:RouteState){const seq=++this.seq;this.catalogScanning.set(false);this.catalogScanMessage.set('');this.error.set('');this.loading.set(false);this.details.set(null);this.audioMatches.set([]);this.sourceNotice.set('');
   if(['home','catalog'].includes(route.name)){this.loading.set(true);try{
    if(route.name==='home'){
     const [h,c]=await Promise.allSettled([this.catalog.home(),this.catalog.catalog({},0)]);
@@ -81,7 +92,7 @@ export class AppFacadeService {
     if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.latestEpisodeUpdates.set(h.value.recent);}this.homeDiscoverFilters.set({});if(c.status==='fulfilled'){this.cards.set(c.value.records);this.homeDiscover.set(c.value.records);this.total.set(c.value.tot);}else this.homeDiscover.set([]);
     this.homeDiscoverBusy.set(false);void this.shuffleHomeDiscover();
     if(h.status==='rejected'&&c.status==='rejected')throw h.reason;
-   }else {this.cards.set([]);this.total.set(0);this.catalogHasMore.set(false);this.catalogTotalExact.set(true);const result=await this.catalogProgress.page({...this.filters(),title:this.searchText()||false as any},this.page()*30);if(seq!==this.seq)return;this.cards.set(result.records);this.total.set(result.tot);this.catalogTotalExact.set(result.exact);this.catalogHasMore.set(result.hasMore);}
+   }else {this.cards.set([]);this.total.set(0);this.catalogHasMore.set(false);this.catalogTotalExact.set(true);const query={...this.filters(),title:this.searchText()||false as any},offset=this.page()*30;const result=await this.catalogProgress.page(query,offset);if(seq!==this.seq)return;this.cards.set(result.records);this.total.set(result.tot);this.catalogTotalExact.set(result.exact);this.catalogHasMore.set(result.hasMore);if(query.minScore&&!result.exact&&result.hasMore&&result.records.length<30)void this.continueScoreScan(seq,query,offset);}
   }catch(e){if(seq===this.seq)this.error.set(cleanError(e));}finally{if(seq===this.seq)this.loading.set(false);}}
   if(route.name==='detail'&&route.anime){this.loading.set(true);this.activeDetail.set(route.anime);try{
     const anime=route.anime;let detail:Detail;
