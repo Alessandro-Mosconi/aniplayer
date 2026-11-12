@@ -1041,3 +1041,45 @@ test('Personal list order supports both directions and a stable random seed',()=
  assert.deepEqual(Array.from(shuffled),Array.from(filterMalRows(rows,{...filters,order:'random',randomSeed:123}),r=>r.id));
  assert.notDeepEqual(Array.from(shuffled),Array.from(filterMalRows(rows,{...filters,order:'random',randomSeed:456}),r=>r.id));
 });
+
+test('Public service addresses are verified before saving and failures preserve the old endpoint',async()=>{
+ let settings={},fail=false;
+ const store={settings:()=>settings,setSetting:(key,value)=>settings={...settings,[key]:value},write:()=>true};
+ const fetch=async(url)=>{if(fail)throw Error('offline');return {ok:true,url,json:async()=>url.includes('aniskip')?{found:false}:{data:{Media:{id:1}}}};};
+ const {ServiceEndpointsService,normalizeServiceOrigin}=load('src/app/core/service-endpoints.service.ts',{fetch,AbortController});
+ const service=new ServiceEndpointsService(store);
+ assert.throws(()=>normalizeServiceOrigin('http://example.com'),/HTTPS/);
+ assert.throws(()=>normalizeServiceOrigin('https://example.com/private'),/HTTPS/);
+ await service.save('anilist','https://graphql.anilist.co');assert.equal(service.origin('anilist'),'https://graphql.anilist.co');
+ fail=true;await assert.rejects(service.save('anilist','https://other.example'),/offline/);assert.equal(service.origin('anilist'),'https://graphql.anilist.co');
+});
+
+test('AnimeWorld domain changes only after a verified response and are restored on failure',async()=>{
+ let saved='',valid=true;
+ const storage={read:(_key,fallback)=>fallback,write:(_key,value)=>{saved=value;return true;}};
+ const fetch=async(url)=>({ok:true,url,text:async()=>valid?'<title>AnimeWorld</title>':'<title>Other site</title>'});
+ const {AnimeWorldService}=load('src/app/core/animeworld.service.ts',{fetch,AbortController});
+ const service=new AnimeWorldService(storage);
+ await service.setDomain('https://new.example');assert.equal(service.domain(),'https://new.example');assert.equal(saved,'https://new.example');
+ valid=false;await assert.rejects(service.setDomain('https://bad.example'),/non riconosciuta/);assert.equal(service.domain(),'https://new.example');assert.equal(saved,'https://new.example');
+});
+
+test('Escape from diagnostics returns directly even while editing its input',()=>{
+ const {remote,document,Input}=remoteFixture();const input=new Input(0,0);input.tvInput=true;input.readOnly=false;document.activeElement=input;
+ document.querySelector=selector=>selector==='app-diagnostics-page'?{}:null;let back=0,prevented=false;
+ remote.configure({player:()=>false,playerActive:()=>false,back:()=>back++});
+ remote.onKey({key:'Escape',preventDefault(){prevented=true;},stopPropagation(){}});
+ assert.equal(back,1);assert.equal(prevented,true);
+});
+
+test('Minimum-score search keeps scanning sparse pages without discarding existing results',async()=>{
+ const source=readFileSync('src/app/core/app-facade.service.ts','utf8');
+ const method=source.slice(source.indexOf(' private async continueScoreScan('),source.indexOf(' private async load('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{},setTimeout:fn=>{fn();return 0;}};vm.runInNewContext(js,context);
+ const signal=value=>Object.assign(()=>value,{set:next=>value=next}),fixture=new context.exports.Fixture();let calls=0;
+ const pages=[{records:[{id:1},{id:2},{id:3}],tot:3,exact:false,hasMore:true},{records:Array.from({length:30},(_,id)=>({id})),tot:31,exact:false,hasMore:true}];
+ Object.assign(fixture,{seq:1,catalogScanning:signal(false),catalogScanMessage:signal(''),cards:signal([{id:1}]),total:signal(1),catalogTotalExact:signal(false),catalogHasMore:signal(true),catalogProgress:{page:async()=>pages[calls++]}});
+ await fixture.continueScoreScan(1,{minScore:9},0);
+ assert.equal(calls,2);assert.equal(fixture.cards().length,30);assert.equal(fixture.total(),31);assert.equal(fixture.catalogScanning(),false);assert.equal(fixture.catalogTotalExact(),false);
+});

@@ -69,6 +69,12 @@ Dopo aver selezionato **Collega account MAL** si apre questa schermata:
 
 ![Schermata per collegare MAL tramite telefono e PC](screenshots/mal-tv.png)
 
+### Servizi e connessioni
+
+Apri **Impostazioni → Dati e rete → Gestisci servizi** per verificare gli indirizzi e le connessioni.
+
+![Verifica dei servizi e degli indirizzi](screenshots/diagnostics-tv.png)
+
 Le immagini vengono sostituite quando aggiorniamo l’interfaccia. Per rigenerarle consulta le [istruzioni degli screenshot](screenshots/README.md).
 
 

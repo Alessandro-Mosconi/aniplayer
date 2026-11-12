@@ -21,6 +21,8 @@ export abstract class PageBase {
   readonly total=this.vm.total;
   readonly catalogTotalExact=this.vm.catalogTotalExact;
   readonly catalogHasMore=this.vm.catalogHasMore;
+  readonly catalogScanning=this.vm.catalogScanning;
+  readonly catalogScanMessage=this.vm.catalogScanMessage;
   readonly details=this.vm.details;
   readonly related=this.vm.related;
   readonly candidates=this.vm.candidates;

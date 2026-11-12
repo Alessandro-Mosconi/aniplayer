@@ -140,6 +140,13 @@ export class RemoteService {
       if(aligned.length)scored.splice(0,scored.length,...aligned);
     }
     if(scored[0]){if((dir==='up'||dir==='down')&&this.verticalX===null)this.verticalX=sx;this.focus(scored[0].el);}
+    else if(dir==='down'&&active.closest('app-settings-page,app-diagnostics-page')){
+      // Reveal the footer after the last control in long settings pages.
+      const scrolling=document.scrollingElement;
+      window.scrollTo({top:scrolling?.scrollHeight||document.body?.scrollHeight||0,behavior:'auto' as ScrollBehavior});
+      scrolling?.scrollTo({top:scrolling.scrollHeight,behavior:'auto' as ScrollBehavior});
+      for(const element of [document.querySelector<HTMLElement>('.workspace'),document.getElementById('view')])element?.scrollTo({top:element.scrollHeight,behavior:'auto' as ScrollBehavior});
+    }
     else if(dir==='up'){
       // Headings and the hero are not focusable. The last Up must reveal them,
       // not stop on the highest button at the current scroll position.

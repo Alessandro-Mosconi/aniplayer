@@ -1,4 +1,5 @@
 <section class="diagnostics-heading"><div><p class="eyebrow">IMPOSTAZIONI</p><h1>Servizi e connessioni</h1><p class="diagnostics-subtitle">Controlla i servizi e i loro indirizzi.</p></div><button data-tv-click class="diagnostics-back" (click)="back()">← Indietro</button></section>
+<section class="device-strip"><span>Dispositivo</span><strong>{{tv.label}}</strong><span>{{tv.online()?'Online':'Offline'}}</span><span>AVPlay {{tv.getAvplay()?'disponibile':'non disponibile'}}</span></section>
 <div class="services-grid">
  @for(service of services;track service.key){
  <section class="service-card" [attr.aria-busy]="busy()===service.key">
@@ -15,4 +16,3 @@
  </section>
  }
 </div>
-<section class="device-strip"><span>Dispositivo</span><strong>{{tv.label}}</strong><span>{{tv.online()?'Online':'Offline'}}</span><span>AVPlay {{tv.getAvplay()?'disponibile':'non disponibile'}}</span></section>
