@@ -31,13 +31,13 @@ export class AppFacadeService {
  readonly candidates=signal<Anime[]>([]);readonly audioMatches=signal<Detail[]>([]);readonly sourceNotice=signal('');
  readonly searchText=signal('');readonly filters=signal<CatalogFilters>({});readonly page=signal(0);readonly episodePage=signal(0);
  readonly activeDetail=signal<Anime|null>(null);readonly domainField=signal(this.catalog.domain());readonly malClient=signal(this.mal.clientId());readonly malRedirect=signal(this.mal.redirectUri());readonly malCallback=signal('');
- readonly latestEpisodeUpdates=signal<Anime[]>([]);
- readonly newFavoriteEpisodeCount=computed(()=>this.allFavorites().filter(anime=>!!this.latestUpdateFor(anime)).length);
+ readonly latestEpisodeUpdates=signal<Anime[]>(this.readEpisodeUpdates());
+ readonly newFavoriteEpisodeCount=computed(()=>this.allFavorites().filter(anime=>this.hasNewEpisode(anime)).length);
  readonly selectLanguage=signal<'auto'|'dub'|'sub'>('auto');readonly allFavorites=computed(()=>Object.values(this.storage.favorites()));
  readonly allHistory=computed(()=>Object.values(this.storage.history()).sort((a,b)=>b.updated-a.updated));
  readonly viewTitle=animeTitle;
  genreText(anime:Anime){const g=anime.genres as any;return Array.isArray(g)?g.map(x=>typeof x==='string'?x:x.name||'').filter(Boolean).join(' / '):typeof g==='string'?g:'';}
- private seq=0; catalogFocusHint:'search'|'results'|'filters'|null=null; catalogPreviousOrder:string|false=false;
+ private seq=0;private episodeUpdateRequest=0; catalogFocusHint:'search'|'results'|'filters'|null=null; catalogPreviousOrder:string|false=false;
  constructor(){
   void this.animeworld.checkConnection();
   this.remote.configure({player:e=>this.playback.handleKey(e),back:()=>this.back(),playerActive:()=>this.playback.state().opened});
@@ -45,7 +45,7 @@ export class AppFacadeService {
   this.playback.audioVersionsProvider=()=>this.audioMatches();
   this.playback.onAudioChanged=detail=>{if(String(this.details()?.anime.id)===String(detail.anime.id))this.details.set({...detail,related:this.details()?.related||detail.related});};
   effect(()=>{const route=this.nav.route();untracked(()=>void this.load(route));});
-  setInterval(()=>{if(document.visibilityState==='visible')void this.catalog.recentPage().then(result=>this.latestEpisodeUpdates.set(result.records)).catch(()=>{});},15*60*1000);
+  setInterval(()=>{if(document.visibilityState==='visible')void this.refreshEpisodeUpdates();},15*60*1000);
   window.addEventListener('aniplayer-suspend',()=>{if(!pictureInPictureActive(window,document))this.playback.pause();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&!pictureInPictureActive(window,document))this.playback.pause();});
  }
@@ -89,7 +89,7 @@ export class AppFacadeService {
    if(route.name==='home'){
     const [h,c]=await Promise.allSettled([this.catalog.home(),this.catalog.catalog({},0)]);
     if(seq!==this.seq)return;
-    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.latestEpisodeUpdates.set(h.value.recent);}this.homeDiscoverFilters.set({});if(c.status==='fulfilled'){this.cards.set(c.value.records);this.homeDiscover.set(c.value.records);this.total.set(c.value.tot);}else this.homeDiscover.set([]);
+    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.mergeEpisodeUpdates(h.value.recent);void this.refreshEpisodeUpdates();}this.homeDiscoverFilters.set({});if(c.status==='fulfilled'){this.cards.set(c.value.records);this.homeDiscover.set(c.value.records);this.total.set(c.value.tot);}else this.homeDiscover.set([]);
     this.homeDiscoverBusy.set(false);void this.shuffleHomeDiscover();
     if(h.status==='rejected'&&c.status==='rejected')throw h.reason;
    }else {this.cards.set([]);this.total.set(0);this.catalogHasMore.set(false);this.catalogTotalExact.set(true);const query={...this.filters(),title:this.searchText()||false as any},offset=this.page()*30;const result=await this.catalogProgress.page(query,offset);if(seq!==this.seq)return;this.cards.set(result.records);this.total.set(result.tot);this.catalogTotalExact.set(result.exact);this.catalogHasMore.set(result.hasMore);if(query.minScore&&!result.exact&&result.hasMore&&result.records.length<30)void this.continueScoreScan(seq,query,offset);}
@@ -130,13 +130,37 @@ export class AppFacadeService {
     else this.remote.first(document.getElementById('view')||undefined);
   },60);
  }
+ private readEpisodeUpdates():Anime[]{const saved=this.storage.read<unknown>('episodeUpdates',[]);return Array.isArray(saved)?saved:[];}
+ private async refreshEpisodeUpdates(){
+  const request=++this.episodeUpdateRequest,records:Anime[]=[];
+  try{for(let page=1;page<=5;page++){
+   const result=await this.catalog.recentPage(page);if(request!==this.episodeUpdateRequest)return;
+   records.push(...result.records);this.mergeEpisodeUpdates(records);
+   if(page>=result.lastPage||!result.records.length)break;
+  }}catch{/* Keep the updates already received if the provider is unavailable. */}
+ }
+ private mergeEpisodeUpdates(incoming:Anime[]){
+  const tracked=[...this.allFavorites(),...this.allHistory().map(row=>row.anime)];
+  const kept=this.latestEpisodeUpdates().filter(item=>tracked.some(anime=>this.sameEdition(item,anime)));
+  const latest=new Map<string,Anime>();
+  for(const item of [...kept,...incoming]){
+   if(!item||!item.id||!Number.isFinite(Number(item.lastEpisode))||Number(item.lastEpisode)<=0)continue;
+   const key=String(item.id),previous=latest.get(key);
+   if(!previous||Number(item.lastEpisode)>Number(previous.lastEpisode)||Number(item.lastEpisode)===Number(previous.lastEpisode)&&!previous.lastEpisodeId)latest.set(key,item);
+  }
+  const updates=[...latest.values()];this.latestEpisodeUpdates.set(updates);
+  this.storage.write('episodeUpdates',updates.filter(item=>tracked.some(anime=>this.sameEdition(item,anime))));
+ }
  hasNewEpisode(anime:Anime):boolean{
   const latest=this.latestUpdateFor(anime);if(!latest)return false;
-  const history=Object.values(this.storage.history()).filter(row=>this.sameSeries(row.anime,anime)).map(row=>Number(row.episode.number)||0);
-  const watched=Math.max(this.malLibrary.progress(anime).watched,...history,0);
-  return Number(latest.lastEpisode)>watched;
+  const episode={id:latest.lastEpisodeId??'',number:String(latest.lastEpisode)};
+  const identity={...anime,mal_id:anime.mal_id||latest.mal_id,anilist_id:anime.anilist_id||latest.anilist_id};
+  if(this.lib.isSeen(identity,episode))return false;
+  return !Object.values(this.storage.history()).some(row=>row.completed&&this.sameSeries(row.anime,anime)&&Number(row.episode.number)===Number(episode.number));
  }
- private latestUpdateFor(anime:Anime):Anime|undefined{return this.latestEpisodeUpdates().find(item=>this.sameSeries(item,anime));}
+ hasTrackedNewEpisode(anime:Anime):boolean{return (this.allFavorites().some(item=>this.sameEdition(item,anime))||this.allHistory().some(item=>this.sameEdition(item.anime,anime)))&&this.hasNewEpisode(anime);}
+ private latestUpdateFor(anime:Anime):Anime|undefined{return this.latestEpisodeUpdates().filter(item=>this.sameEdition(item,anime)&&Number(item.lastEpisode)>0).reduce<Anime|undefined>((latest,item)=>!latest||Number(item.lastEpisode)>Number(latest.lastEpisode)?item:latest,undefined);}
+ private sameEdition(left:Anime,right:Anime){if(String(left.id)===String(right.id))return true;return this.sameSeries(left,right)&&(left.dub==null||right.dub==null||Number(left.dub)===Number(right.dub));}
  private sameSeries(left:Anime,right:Anime){
   if(String(left.id)===String(right.id))return true;
   return Number(left.mal_id)>0&&Number(left.mal_id)===Number(right.mal_id)||Number(left.anilist_id)>0&&Number(left.anilist_id)===Number(right.anilist_id);

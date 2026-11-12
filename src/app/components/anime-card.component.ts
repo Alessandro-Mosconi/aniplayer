@@ -5,7 +5,7 @@ import {IntroService} from '../core/intro.service';
 <button class="anime-card" [attr.data-focus]="'anime-'+anime().id" (click)="select.emit(anime())" [title]="animeTitle(anime())">
  <span class="poster"><img [src]="anime().imageurl||'assets/images/aniplayer-icon-512.png'" [alt]="animeTitle(anime())" loading="lazy" (error)="fallback($event)" />
  @if(anime().dub){<span class="dub-badge">ITA</span>}
- @if(newEpisode()){<span class="new-episode-badge" title="È uscito un episodio dopo l’ultimo visto" aria-label="Nuovo episodio disponibile">EP+</span>}
+ @if(newEpisode()){<span class="new-episode-badge" title="Episodio recente disponibile" aria-label="Episodio recente disponibile">EP+</span>}
  @if(introBadge()){<span class="intro-badge" title="Intervalli sigla presenti su AniSkip; verificare sempre la versione del video" aria-label="AniSkip rilevato">⏭ AS</span>}
  @if(progress()){<span class="card-progress"><span [style.width.%]="progress()"></span></span>}
  </span><span class="card-title">{{animeTitle(anime())}}</span>

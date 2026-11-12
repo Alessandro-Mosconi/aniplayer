@@ -12,6 +12,7 @@ export class HomePage extends PageBase {
  shuffleDiscover(){void this.vm.shuffleHomeDiscover();}
  openDiscover(){this.vm.catalogPreviousOrder=false;this.filters.set({...this.vm.homeDiscoverFilters()});this.searchText.set('');this.page.set(0);this.vm.catalogFocusHint='results';this.nav.open('catalog');}
   readonly hasNewEpisode=this.vm.hasNewEpisode.bind(this.vm);
+  readonly hasTrackedNewEpisode=this.vm.hasTrackedNewEpisode.bind(this.vm);
  openRecent(){this.vm.catalogPreviousOrder=false;this.filters.set({order:'episode_desc'});this.searchText.set('');this.page.set(0);this.vm.catalogFocusHint='results';this.nav.open('catalog');}
  openExplored(){this.filters.set({explored:'seen'});this.searchText.set('');this.page.set(0);this.vm.catalogFocusHint='results';this.nav.open('catalog');}
  hero(): Anime|null {return this.featured()[0]||this.cards()[0]||null;}

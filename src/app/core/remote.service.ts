@@ -117,9 +117,14 @@ export class RemoteService {
     const content=document.getElementById('view');
     const row=active.closest('[data-focus-row]');
     if(row&&(dir==='left'||dir==='right')){
-      const siblings=all.filter(el=>row.contains(el)),index=siblings.indexOf(active);
-      const next=siblings[index+(dir==='right'?1:-1)];
-      if(next){this.verticalX=null;this.focus(next);return;}
+      const source=active.getBoundingClientRect(),sy=source.top+source.height/2;
+      const adjacent=all.filter(el=>el!==active&&row.contains(el)).map(el=>{
+        const r=el.getBoundingClientRect(),overlap=Math.max(0,Math.min(source.bottom,r.bottom)-Math.max(source.top,r.top));
+        const gap=dir==='right'?r.left-source.right:source.left-r.right;
+        if(gap< -2||overlap<=0)return null;
+        return {el,score:Math.max(0,gap)+Math.abs(r.top+r.height/2-sy)*.35};
+      }).filter((item):item is {el:HTMLElement;score:number}=>!!item).sort((a,b)=>a.score-b.score);
+      if(adjacent[0]){this.verticalX=null;this.focus(adjacent[0].el);return;}
     }
     const items=content?.contains(active)&&['up','down'].includes(dir) ? all.filter(el=>content.contains(el)):all;
     const source=active.getBoundingClientRect();const sx=source.left+source.width/2,sy=source.top+source.height/2;

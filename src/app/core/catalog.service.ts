@@ -85,7 +85,7 @@ export class CatalogService {
  }
  private episodeUpdates(doc:Document){const data=attrsToObj(doc.querySelector('layout-items[is-episode]'),'items-json',null);
   if(!data||!Array.isArray(data.data)||!Number.isFinite(Number(data.last_page)))throw Error('Aggiornamenti episodi non disponibili.');
-  return {records:data.data.filter((x:any)=>x?.anime?.id&&x.anime.slug&&x.public!==0&&x.hidden!==1&&typeof x.created_at==='string'&&/^\d{4}-\d{2}-\d{2}/.test(x.created_at)).map((x:any)=>({...x.anime,lastEpisode:String(x.number),lastEpisodeDate:x.created_at})),lastPage:Number(data.last_page)};
+  return {records:data.data.filter((x:any)=>x?.anime?.id&&x.anime.slug&&x.public!==0&&x.hidden!==1&&typeof x.created_at==='string'&&/^\d{4}-\d{2}-\d{2}/.test(x.created_at)).map((x:any)=>({...x.anime,lastEpisode:String(x.number),lastEpisodeId:x.id,lastEpisodeDate:x.created_at})),lastPage:Number(data.last_page)};
  }
  recentPage(page=1){page=Math.max(1,Math.floor(page));return this.memo('episode-updates:'+page,180,async()=>this.episodeUpdates(parse(await this.request(page===1?'/':'/?page='+page))));}
  home(){return this.memo('home',180,async()=>{const doc=parse(await this.request('/'));const featured=attrsToObj(doc.querySelector('the-carousel'),'animes',[]);const updates=this.episodeUpdates(doc);const seen=new Set<string>();const recent=updates.records.filter((a:Anime)=>{const id=String(a.id);if(seen.has(id))return false;seen.add(id);return true;});return {featured:Array.isArray(featured)?featured:[],recent};});}
