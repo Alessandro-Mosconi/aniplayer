@@ -30,5 +30,6 @@ export class ServiceEndpointsService {
   if(!this.storage.write('settings',next))throw Error('Impossibile salvare l’indirizzo.');
   this.storage.settings.set(next);
   if(service==='aniskip'){this.storage.write('skipTimesCache',{});this.storage.write('aniskipAvailability',{});}
+  if(service==='anilist')this.storage.write('releaseDates',{});
  }
 }

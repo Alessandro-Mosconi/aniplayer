@@ -37,5 +37,12 @@ try{
  await evalJs(`(()=>{const m=ng.getComponent(document.querySelector('app-settings-page')).publicMal;m.username.set('Profilo dimostrativo');m.syncedAt.set(Date.now());m.entries.set(Object.fromEntries(__demo.map((a,i)=>[a.mal_id,{watched:i%3===0?12:Math.min(11,3+i),total:12,status:i%3===0?'completed':'watching',score:7+i%3,updated:Date.now()-i*86400000,anime:{title:a.title_eng||a.title,image:a.imageurl,type:'tv',genres:(a.genres||[]).map(g=>typeof g==='string'?g:g.name),duration:1440,year:Number(a.date)||2026,aliases:[]}}])));__vm.go('my-anime');})()`);await until(`!!document.querySelector('app-my-anime-page')`);await shot('dashboard');
  await evalJs(`ng.getComponent(document.querySelector('app-my-anime-page')).library.view.set('list')`);await shot('my-list');
  await evalJs(`__vm.go('settings')`);await until(`!!document.querySelector('app-settings-page')`);await evalJs(`ng.getComponent(document.querySelector('app-settings-page')).selectCategory('mal')`);await until(`!!document.querySelector('[data-focus="settings-mal-account"]')`);await shot('settings-mal');await evalJs(`document.querySelector('[data-focus="settings-mal-account"]').click()`);await until(`!!document.querySelector('app-mal-page')`);await shot('mal');
+ if(process.env.ANIPLAYER_CHECK_SCORE==='1'){
+  await evalJs(`__vm.filters.set({minScore:9});__vm.searchText.set('');__vm.page.set(0);__vm.go('catalog')`);
+  await until(`!!document.querySelector('app-catalog-page')&&!__vm.loading()`,120);
+  const sample=()=>evalJs(`({count:__vm.total(),visible:__vm.cards().length,exact:__vm.catalogTotalExact(),scanning:__vm.catalogScanning(),error:__vm.error(),scanError:__vm.catalogScanMessage()})`);
+  console.log('Score 9+ initial: '+JSON.stringify(await sample()));await wait(5000);console.log('Score 9+ later: '+JSON.stringify(await sample()));
+  await evalJs(`__vm.filters.update(f=>({...f,order:'Valutazione'}));__vm.nav.replace('catalog')`);await until(`!!document.querySelector('app-catalog-page')&&!__vm.loading()`,120);console.log('Score 9+ by rating: '+JSON.stringify(await sample()));
+ }
  if(errors.length)throw Error(JSON.stringify(errors));console.log('Screenshot TV salvati in docs/screenshots/. Nessun account personale utilizzato.');
 }finally{ws?.close();chrome.kill();}
