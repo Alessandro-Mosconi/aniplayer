@@ -15,8 +15,9 @@ export class SettingsPage extends PageBase {
   readonly sidebar=inject(SidebarService);
   readonly layout=inject(LayoutService);
   readonly category=this.vm.settingsCategory;
-  readonly categories=[{id:'general',label:'Generali'},{id:'catalog',label:'Catalogo'},{id:'playback',label:'Riproduzione'},{id:'mal',label:'MyAnimeList'},{id:'data',label:'Dati e rete'}] as const;
-  selectCategory(id:'general'|'catalog'|'playback'|'mal'|'data'){this.category.set(id);}
+  readonly categories=[{id:'general',label:'Generali'},{id:'catalog',label:'Catalogo'},{id:'badges',label:'Badge'},{id:'playback',label:'Riproduzione'},{id:'mal',label:'MyAnimeList'},{id:'data',label:'Dati e rete'}] as const;
+  readonly badgeOptions=[{id:'newEpisodes',label:'Nuovi episodi (EP+)'},{id:'allSeen',label:'Tutti gli episodi visti'},{id:'favorites',label:'Preferiti'},{id:'audio',label:'Audio italiano (ITA)'},{id:'aniskip',label:'Disponibilit? AniSkip'},{id:'malStatus',label:'Stato nella lista MAL'},{id:'menuUpdates',label:'Novit? nel menu Preferiti'}] as const;
+  selectCategory(id:'general'|'catalog'|'playback'|'mal'|'data'|'badges'){this.category.set(id);}
   openDiagnostics(focus:string){this.vm.settingsFocusHint=focus;this.nav.open('diagnostics');}
   readonly menuOrderNotice=signal('');
   moveMenu(id:RouteName,direction:-1|1){const before=this.sidebar.items().findIndex(item=>item.id===id);this.sidebar.move(id,direction);const after=this.sidebar.items().findIndex(item=>item.id===id);if(before===after)return;const item=this.sidebar.items()[after];this.menuOrderNotice.set(item.label+' spostato in posizione '+(after+1));setTimeout(()=>{const row=document.querySelector<HTMLElement>('[data-menu-item="'+id+'"]');const preferred=row?.querySelector<HTMLElement>('[data-menu-move="'+direction+'"]:not(:disabled)');const fallback=row?.querySelector<HTMLElement>('[data-menu-move="'+(direction===1?-1:1)+'"]:not(:disabled)');this.remote.focus(preferred||fallback);});}

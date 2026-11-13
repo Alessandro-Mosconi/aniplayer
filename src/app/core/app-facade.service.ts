@@ -28,7 +28,7 @@ export class AppFacadeService {
  readonly homeDiscover=signal<Anime[]>([]);
  readonly homeDiscoverFilters=signal<CatalogFilters>({});
  readonly homeDiscoverBusy=signal(false);readonly homeDiscoverMessage=signal('');private homeDiscoverRequest=0;
- readonly settingsCategory=signal<'general'|'catalog'|'playback'|'mal'|'data'>('general');settingsFocusHint:string|null=null;
+ readonly settingsCategory=signal<'general'|'catalog'|'playback'|'mal'|'data'|'badges'>('general');settingsFocusHint:string|null=null;
  readonly cards=signal<Anime[]>([]);readonly total=signal(0);readonly details=signal<Detail|null>(null);readonly related=signal<Anime[]>([]);
  readonly candidates=signal<Anime[]>([]);readonly audioMatches=signal<Detail[]>([]);readonly sourceNotice=signal('');
  readonly searchText=signal('');readonly filters=signal<CatalogFilters>({});readonly page=signal(0);readonly episodePage=signal(0);
@@ -163,6 +163,23 @@ export class AppFacadeService {
   return !Object.values(this.storage.history()).some(row=>row.completed&&this.sameSeries(row.anime,anime)&&Number(row.episode.number)===Number(episode.number));
  }
  hasTrackedNewEpisode(anime:Anime):boolean{return (this.allFavorites().some(item=>this.sameEdition(item,anime))||this.allHistory().some(item=>this.sameEdition(item.anime,anime)))&&this.hasNewEpisode(anime);}
+ allAvailableEpisodesSeen(anime:Anime):boolean{
+  const update=this.latestUpdateFor(anime),identity={...anime,mal_id:anime.mal_id||update?.mal_id,anilist_id:anime.anilist_id||update?.anilist_id};
+  const entries=this.malLibrary.source()?this.malLibrary.entries():this.mal.entries();
+  const declared=Math.max(Number(anime.episodes_count)||0,Number(anime.real_episodes_count)||0,Number(entries[String(identity.mal_id)]?.total)||0);
+  const latest=Math.max(Number(anime.lastEpisode)||0,Number(update?.lastEpisode)||0);
+  const airing=/in\s*corso|releasing|airing|ongoing/i.test(String(anime.status||update?.status||''));
+  const total=airing&&latest>0?latest:Math.max(declared,latest);
+  if(!Number.isSafeInteger(total)||total<=0||total>20000)return false;
+  const history=Object.values(this.storage.history()).filter(row=>row.completed&&this.sameSeries(row.anime,identity));
+  const remoteEntries=this.mal.connected?this.mal.entries():this.lib.publicMal?.username()?this.lib.publicMal.entries():this.mal.entries();
+  const remoteWatched=Math.max(0,Math.floor(Number(remoteEntries[String(identity.mal_id)]?.watched)||0));
+  for(let number=Math.min(remoteWatched,total)+1;number<=total;number++){
+   const saved=history.find(row=>Number(row.episode.number)===number);
+   if(!this.lib.isSeen(identity,{id:saved?.episode.id??'',number:String(number)})&&!saved)return false;
+  }
+  return true;
+ }
  private latestUpdateFor(anime:Anime):Anime|undefined{return this.latestEpisodeUpdates().filter(item=>this.sameEdition(item,anime)&&Number(item.lastEpisode)>0).reduce<Anime|undefined>((latest,item)=>!latest||Number(item.lastEpisode)>Number(latest.lastEpisode)?item:latest,undefined);}
  private sameEdition(left:Anime,right:Anime){if(String(left.id)===String(right.id))return true;return this.sameSeries(left,right)&&(left.dub==null||right.dub==null||Number(left.dub)===Number(right.dub));}
  private sameSeries(left:Anime,right:Anime){

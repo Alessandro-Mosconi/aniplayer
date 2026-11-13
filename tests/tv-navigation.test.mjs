@@ -33,7 +33,7 @@ function remoteFixture(){
   scrollIntoView(){this.scrolled=true;}
   blur(){document.activeElement=null;}
   hasAttribute(name){return name==='data-tv-input'&&this.tvInput===true;}
-  closest(selector){return selector==='[data-focus-row]'?this.row:null;}
+  closest(selector){return selector==='[data-focus-row],.card-row'?this.row:selector==='.card-row'?this.strip||null:null;}
   matches(){return false;}
   getAttribute(){return null;}
  }
@@ -54,6 +54,16 @@ test('Right and Left follow the filter row',()=>{
  const row={contains:el=>el.row===row},audio=new Element(0,100,200,80,row),type=new Element(220,100,200,55,row),result=new Element(20,200);
  setItems([audio,type,result]);audio.focus();remote.move('right');assert.equal(document.activeElement,type);
  remote.move('left');assert.equal(document.activeElement,audio);
+});
+test('Horizontal strips return to offscreen cards before the sidebar and reveal them',()=>{
+ const {remote,document,Element,setItems}=remoteFixture();
+ const strip={contains:el=>el.row===strip,getBoundingClientRect:()=>({left:300,right:900})};
+ const menu=new Element(0,100,150,80),first=new Element(80,100,180,80,strip),second=new Element(300,100,180,80,strip),third=new Element(520,100,180,80,strip);
+ first.strip=second.strip=third.strip=strip;setItems([menu,first,second,third]);third.focus();
+ remote.move('left');assert.equal(document.activeElement,second);
+ remote.move('left');assert.equal(document.activeElement,first);assert.equal(first.scrolled,true);
+ remote.move('left');assert.equal(document.activeElement,menu);
+ remote.move('right');assert.equal(document.activeElement,first);
 });
 test('Horizontal navigation in a settings grid chooses the control physically to the right',()=>{
  const {remote,document,Element,setItems}=remoteFixture();
@@ -953,6 +963,15 @@ test('Explore preloads without duplicating cards or applying a stale batch after
  assert.equal(fixture.pool.length,0);assert.equal(fixture.hasMore,true);
 });
 
+test('Badge preferences default independently and persist on this device',()=>{
+ const values=new Map(),localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+ const {StorageService}=load('src/app/core/storage.service.ts',{localStorage});const storage=new StorageService();
+ for(const kind of ['audio','newEpisodes','allSeen','favorites','malStatus','menuUpdates'])assert.equal(storage.badgeEnabled(kind),true);
+ assert.equal(storage.badgeEnabled('aniskip'),false);
+ storage.setBadgeEnabled('favorites',false);storage.setBadgeEnabled('aniskip',true);
+ const restored=new StorageService();assert.equal(restored.badgeEnabled('favorites'),false);assert.equal(restored.badgeEnabled('aniskip'),true);assert.equal(restored.badgeEnabled('allSeen'),true);
+});
+
 test('Episode badges agree on unwatched updates, versions and later feed pages',async()=>{
  const source=readFileSync('src/app/core/app-facade.service.ts','utf8');
  const methods=source.slice(source.indexOf(' private async refreshEpisodeUpdates()'),source.indexOf(' /** Fetch alternate catalog audio'));
@@ -967,6 +986,20 @@ test('Episode badges agree on unwatched updates, versions and later feed pages',
  assert.equal(fixture.hasNewEpisode(heavy),true);assert.equal(fixture.allFavorites().filter(anime=>fixture.hasNewEpisode(anime)).length,2);
  updates=[...saved];fixture.catalog.recentPage=async()=>({records:[],lastPage:1});await fixture.refreshEpisodeUpdates();
  assert.equal(fixture.hasNewEpisode(heavy),true);heavySeen=true;assert.equal(fixture.hasNewEpisode(heavy),false);heavySeen=false;assert.equal(fixture.hasNewEpisode(heavy),true);
+});
+
+test('All-seen badge requires every known episode and updates as new episodes arrive',()=>{
+ const source=readFileSync('src/app/core/app-facade.service.ts','utf8');
+ const methods=source.slice(source.indexOf(' allAvailableEpisodesSeen('),source.indexOf(' /** Fetch alternate catalog audio'));
+ const js=ts.transpileModule('class Fixture {'+methods+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const context={exports:{}};vm.runInNewContext(js,context);
+ const fixture=new context.exports.Fixture();let updates=[],local=new Set([1,3]),remote=0;
+ Object.assign(fixture,{latestEpisodeUpdates:()=>updates,malLibrary:{source:()=>null},mal:{entries:()=>({})},storage:{history:()=>({})},lib:{isSeen:(_anime,episode)=>Number(episode.number)<=remote||local.has(Number(episode.number))}});
+ const anime={id:1,mal_id:10,episodes_count:3,status:'Terminato'};
+ assert.equal(fixture.allAvailableEpisodesSeen(anime),false);local.add(2);assert.equal(fixture.allAvailableEpisodesSeen(anime),true);
+ updates=[{id:1,mal_id:10,lastEpisode:'4'}];assert.equal(fixture.allAvailableEpisodesSeen(anime),false);remote=4;assert.equal(fixture.allAvailableEpisodesSeen(anime),true);
+ remote=0;local=new Set([1,2]);updates=[{id:1,mal_id:10,lastEpisode:'2',status:'In Corso'}];assert.equal(fixture.allAvailableEpisodesSeen({...anime,status:'In Corso',episodes_count:12}),true);
+ updates=[{id:1,mal_id:10,lastEpisode:'3',status:'In Corso'}];assert.equal(fixture.allAvailableEpisodesSeen({...anime,status:'In Corso',episodes_count:12}),false);
+ updates=[];assert.equal(fixture.allAvailableEpisodesSeen({id:9}),false);
 });
 
 test('Ascending score and popularity reverse the complete catalog across page boundaries',async()=>{

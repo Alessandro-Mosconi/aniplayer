@@ -1,5 +1,7 @@
 import {Injectable, signal} from '@angular/core';
 import {Anime,Episode,SavedProgress} from './models';
+export type BadgeKind='audio'|'newEpisodes'|'allSeen'|'favorites'|'aniskip'|'malStatus'|'menuUpdates';
+const BADGE_DEFAULTS:Record<BadgeKind,boolean>={audio:true,newEpisodes:true,allSeen:true,favorites:true,aniskip:false,malStatus:true,menuUpdates:true};
 @Injectable({providedIn:'root'})
 export class StorageService {
  private prefix='autv.'; // Preserva la compatibilità dei dati originali.
@@ -16,6 +18,8 @@ export class StorageService {
  isFavorite(anime:Anime){return !!this.favorites()[String(anime.id)];}
  removeFromHistory(anime:Anime){const next={...this.history()};for(const [key,row] of Object.entries(next))if(String(row.anime.id)===String(anime.id)||Number(anime.mal_id)>0&&Number(row.anime.mal_id)===Number(anime.mal_id))delete next[key];if(!this.write('history',next))throw Error('Impossibile aggiornare Continua a guardare.');this.history.set(next);}
  setSetting(key:string,value:any){const next={...this.settings(),[key]:value};this.settings.set(next);this.write('settings',next);}
+ badgeEnabled(kind:BadgeKind){const value=this.settings()['badges']?.[kind];return typeof value==='boolean'?value:BADGE_DEFAULTS[kind];}
+ setBadgeEnabled(kind:BadgeKind,enabled:boolean){const previous=this.settings()['badges'];this.setSetting('badges',{...(previous&&typeof previous==='object'&&!Array.isArray(previous)?previous:{}),[kind]:enabled});}
  watchKey(anime:Anime,episode:Episode){return (Number(anime.mal_id)>0?'mal:'+anime.mal_id:'anime:'+anime.id)+':'+episode.number;}
  private seriesKey(anime:Anime){return Number(anime.mal_id)>0?'mal:'+anime.mal_id:'anime:'+anime.id;}
  private resetAt(anime:Anime,number:number){return Math.max(0,...(this.seenResets()[this.seriesKey(anime)]||[]).filter(r=>number>=r.from&&(r.to===null||number<=r.to)).map(r=>r.at));}
