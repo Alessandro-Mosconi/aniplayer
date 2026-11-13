@@ -64,9 +64,17 @@ export class PlaybackService {
   }
   try{const url=options.url||await this.data.source(detail.anime,episode);if(this.generation!==id)return;this.source=url;this.audioSources.set([{label:'AnimeWorld · MP4',url}]);
    const saved=this.local.history()[String(detail.anime.id)];const resume=options.position??(this.local.settings()['resume']!==false&&saved&&String(saved.episode.number)===String(episode.number)&&!saved.completed?saved.position:0);
-   await this.prepare(url,resume,id,!!options.paused,options.position!==undefined);if(this.generation!==id)return;
+   await this.prepareWithConnectionRetry(url,resume,id,!!options.paused,options.position!==undefined);if(this.generation!==id)return;
    this.timer=setInterval(()=>this.save(),10000);
   }catch(e){if(id===this.generation)this.fail(e);}
+ }
+ private async prepareWithConnectionRetry(url:string,resume:number,id:number,paused=false,exact=false){
+  for(let attempt=0;;attempt++){
+   try{await this.prepare(url,resume,id,paused,exact);return;}
+   catch(error){if(id!==this.generation)return;const reason=error instanceof Error?error.message:String(error);if(attempt>=2||!/PLAYER_ERROR_CONNECTION_FAILED|connection failed/i.test(reason))throw error;
+    this.patch({buffering:true,error:''});await new Promise(resolve=>setTimeout(resolve,1000));if(id!==this.generation)return;
+   }
+  }
  }
  private async prepare(url:string,resume:number,id:number,paused=false,exact=false){this.patch({buffering:true,error:''});
   const av=this.tv.getAvplay();const pref=this.local.settings()['engine']||'auto';
@@ -74,17 +82,17 @@ export class PlaybackService {
   if(pref==='avplay'&&!av&&this.tv.platform==='tizen')throw Error('AVPlay non disponibile sul dispositivo.');
   this.engine=av&&pref!=='html5'?'avplay':'html5';this.html5.set(this.engine==='html5');
   if(this.engine==='avplay'){
-   this.av=av;try{av.close();}catch{}
+   this.av=av;let preparing=true;let rejectPreparing:((reason:unknown)=>void)|null=null;try{av.close();}catch{}
    av.open(url);av.setDisplayRect(0,0,1920,1080);av.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX');
    av.setListener({
     onbufferingstart:()=>{if(id===this.generation)this.patch({buffering:true});},
     onbufferingcomplete:()=>{if(id===this.generation)this.patch({buffering:false});},
     oncurrentplaytime:(ms:number)=>{if(id===this.generation)this.tick(ms/1000,Number(av.getDuration())/1000);},
     onstreamcompleted:()=>{if(id===this.generation)this.finished();},
-    onerror:(reason:unknown)=>{if(id===this.generation)this.fail(reason);},
+    onerror:(reason:unknown)=>{if(id!==this.generation)return;if(preparing)rejectPreparing?.(reason);else this.fail(reason);},
     onsubtitlechange:()=>{},onbufferingprogress:()=>{},ondrmevent:()=>{if(id===this.generation)this.fail('DRM non gestito');}
    });
-   await new Promise<void>((resolve,reject)=>{let done=false;const timeout=setTimeout(()=>{if(!done){done=true;reject(Error('Timeout preparazione AVPlay'));}},20000);av.prepareAsync(()=>{if(!done){done=true;clearTimeout(timeout);resolve();}},(e:unknown)=>{if(!done){done=true;clearTimeout(timeout);reject(e);}});});
+   try{await new Promise<void>((resolve,reject)=>{let done=false;const timeout=setTimeout(()=>{if(!done){done=true;reject(Error('Timeout preparazione AVPlay'));}},20000);rejectPreparing=(reason:unknown)=>{if(!done){done=true;clearTimeout(timeout);reject(reason);}};av.prepareAsync(()=>{if(!done){done=true;clearTimeout(timeout);resolve();}},(e:unknown)=>{if(!done){done=true;clearTimeout(timeout);reject(e);}});});}finally{preparing=false;}
    if(id!==this.generation)return;
    const duration=Number(av.getDuration())/1000;this.patch({duration,buffering:false});
    if(exact&&(!Number.isFinite(resume)||resume<0||resume>=duration))throw Error('La nuova versione termina prima della posizione corrente.');

@@ -8,10 +8,11 @@ import {ExplorationService} from '../../core/exploration.service';
 import {remoteKey} from '../../core/remote.service';
 import {LayoutService} from '../../core/layout.service';
 import {ExploreArtworkService} from '../../core/explore-artwork.service';
+import {ExploreDiscoveryService} from '../../core/explore-discovery.service';
 @Component({selector:'app-explore-page',standalone:true,imports:[LoadingSkeletonComponent,CommonModule],templateUrl:'./explore.page.html',styleUrl:'./explore.page.scss'})
 export class ExplorePage extends PageBase implements OnInit,OnDestroy {
- readonly exploration=inject(ExplorationService);private source=inject(CatalogProgressService);
- readonly layout=inject(LayoutService);private artwork=inject(ExploreArtworkService);readonly artworkUrl=signal('');
+ readonly exploration=inject(ExplorationService);private source=inject(CatalogProgressService);private discovery=inject(ExploreDiscoveryService);
+ readonly layout=inject(LayoutService);private artwork=inject(ExploreArtworkService);readonly artworkUrl=signal('');readonly posterLoaded=signal(false);
  readonly showInfo=signal(false);readonly showFilters=signal(false);readonly showHelp=signal(false);
  readonly transition=signal<'left'|'right'|'down'|'up'|null>(null);readonly entering=signal(false);readonly undoAvailable=signal(false);private lastAction:{anime:Anime;record:any;favorite:boolean}|null=null;private actionLocked=false;
  readonly current=signal<Anime|null>(null);readonly busy=signal(false);readonly message=signal('');readonly saved=signal('');
@@ -79,34 +80,41 @@ export class ExplorePage extends PageBase implements OnInit,OnDestroy {
    }
    while(!candidate&&this.pool.length){const anime=this.pool.shift()!;if(!this.deckSeen.has(this.exploration.key(anime))&&this.exploration.matches(anime,this.activeFilters.explored))candidate=anime;}
    if(this.destroyed)return;
-   if(candidate){this.deckSeen.add(this.exploration.key(candidate));this.exploration.mark(candidate);this.current.set(candidate);this.artworkUrl.set(this.artwork.get(candidate));this.showInfo.set(false);this.message.set('');if(this.pool.length<=6&&this.hasMore)void this.fillPool().catch(()=>{});setTimeout(()=>{if(!this.destroyed&&!this.layout.mobile())this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));});}
+   if(candidate){this.deckSeen.add(this.exploration.key(candidate));this.exploration.mark(candidate);this.renewRandomPool();this.posterLoaded.set(false);this.current.set(candidate);this.artworkUrl.set(this.artwork.get(candidate));this.showInfo.set(false);this.message.set('');if(this.pool.length<=6&&this.hasMore)void this.fillPool().catch(()=>{});setTimeout(()=>{if(!this.destroyed&&!this.layout.mobile())this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));});}
    else {this.current.set(null);this.message.set(this.hasMore?'Non ho ancora trovato un titolo con questi filtri. Premi Continua ricerca.':'Hai terminato gli anime disponibili con questi filtri. Puoi rivedere quelli già esplorati.');}
   }catch(error){if(!this.destroyed)this.message.set(error instanceof Error?error.message:'Esplorazione non disponibile.');}
   finally{if(!this.destroyed)this.busy.set(false);}
  }
+ private renewRandomPool(){this.deckGeneration++;this.pendingBatch=null;this.pool=[];this.offset=0;this.hasMore=true;this.activeFilters={...this.activeFilters,randomSeed:Math.floor(Math.random()*4294967296)};}
  private fillPool():Promise<void>{
   if(this.pendingBatch)return this.pendingBatch;
   if(!this.hasMore)return Promise.resolve();
-  const generation=this.deckGeneration,offset=this.activeFilters.explored==='never'?0:this.offset;
-  const pending=this.source.page(this.activeFilters,offset).then(batch=>{
+  const generation=this.deckGeneration,offset=this.offset;
+  const saved=['seen','like','dislike'].includes(String(this.activeFilters.explored));
+  let verifyFallback=saved;
+  const candidates=saved?this.source.page(this.activeFilters,offset):this.discovery.page(this.activeFilters).catch(()=>{verifyFallback=true;return this.source.page(this.activeFilters,offset);});
+  const pending=candidates.then(async batch=>{
+   const records=verifyFallback?(await Promise.all(batch.records.slice(0,6).map(async anime=>await this.discovery.playable(anime).catch(()=>false)?anime:null))).filter((anime):anime is Anime=>!!anime):batch.records;
+   await this.loadArtwork(records);
    if(this.destroyed||generation!==this.deckGeneration)return;
    const known=new Set(this.pool.map(anime=>this.exploration.key(anime)));
-   for(const anime of batch.records){const key=this.exploration.key(anime);if(!known.has(key)&&!this.deckSeen.has(key)){known.add(key);this.pool.push(anime);}}
-   this.hasMore=batch.hasMore;if(this.activeFilters.explored!=='never')this.offset+=batch.records.length;
-   void this.loadArtwork(batch.records);
+   for(const anime of records){const key=this.exploration.key(anime);if(!this.artwork.isContinuation(anime)&&!known.has(key)&&!this.deckSeen.has(key)){known.add(key);this.pool.push(anime);}}
+   this.hasMore=batch.hasMore||(verifyFallback&&batch.records.length>6);this.offset+=verifyFallback?Math.min(6,batch.records.length):batch.records.length;
+
   }).finally(()=>{if(this.pendingBatch===pending)this.pendingBatch=null;});
   this.pendingBatch=pending;return pending;
  }
  private remember(anime:Anime){this.lastAction={anime,record:this.exploration.get(anime),favorite:this.storage.isFavorite(anime)};this.undoAvailable.set(true);}
- private async animate(direction:'left'|'right'|'down'|'up'){this.actionLocked=true;this.entering.set(false);this.transition.set(direction);await new Promise(resolve=>setTimeout(resolve,window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:520));this.transition.set(null);if(this.destroyed)return;await this.next();this.entering.set(true);setTimeout(()=>this.entering.set(false),300);this.actionLocked=false;}
- async react(feedback:'like'|'dislike'){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;try{this.remember(anime);this.exploration.mark(anime,feedback);this.saved.set((feedback==='like'?'Mi piace salvato: ':'Non mi interessa salvato: ')+this.viewTitle(anime));await this.animate(feedback==='like'?'right':'left');}catch(error){this.actionLocked=false;this.message.set(error instanceof Error?error.message:'Scelta non salvata.');}}
+ private async animate(direction:'left'|'right'|'down'|'up',commit?:()=>void){this.actionLocked=true;this.entering.set(false);this.transition.set(direction);await new Promise(resolve=>setTimeout(resolve,window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:520));try{commit?.();}finally{this.transition.set(null);}if(this.destroyed)return;await this.next();this.entering.set(true);setTimeout(()=>this.entering.set(false),300);this.actionLocked=false;}
+ async react(feedback:'like'|'dislike'){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;try{this.remember(anime);await this.animate(feedback==='like'?'right':'left',()=>{this.exploration.mark(anime,feedback);this.saved.set((feedback==='like'?'Mi piace salvato: ':'Non mi interessa salvato: ')+this.viewTitle(anime));});}catch(error){this.actionLocked=false;this.message.set(error instanceof Error?error.message:'Scelta non salvata.');}}
  async skip(){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;this.remember(anime);this.saved.set('Saltato: '+this.viewTitle(anime));await this.animate('down');}
- async favorite(){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;try{this.remember(anime);this.storage.toggleFavorite(anime);this.saved.set((this.isFavorite()?'Aggiunto ai preferiti: ':'Rimosso dai preferiti: ')+this.viewTitle(anime));await this.animate('up');}catch(error){this.actionLocked=false;this.message.set(error instanceof Error?error.message:'Impossibile aggiornare i preferiti.');}}
- undo(){const action=this.lastAction;if(!action||this.busy()||this.actionLocked)return;try{this.exploration.restore(action.anime,action.record);if(this.storage.isFavorite(action.anime)!==action.favorite)this.storage.toggleFavorite(action.anime);this.current.set(action.anime);this.artworkUrl.set(this.artwork.get(action.anime));this.saved.set('Scelta annullata: '+this.viewTitle(action.anime));this.undoAvailable.set(false);this.lastAction=null;this.entering.set(true);setTimeout(()=>{this.entering.set(false);if(!this.destroyed&&!this.layout.mobile())this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));},300);}catch(error){this.message.set(error instanceof Error?error.message:'Impossibile annullare.');}}
+ async favorite(){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;try{this.remember(anime);await this.animate('up',()=>{this.storage.toggleFavorite(anime);this.saved.set((this.storage.isFavorite(anime)?'Aggiunto ai preferiti: ':'Rimosso dai preferiti: ')+this.viewTitle(anime));});}catch(error){this.actionLocked=false;this.message.set(error instanceof Error?error.message:'Impossibile aggiornare i preferiti.');}}
+ undo(){const action=this.lastAction;if(!action||this.busy()||this.actionLocked)return;try{this.exploration.restore(action.anime,action.record);if(this.storage.isFavorite(action.anime)!==action.favorite)this.storage.toggleFavorite(action.anime);this.posterLoaded.set(false);this.current.set(action.anime);this.artworkUrl.set(this.artwork.get(action.anime));this.saved.set('Scelta annullata: '+this.viewTitle(action.anime));this.undoAvailable.set(false);this.lastAction=null;this.entering.set(true);setTimeout(()=>{this.entering.set(false);if(!this.destroyed&&!this.layout.mobile())this.remote.focus(document.querySelector<HTMLElement>('[data-explore-card]'));},300);}catch(error){this.message.set(error instanceof Error?error.message:'Impossibile annullare.');}}
  resetCurrent(){const anime=this.current();if(!anime||this.busy()||this.actionLocked)return;try{this.remember(anime);this.exploration.resetFeedback(anime);this.saved.set('Preferenza eliminata: '+this.viewTitle(anime));}catch(error){this.message.set(error instanceof Error?error.message:'Impossibile eliminare.');}}
  restart(){this.deckGeneration++;this.pendingBatch=null;this.activeFilters={...this.activeFilters,explored:'all',randomSeed:Math.floor(Math.random()*4294967296)};this.pool=[];this.offset=0;this.deckSeen.clear();this.hasMore=true;void this.next();}
- private async loadArtwork(records:Anime[]){await this.artwork.prefetch(records);const anime=this.current();if(!this.destroyed&&anime){const url=this.artwork.get(anime);if(url)this.artworkUrl.set(url);}}
- fallback(event:Event){const image=event.target as HTMLImageElement;const anime=this.current();const original=anime?.imageurl||anime?.imageurl_cover||'assets/images/aniplayer-icon-512.png';if(this.artworkUrl()&&image.src===this.artworkUrl()){this.artworkUrl.set('');image.src=original;}else if(!image.src.endsWith('aniplayer-icon-512.png'))image.src='assets/images/aniplayer-icon-512.png';}
+ private async loadArtwork(records:Anime[]){await this.artwork.prefetch(records);const anime=this.current();if(!this.destroyed&&anime){const url=this.artwork.get(anime);if(url&&url!==this.artworkUrl()){this.posterLoaded.set(false);this.artworkUrl.set(url);}}}
+ posterDidLoad(event:Event){const image=event.target as HTMLImageElement;const expected=image.getAttribute('src');if(expected&&image.currentSrc===new URL(expected,document.baseURI).href)this.posterLoaded.set(true);}
+ fallback(event:Event){this.posterLoaded.set(false);const image=event.target as HTMLImageElement;const anime=this.current();const original=anime?.imageurl||anime?.imageurl_cover||'assets/images/aniplayer-icon-512.png';if(this.artworkUrl()&&image.src===this.artworkUrl()){this.artworkUrl.set('');image.src=original;}else if(!image.src.endsWith('aniplayer-icon-512.png'))image.src='assets/images/aniplayer-icon-512.png';}
 }
 
 

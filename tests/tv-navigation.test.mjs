@@ -850,6 +850,14 @@ test('SUB to DUB uses the known opening offset and rollback restores the origina
  await p.switchAudio('dub');assert.equal(retry.prepared[0].position,420);assert.equal(p.state().position,420);p.close(false);
 });
 
+test('Player retries temporary connection failures without retrying unrelated errors',async()=>{
+ const source=readFileSync('src/app/core/playback.service.ts','utf8');const method=source.slice(source.indexOf(' private async prepareWithConnectionRetry('),source.indexOf(' private async prepare('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{},setTimeout:callback=>callback()};vm.runInNewContext(js,context);const player=new context.exports.Fixture();let attempts=0;
+ Object.assign(player,{generation:1,patch(){},prepare:async()=>{attempts++;if(attempts<3)throw 'PLAYER_ERROR_CONNECTION_FAILED';}});await player.prepareWithConnectionRetry('url',42,1);assert.equal(attempts,3);
+ attempts=0;player.prepare=async()=>{attempts++;throw Error('unsupported format');};await assert.rejects(player.prepareWithConnectionRetry('url',0,1),/unsupported format/);assert.equal(attempts,1);
+ attempts=0;player.prepare=async()=>{attempts++;player.generation=2;throw 'PLAYER_ERROR_CONNECTION_FAILED';};await player.prepareWithConnectionRetry('url',0,1);assert.equal(attempts,1);
+});
 test('AVPlay source preparation seeks exact seconds and preserves paused playback',async()=>{
  const {player}=audioSwitchFixture();let sought=0,played=0;
  const av={close(){},open(){},setDisplayRect(){},setDisplayMethod(){},setListener(){},prepareAsync:ok=>ok(),getDuration:()=>1500000,seekTo:(ms,ok)=>{sought=ms;ok();},getTotalTrackInfo:()=>[],play:()=>played++};
@@ -957,17 +965,34 @@ test('Explore favorite saves the choice and advances upwards, with undo data',as
  const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const context={exports:{}};vm.runInNewContext(js,context);
  const fixture=new context.exports.Fixture(),anime={id:42};let favorite=false,remembered=null,direction=null,saved='';
- Object.assign(fixture,{current:()=>anime,busy:()=>false,actionLocked:false,remember:value=>remembered={anime:value,favorite},storage:{toggleFavorite:()=>favorite=!favorite},isFavorite:()=>favorite,viewTitle:()=> 'Sport',saved:{set:value=>saved=value},animate:async value=>{direction=value;},message:{set:()=>{throw Error('unexpected error');}}});
+ Object.assign(fixture,{current:()=>anime,busy:()=>false,actionLocked:false,remember:value=>remembered={anime:value,favorite},storage:{toggleFavorite:()=>favorite=!favorite,isFavorite:()=>favorite},isFavorite:()=>favorite,viewTitle:()=> 'Sport',saved:{set:value=>saved=value},animate:async (value,commit)=>{direction=value;commit?.();},message:{set:()=>{throw Error('unexpected error');}}});
  await fixture.favorite();
  assert.equal(favorite,true);assert.equal(remembered.anime,anime);assert.equal(remembered.favorite,false);assert.equal(direction,'up');assert.match(saved,/Aggiunto ai preferiti/);
 });
 
+test('Explore discovery verifies AniList identity, availability and active filters',async()=>{
+ const rows=[{id:1,idMal:101,format:'TV',title:{romaji:'First'},relations:{edges:[]}},{id:2,idMal:102,format:'TV',title:{romaji:'Sequel'},relations:{edges:[{relationType:'PREQUEL',node:{type:'ANIME',format:'TV'}}]}},{id:3,idMal:103,format:'TV',title:{romaji:'Unavailable'},relations:{edges:[]}}];
+ const fetch=async()=>({ok:true,json:async()=>({data:{Page:{media:rows}}})});const {ExploreDiscoveryService}=load('src/app/core/explore-discovery.service.ts',{fetch,AbortController});
+ const catalog={catalog:async(filters)=>({records:filters.title==='First'?[{id:11,anilist_id:1,mal_id:101,dub:0,score:8}]:filters.title==='Unavailable'?[{id:33,anilist_id:3,mal_id:103,dub:0,score:9}]:[],tot:1})};
+ const world={match:async anime=>({matches:anime.id===11?[{anime:{dub:0},episodes:[{number:'1',public:1}]}]:[]})};
+ const library={progress:()=>({watched:0,remaining:1})},exploration={matches:()=>true};const service=new ExploreDiscoveryService({origin:()=> 'https://anilist.example'},catalog,world,library,exploration);
+ const result=await service.page({minScore:7,watch:'never'});assert.deepEqual(Array.from(result.records,a=>a.id),[11]);assert.equal(result.hasMore,true);
+ const empty=await service.page({minScore:9.5});assert.equal(empty.records.length,0);
+});
+test('Explore chooses a fresh random catalog scan after showing each title',()=>{
+ const source=readFileSync('src/app/pages/explore/explore.page.ts','utf8');
+ const method=source.slice(source.indexOf(' private renewRandomPool()'),source.indexOf(' private fillPool()'));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{},Math:Object.assign(Object.create(Math),{random:()=>0.75})};vm.runInNewContext(js,context);const fixture=new context.exports.Fixture();
+ Object.assign(fixture,{deckGeneration:4,pendingBatch:Promise.resolve(),pool:[{id:1}],offset:30,hasMore:false,activeFilters:{randomSeed:123,watch:'never',genres:[4]},deckSeen:new Set(['first'])});fixture.renewRandomPool();
+ assert.equal(fixture.deckGeneration,5);assert.equal(fixture.activeFilters.randomSeed,3221225472);assert.equal(fixture.activeFilters.watch,'never');assert.equal(fixture.activeFilters.genres[0],4);assert.equal(fixture.offset,0);assert.equal(fixture.pool.length,0);assert.equal(fixture.hasMore,true);assert.equal(fixture.deckSeen.has('first'),true);
+});
 test('Explore preloads without duplicating cards or applying a stale batch after restart',async()=>{
  const source=readFileSync('src/app/pages/explore/explore.page.ts','utf8');
  const method=source.slice(source.indexOf(' private fillPool()'),source.indexOf(' private remember('));
  const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const context={exports:{}};vm.runInNewContext(js,context);const fixture=new context.exports.Fixture();let resolveBatch,calls=0;
- Object.assign(fixture,{pool:[{id:2}],deckSeen:new Set(['1']),deckGeneration:0,pendingBatch:null,hasMore:true,offset:0,destroyed:false,activeFilters:{explored:'never'},exploration:{key:anime=>String(anime.id)},source:{page:()=>{calls++;return new Promise(resolve=>resolveBatch=resolve);}},loadArtwork:async()=>{}});
+ Object.assign(fixture,{pool:[{id:2}],deckSeen:new Set(['1']),deckGeneration:0,pendingBatch:null,hasMore:true,offset:0,destroyed:false,activeFilters:{explored:'never'},exploration:{key:anime=>String(anime.id)},artwork:{isContinuation:()=>false},discovery:{page:()=>{calls++;return new Promise(resolve=>resolveBatch=resolve);}},source:{page:()=>{calls++;return new Promise(resolve=>resolveBatch=resolve);}},loadArtwork:async()=>{}});
  const first=fixture.fillPool();assert.equal(fixture.fillPool(),first);resolveBatch({records:[{id:1},{id:2},{id:3}],hasMore:true});await first;
  assert.deepEqual(Array.from(fixture.pool,anime=>anime.id),[2,3]);assert.equal(calls,1);
  const stale=fixture.fillPool();fixture.deckGeneration++;fixture.pool=[];fixture.pendingBatch=null;resolveBatch({records:[{id:4}],hasMore:false});await stale;
@@ -1043,11 +1068,11 @@ test('Explore Back returns to the previous screen regardless of origin',()=>{
 
 test('Explore artwork uses verified AniList IDs, batches covers and tolerates failure',async()=>{
  let requests=0;
- const fetch=async(_url,options)=>{requests++;const body=JSON.parse(options.body);assert.deepEqual(Array.from(body.variables.ids),[12,13]);assert.deepEqual(Array.from(body.variables.mal),[22]);return {ok:true,json:async()=>({data:{byId:{media:[{id:12,idMal:10,coverImage:{extraLarge:'https://images.example/large.jpg'}},{id:13,idMal:99,coverImage:{extraLarge:'https://images.example/wrong.jpg'}}]},byMal:{media:[{id:25,idMal:22,coverImage:{large:'https://images.example/mal.jpg'}}]}}})};};
+ const fetch=async(_url,options)=>{requests++;const body=JSON.parse(options.body);assert.deepEqual(Array.from(body.variables.ids),[12,13]);assert.deepEqual(Array.from(body.variables.mal),[22]);return {ok:true,json:async()=>({data:{byId:{media:[{id:12,idMal:10,format:'TV',relations:{edges:[{relationType:'PREQUEL',node:{type:'ANIME',format:'TV'}}]},coverImage:{extraLarge:'https://images.example/large.jpg'}},{id:13,idMal:99,coverImage:{extraLarge:'https://images.example/wrong.jpg'}}]},byMal:{media:[{id:25,idMal:22,format:'TV',relations:{edges:[]},coverImage:{large:'https://images.example/mal.jpg'}}]}}})};};
  const {ExploreArtworkService}=load('src/app/core/explore-artwork.service.ts',{fetch,AbortController});
  const service=new ExploreArtworkService(),rows=[{anilist_id:12,mal_id:10},{anilist_id:13,mal_id:11},{mal_id:22},{id:1}];
  await service.prefetch(rows);
- assert.equal(service.get(rows[0]),'https://images.example/large.jpg');assert.equal(service.get(rows[1]),'');assert.equal(service.get(rows[2]),'https://images.example/mal.jpg');assert.equal(service.get(rows[3]),'');
+ assert.equal(service.isContinuation(rows[0]),true);assert.equal(service.isContinuation(rows[2]),false);assert.equal(service.get(rows[0]),'https://images.example/large.jpg');assert.equal(service.get(rows[1]),'');assert.equal(service.get(rows[2]),'https://images.example/mal.jpg');assert.equal(service.get(rows[3]),'');
  await service.prefetch([rows[0],rows[2]]);assert.equal(requests,1);
  const offline=load('src/app/core/explore-artwork.service.ts',{fetch:async()=>{throw Error('offline')},AbortController});
  const fallback=new offline.ExploreArtworkService();await fallback.prefetch(rows);assert.equal(fallback.get(rows[0]),'');
