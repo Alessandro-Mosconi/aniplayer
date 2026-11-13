@@ -9,7 +9,7 @@
   "largeIcon": "largeIcon.png",
   "resolution": "1920x1080",
   "disableBackHistoryAPI": true,
-  "handlesRelaunch": true,
+  "handlesRelaunch": false,
   "requiredACG": [
     "application.launcher"
   ]
