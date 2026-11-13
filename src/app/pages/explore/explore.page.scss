@@ -74,3 +74,9 @@
 .explore-genres{font-size:20px;line-height:1.35}
 .explore-plot{font-size:22px;line-height:1.45}
 @media(max-height:800px){.explore-card{height:auto;min-height:clamp(280px,calc(100vh - 365px),435px)}.explore-genres{font-size:18px}.explore-plot{font-size:20px}}
+
+/* Keep old artwork hidden until the current image finishes loading. */
+.explore-swipe-surface.poster-loading{background:#1c2940}.explore-swipe-surface.poster-loading::before{content:"";position:absolute;inset:0;pointer-events:none;background:#354462;animation:explore-poster-shimmer 1.5s ease-in-out infinite alternate}.explore-poster:not(.poster-ready){opacity:0}@keyframes explore-poster-shimmer{from{opacity:.3}to{opacity:.8}}@media(prefers-reduced-motion:reduce){.explore-swipe-surface.poster-loading::before{animation:none}}
+
+/* Promote only the card being animated; keep the rest of the page unchanged. */
+.explore-card.exit-left,.explore-card.exit-right,.explore-card.exit-up,.explore-card.exit-down,.explore-card.card-enter,.explore-card.swipe-dragging,.mobile-explore-card.exit-left,.mobile-explore-card.exit-right,.mobile-explore-card.exit-up,.mobile-explore-card.exit-down,.mobile-explore-card.card-enter,.mobile-explore-card.swipe-dragging{will-change:transform,opacity;backface-visibility:hidden}
