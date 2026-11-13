@@ -543,7 +543,7 @@ test('Confirmed TV exit calls the current Tizen application only',()=>{
 });
 
 function nextEpisodeFixture(){
- const document={activeElement:null};const {PlaybackService}=load('src/app/core/playback.service.ts',{document,AbortController});const saved=[];
+ const document={activeElement:null};class Element{}const {PlaybackService}=load('src/app/core/playback.service.ts',{document,AbortController,HTMLElement:Element});const saved=[];
  const local={history:()=>({}),settings:()=>({autonext:false}),watchCoverage:Object.assign(()=>({}),{set(){}}),watchKey:()=> 'mal:10:1',write(){},progress:(...args)=>saved.push(args)};
  const player=new PlaybackService({},local,{},{},{},{queue(){}},{});player.detail={anime:{id:10,mal_id:10},episodes:[{id:1,number:'1'},{id:2,number:'2',public:1}]};player.episode=player.detail.episodes[0];player.state.set({opened:true,playing:true,buffering:false,error:'',position:0,duration:1440,title:'Test',episode:1});return {player,saved,document};
 }
@@ -556,6 +556,58 @@ test('Next episode saves current progress before opening the next and OK works w
  const {player,saved,document}=nextEpisodeFixture();player.state.update(s=>({...s,position:1300}));player.controls.set(false);let opened;
  player.open=async(detail,episode)=>{assert.equal(saved.length,1);opened=episode;};document.activeElement={getAttribute:()=> 'player-next-episode'};
  assert.equal(player.handleKey({key:'Enter',keyCode:13,repeat:false}),true);await Promise.resolve();assert.equal(opened.number,'2');assert.equal(saved[0][2],1300);
+});
+
+test('Next season resolves an unambiguous sequel and prefers the current audio',async()=>{
+ let edges=[{relationType:'SEQUEL',node:{id:200,idMal:300,type:'ANIME',format:'TV',status:'FINISHED',title:{romaji:'Sequel Season 2'}}}],payload;
+ const fetch=async(_url,options)=>{payload=JSON.parse(options.body);return {ok:true,json:async()=>({data:{Media:{id:100,idMal:101,status:'FINISHED',episodes:12,relations:{edges}}}})};};
+ const {NextSeasonService}=load('src/app/core/next-season.service.ts',{fetch,AbortController});
+ const anime={id:55,anilist_id:200,mal_id:300,slug:'sequel'},episode={id:'one',number:'1',public:1};
+ const sub={anime:{...anime,awSlug:'sequel-sub',dub:0},episodes:[episode],related:[],count:1},dub={...sub,anime:{...sub.anime,awSlug:'sequel-dub',dub:1}};
+ let versions=[sub,dub];const catalog={detail:async()=>({anime,episodes:[],related:[],count:0}),catalog:async({title})=>({records:title==='Sequel'?[anime]:[],tot:title==='Sequel'?1:0})};
+ const world={match:async()=>({matches:versions}),page:async()=>({mal_id:300,anilist_id:200})};
+ const service=new NextSeasonService({origin:()=> 'https://graphql.anilist.co'},catalog,world);
+ const current={anime:{id:1,anilist_id:100,mal_id:101,dub:1},episodes:[],related:[anime],count:12};
+ let next=await service.resolve(current,{id:12,number:'12'});assert.equal(next.detail.anime.awSlug,'sequel-dub');assert.equal(next.episode.number,'1');
+ versions=[sub];next=await service.resolve(current,{id:12,number:'12'});assert.equal(next.detail.anime.awSlug,'sequel-sub');
+ next=await service.resolve({...current,related:[]},{id:12,number:'12'});assert.equal(next.detail.anime.awSlug,'sequel-sub');
+ next=await service.resolve({...current,anime:{...current.anime,anilist_id:undefined}},{id:12,number:'12'});assert.equal(next.detail.anime.awSlug,'sequel-sub');assert.match(payload.query,/Media\(idMal:\$mal/);assert.deepEqual(payload.variables,{mal:101});
+ assert.equal(await service.resolve(current,{id:11,number:'11'}),null);
+ const previous={id:44,anilist_id:99,mal_id:98,slug:'previous'};edges=[...edges,{relationType:'PREQUEL',node:{id:99,idMal:98,type:'ANIME',format:'TV',status:'FINISHED'}}];const adjacent=await service.adjacent({...current,related:[previous,anime]});assert.equal(adjacent.previous.id,44);assert.equal(adjacent.next.id,55);edges=edges.slice(0,1);
+ versions=[{...sub,episodes:[{id:'two',number:'2',public:1}]}];assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
+ versions=[sub];world.page=async()=>({mal_id:999,anilist_id:200});assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
+ edges=[...edges,...edges];assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
+ edges=[{relationType:'SEQUEL',node:{id:201,type:'ANIME',format:'MOVIE',status:'FINISHED'}}];assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
+});
+
+test('Player advances to the first episode of a verified next season',async()=>{
+ const {player,saved}=nextEpisodeFixture();player.episode=player.detail.episodes[1];
+ const nextDetail={anime:{id:20,title:'Stagione 2',dub:0},episodes:[{id:21,number:'1',public:1}],related:[],count:1};
+ player.nextSeason.set({detail:nextDetail,episode:nextDetail.episodes[0],versions:[nextDetail]});
+ assert.equal(player.isNextSeason,true);assert.equal(player.nextEpisode.number,'1');
+ let changed=null;player.onSeasonChanged=detail=>changed=detail;player.open=async(detail,episode,options)=>{player.detail=detail;assert.equal(episode.number,'1');assert.equal(options.versions[0],nextDetail);};
+ await player.next();assert.equal(saved.length,1);assert.equal(changed,nextDetail);
+});
+
+test('Changing season asks first and cancelling resumes the current episode',()=>{
+ const {player,document}=nextEpisodeFixture();player.episode=player.detail.episodes[1];document.querySelector=()=>null;player.remote={focus(){}};
+ const detail={anime:{id:20,title:'Stagione 2'},episodes:[{id:21,number:'1'}],related:[],count:1};player.nextSeason.set({detail,episode:detail.episodes[0],versions:[detail]});
+ let pauses=0,resumes=0,changes=0;player.pause=()=>{pauses++;player.state.update(state=>({...state,playing:false}));};player.toggle=()=>{resumes++;player.state.update(state=>({...state,playing:true}));};player.next=async()=>{changes++;};
+ player.requestNext();assert.equal(pauses,1);assert.equal(changes,0);assert.equal(player.selectMenu(),'season-confirm');player.cancelNextSeason();assert.equal(resumes,1);assert.equal(player.selectMenu(),null);
+ player.requestNext();player.confirmNextSeason();assert.equal(changes,1);assert.equal(player.selectMenu(),null);
+});
+
+test('Removing a series from continue watching keeps favorites and watched episodes',()=>{
+ const memory=new Map(),localStorage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};const {StorageService}=load('src/app/core/storage.service.ts',{localStorage});const storage=new StorageService();
+ const anime={id:10,mal_id:100},episode={id:20,number:'1'};storage.toggleFavorite(anime);storage.progress(anime,episode,300,1000,true);storage.removeFromHistory(anime);
+ assert.equal(Object.keys(storage.history()).length,0);assert.equal(storage.isFavorite(anime),true);assert.equal(storage.isSeen(anime,episode),true);
+});
+
+test('Detail offers resume only for a saved unfinished episode with a position',()=>{
+ const source=readFileSync('src/app/pages/anime-detail/anime-detail.page.ts','utf8');const method=source.slice(source.indexOf('  resumeEpisode('),source.indexOf('  async playResume('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const context={exports:{}};vm.runInNewContext(js,context);
+ const fixture=new context.exports.Fixture(),episode={id:2,number:'2',public:1},detail={anime:{id:1},episodes:[episode]};let history={1:{episode,position:40,duration:100,completed:false}},settings={};fixture.storage={history:()=>history,settings:()=>settings};
+ assert.equal(fixture.resumeEpisode(detail),episode);history[1].completed=true;assert.equal(fixture.resumeEpisode(detail),null);history[1].completed=false;history[1].position=0;assert.equal(fixture.resumeEpisode(detail),null);history[1].position=98;assert.equal(fixture.resumeEpisode(detail),null);history[1].position=40;settings.resume=false;assert.equal(fixture.resumeEpisode(detail),null);
 });
 
 test('AniSkip ending accepts compatible unambiguous ED only and shares the opening request',async()=>{

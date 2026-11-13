@@ -14,6 +14,7 @@ export class StorageService {
  readonly seenResets=signal<Record<string,{from:number;to:number|null;at:number}[]>>(this.read('seenResets',{})||{});
  toggleFavorite(anime:Anime){const next={...this.favorites()};if(next[String(anime.id)])delete next[String(anime.id)];else next[String(anime.id)]={...anime};this.favorites.set(next);this.write('favorites',next);}
  isFavorite(anime:Anime){return !!this.favorites()[String(anime.id)];}
+ removeFromHistory(anime:Anime){const next={...this.history()};for(const [key,row] of Object.entries(next))if(String(row.anime.id)===String(anime.id)||Number(anime.mal_id)>0&&Number(row.anime.mal_id)===Number(anime.mal_id))delete next[key];if(!this.write('history',next))throw Error('Impossibile aggiornare Continua a guardare.');this.history.set(next);}
  setSetting(key:string,value:any){const next={...this.settings(),[key]:value};this.settings.set(next);this.write('settings',next);}
  watchKey(anime:Anime,episode:Episode){return (Number(anime.mal_id)>0?'mal:'+anime.mal_id:'anime:'+anime.id)+':'+episode.number;}
  private seriesKey(anime:Anime){return Number(anime.mal_id)>0?'mal:'+anime.mal_id:'anime:'+anime.id;}

@@ -12,6 +12,7 @@ import {TizenService} from './tizen.service';
 import {IntroPrefetchService} from './intro-prefetch.service';
 import {CatalogProgressService} from './catalog-progress.service';
 import {MalLibraryService} from './mal-library.service';
+import {NextSeasonService} from './next-season.service';
 import {pictureInPictureActive} from './picture-in-picture';
 @Injectable({providedIn:'root'})
 export class AppFacadeService {
@@ -20,6 +21,7 @@ export class AppFacadeService {
  readonly lib=inject(LibraryService);readonly tv=inject(TizenService);readonly prefetch=inject(IntroPrefetchService);
  readonly catalogProgress=inject(CatalogProgressService);
  readonly malLibrary=inject(MalLibraryService);
+ readonly nextSeasonService=inject(NextSeasonService);
  readonly catalogTotalExact=signal(true);readonly catalogHasMore=signal(false);
  readonly catalogScanning=signal(false);readonly catalogScanMessage=signal('');
  readonly loading=signal(false);readonly error=signal('');readonly featured=signal<Anime[]>([]);readonly recent=signal<Anime[]>([]);
@@ -43,6 +45,8 @@ export class AppFacadeService {
   this.remote.configure({player:e=>this.playback.handleKey(e),back:()=>this.back(),playerActive:()=>this.playback.state().opened});
   this.playback.onClosed=()=>this.remote.restore();
   this.playback.audioVersionsProvider=()=>this.audioMatches();
+  this.playback.seasonResolver=(detail,episode)=>this.nextSeasonService.resolve(detail,episode);
+  this.playback.onSeasonChanged=detail=>this.nav.replace('detail',{anime:detail.anime});
   this.playback.onAudioChanged=detail=>{if(String(this.details()?.anime.id)===String(detail.anime.id))this.details.set({...detail,related:this.details()?.related||detail.related});};
   effect(()=>{const route=this.nav.route();untracked(()=>void this.load(route));});
   setInterval(()=>{if(document.visibilityState==='visible')void this.refreshEpisodeUpdates();},15*60*1000);
