@@ -104,7 +104,8 @@ export class RemoteService {
   focus(el:HTMLElement|null|undefined){if(!el)return;el.focus({preventScroll:true});
     const rect=el.getBoundingClientRect();
     const top=(el.closest('app-catalog-page')||el.closest('app-my-anime-page'))&&!el.closest('.search-line')?152:56;
-    if(rect.top<top||rect.bottom>window.innerHeight-56||rect.left<0||rect.right>window.innerWidth)el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'} as ScrollIntoViewOptions);
+    const strip=el.closest('.card-row');const stripRect=strip?.getBoundingClientRect();
+    if(rect.top<top||rect.bottom>window.innerHeight-56||rect.left<0||rect.right>window.innerWidth||(stripRect&&(rect.left<stripRect.left||rect.right>stripRect.right)))el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'} as ScrollIntoViewOptions);
   }
   remember(){const key=(document.activeElement as HTMLElement)?.dataset?.focus;if(key){this.history.push(key);if(this.history.length>25)this.history.shift();}}
   restore(){const key=this.history.pop();const el=key?document.querySelector<HTMLElement>(`[data-focus="${CSS.escape(key)}"]`):null;this.focus(el||this.focusables()[0]);}
@@ -115,7 +116,7 @@ export class RemoteService {
     if(!active||!all.includes(active)){this.focus(all[0]);return;}
     // Vertical navigation stays in the page instead of unexpectedly jumping to the sidebar.
     const content=document.getElementById('view');
-    const row=active.closest('[data-focus-row]');
+    const row=active.closest('[data-focus-row],.card-row');
     if(row&&(dir==='left'||dir==='right')){
       const source=active.getBoundingClientRect(),sy=source.top+source.height/2;
       const adjacent=all.filter(el=>el!==active&&row.contains(el)).map(el=>{

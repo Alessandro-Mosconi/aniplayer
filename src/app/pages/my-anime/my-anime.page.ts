@@ -14,6 +14,8 @@ export class MyAnimePage extends PageBase implements OnInit,OnDestroy {
  readonly expanded=signal<string|null>(null);readonly opening=signal<number|null>(null);readonly notice=signal('');readonly selected=signal<MalRow|null>(null);
  readonly filtered=computed(()=>filterMalRows(this.library.rows(),this.listFilters()));
  readonly visible=computed(()=>this.filtered().slice(this.listPage()*30,this.listPage()*30+30));
+ readonly allSeenIds=computed(()=>new Set(this.visible().filter(row=>this.vm.allAvailableEpisodesSeen({id:'mal:'+row.id,mal_id:row.id,episodes_count:row.total})).map(row=>row.id)));
+ readonly favoriteMalIds=computed(()=>new Set(this.allFavorites().map(anime=>Number(anime.mal_id)).filter(id=>id>0)));
  readonly genres=computed(()=>[...new Set(this.library.rows().flatMap(r=>r.anime?.genres||[]))].sort((a,b)=>a.localeCompare(b)));
  readonly types=computed(()=>[...new Set(this.library.rows().map(r=>r.anime?.type).filter((x):x is string=>!!x))].sort());
  readonly statuses=[{value:'',label:'Tutti'},{value:'watching',label:'In corso'},{value:'completed',label:'Completati'},{value:'on_hold',label:'In pausa'},{value:'dropped',label:'Interrotti'},{value:'plan_to_watch',label:'Da iniziare'}];

@@ -8,7 +8,7 @@
  <div class="mobile-explore-cover explore-swipe-surface" (pointerdown)="swipeStart($event)" (pointermove)="swipeMove($event)" (pointerup)="swipeEnd($event)" (pointercancel)="cancelSwipe()" (lostpointercapture)="cancelSwipe()">
  <img draggable="false" class="explore-poster" [src]="artworkUrl()||anime.imageurl||anime.imageurl_cover||'assets/images/aniplayer-icon-512.png'" [alt]="viewTitle(anime)" (error)="fallback($event)">
  @if(swipeHint()){<span class="swipe-feedback" aria-hidden="true">{{swipeHint()}}</span>}
- @if(isFavorite()){<span class="mobile-favorite-badge" aria-label="Nei preferiti">&#9733;</span>}
+ @if(isFavorite()&&storage.badgeEnabled('favorites')){<span class="mobile-favorite-badge" aria-label="Nei preferiti">&#9733;</span>}
  <div class="mobile-explore-caption"><h2>{{viewTitle(anime)}}</h2><p>{{anime.type||'ANIME'}} &middot; {{anime.date||'Anno n.d.'}} &middot; {{anime.dub?'DUB ITA':'SUB ITA'}}</p></div>
  </div>
  </section>
@@ -35,7 +35,7 @@
  <img draggable="false" class="explore-poster" [src]="artworkUrl()||anime.imageurl||anime.imageurl_cover||'assets/images/aniplayer-icon-512.png'" [alt]="viewTitle(anime)" (error)="fallback($event)">
  @if(swipeHint()){<span class="swipe-feedback" aria-hidden="true">{{swipeHint()}}</span>}
  </div>
- <div class="explore-info"><div class="explore-kicker"><span>SCELTO PER TE</span>@if(isFavorite()){<span class="favorite-note">&#9733; Preferito</span>}</div><h2>{{viewTitle(anime)}}</h2><p class="explore-meta"><span>{{anime.type||'ANIME'}}</span><span>{{anime.date||'Anno n.d.'}}</span><span>{{anime.dub?'DUB ITA':'SUB ITA'}}</span></p><p class="explore-genres">{{genreText(anime)}}</p><p class="explore-plot">{{plot()||'Descrizione non disponibile.'}}</p><div class="remote-guide" aria-label="Comandi telecomando"><span><b>↩</b> Indietro</span><span><b>←</b> No</span><span><b>→</b> Mi piace</span><span><b>↑</b> Preferiti</span><span><b>↓</b> Salta</span><span><b>OK</b> Dettagli</span></div></div>
+ <div class="explore-info"><div class="explore-kicker"><span>SCELTO PER TE</span>@if(isFavorite()&&storage.badgeEnabled('favorites')){<span class="favorite-note">&#9733; Preferito</span>}</div><h2>{{viewTitle(anime)}}</h2><p class="explore-meta"><span>{{anime.type||'ANIME'}}</span><span>{{anime.date||'Anno n.d.'}}</span><span>{{anime.dub?'DUB ITA':'SUB ITA'}}</span></p><p class="explore-genres">{{genreText(anime)}}</p><p class="explore-plot">{{plot()||'Descrizione non disponibile.'}}</p><div class="remote-guide" aria-label="Comandi telecomando"><span><b>↩</b> Indietro</span><span><b>←</b> No</span><span><b>→</b> Mi piace</span><span><b>↑</b> Preferiti</span><span><b>↓</b> Salta</span><span><b>OK</b> Dettagli</span></div></div>
  </section>
  <div class="explore-actions explore-quick-actions" data-focus-row><button [disabled]="busy()" (click)="react('dislike')"><span>✕</span> No</button><button class="primary" [disabled]="busy()" (click)="react('like')"><span>♡</span> Mi piace</button><button [disabled]="busy()" (click)="favorite()"><span>{{isFavorite()?'★':'☆'}}</span> Preferiti</button><button [disabled]="busy()" (click)="skip()"><span>↓</span> Salta</button><button (click)="openAnime(anime)">Dettagli <span>↗</span></button></div>
 }@else if(!busy()){
