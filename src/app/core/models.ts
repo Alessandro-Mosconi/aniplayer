@@ -8,7 +8,7 @@ export interface Anime {
  score?: number|string; dub?: boolean|number; episodes_count?: number; real_episodes_count?: number;
  plot?: string; genres?: string|string[]; mal_id?: number; anilist_id?: number;
 }
-export interface Episode {id:string|number; number:string; token?:string; public?:number; title?:string;}
+export interface Episode {id:string|number; number:string; malNumber?:number; token?:string; public?:number; title?:string;}
 export interface Detail {anime:Anime; episodes:Episode[]; related:Anime[]; count:number;}
 export interface PlaybackState {playing:boolean;position:number;duration:number;opened:boolean;buffering:boolean;title:string;episode:number;error:string;}
 export interface SavedProgress {anime:Anime;episode:Episode;position:number;duration:number;completed:boolean;updated:number;}

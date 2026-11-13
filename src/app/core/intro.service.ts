@@ -19,8 +19,8 @@ export class IntroService{
  private memoOrigin='';
  constructor(private store:StorageService,private endpoints:ServiceEndpointsService){}
  context(anime:Anime,episode:Episode,duration:number):IntroContext{
-  const mal=Number(anime.mal_id),number=Number(episode.number);
-  return {mal,number,duration,key:[Number.isSafeInteger(mal)&&mal>0?'mal:'+mal:'anime:'+anime.id,anime.provider||'animeworld',anime.awSlug||anime.slug,Number(anime.dub)?'dub':'sub',String(episode.number)].join('|')};
+  const mal=Number(anime.mal_id),number=Number(episode.malNumber??episode.number);
+  return {mal,number,duration,key:[Number.isSafeInteger(mal)&&mal>0?'mal:'+mal:'anime:'+anime.id,anime.provider||'animeworld',anime.awSlug||anime.slug,Number(anime.dub)?'dub':'sub',String(episode.malNumber??episode.number)].join('|')};
  }
  corrections(){return this.store.read<Record<string,any>>('introCorrections',{});}
  private legacyKey(ctx:IntroContext){const parts=ctx.key.split('|');

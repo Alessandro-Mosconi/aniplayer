@@ -112,7 +112,7 @@ export class AppFacadeService {
       if(relations.status==='fulfilled')detail={...detail,related:relations.value};
     }
     else {
-     const [catalogDetail,match]=await Promise.all([this.catalog.detail(anime),this.animeworld.match(anime)]);
+     const catalogDetail=await this.catalog.detail(anime);const match=await this.animeworld.match(catalogDetail.anime);
      const preferred=match.matches.find(m=>Number(m.anime.dub)===Number(anime.dub))||match.matches[0];
      this.audioMatches.set(match.matches);this.candidates.set(match.candidates);
      if(match.matches.length&&new Set(match.matches.map(m=>Number(m.anime.dub))).size<2){

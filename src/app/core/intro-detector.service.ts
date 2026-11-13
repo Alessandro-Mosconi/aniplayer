@@ -79,15 +79,15 @@ export class IntroDetectorService{
  private async detectPass(args:{anime:Anime;episode:Episode;context:IntroContext;length:number|null;hint:AudioHint|null;signal?:AbortSignal;onProgress?:(s:string)=>void},narrow:boolean):Promise<Detection>{
   const {anime,episode,context,length,hint,signal}=args,onProgress=args.onProgress||(()=>{}),infer=length===null;
   if(!infer&&(!Number.isFinite(length)||length<20||length>180))throw Error('Durata intro non supportata (20–180 s).');
-  checkAbort(signal);const page=await this.api.page(anime),others=page.episodes.filter(e=>Number(e.number)!==Number(episode.number)&&e.public!==0);
-  const next=others.filter(e=>Number(e.number)>Number(episode.number)).sort((a,b)=>Number(a.number)-Number(b.number)),
-   previous=others.filter(e=>Number(e.number)<Number(episode.number)).sort((a,b)=>Number(b.number)-Number(a.number));const refs:Episode[]=[];
+  checkAbort(signal);const page=await this.api.page(anime),others=page.episodes.filter(e=>Number(e.number)!==Number(episode.malNumber??episode.number)&&e.public!==0);
+  const next=others.filter(e=>Number(e.number)>Number(episode.malNumber??episode.number)).sort((a,b)=>Number(a.number)-Number(b.number)),
+   previous=others.filter(e=>Number(e.number)<Number(episode.malNumber??episode.number)).sort((a,b)=>Number(b.number)-Number(a.number));const refs:Episode[]=[];
   for(let i=0;refs.length<4&&(i<next.length||i<previous.length);i++){if(next[i])refs.push(next[i]);if(previous[i]&&refs.length<4)refs.push(previous[i]);}
   if(refs.length<2&&!this.templates(anime).length)throw Error('Servono due altri episodi o un’impronta audio locale verificata.');
   const latest=this.templates(anime).sort((a,b)=>b.updated-a.updated)[0],seed=hint||(latest?{start:latest.start,end:latest.start+latest.length}:null);
   const current=await this.load(anime,episode,signal,narrow?seed:hint,onProgress,narrow);const templates:({template:Template}&Match)[]=[];
   for(const t of this.templates(anime)){
-   checkAbort(signal);if(t.referenceEpisode===String(episode.number))continue;
+   checkAbort(signal);if(t.referenceEpisode===String(episode.malNumber??episode.number))continue;
    onProgress('Confronto con impronta audio locale');try{const match=await matchTemplate(current,this.unpack(t),t.length,length,signal);if(match)templates.push({...match,template:t});}catch(e){checkAbort(signal);}
   }
   templates.sort((a,b)=>b.score-a.score);const best=templates[0];

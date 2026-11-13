@@ -97,7 +97,7 @@ export class MalService {
   }
   if(!complete)throw Error('Importazione MAL incompleta.');this.entries.set(entries);this.local.write('malData',{accountId:this.session()!.user.id,entries,syncedAt:Date.now()});this.local.write('malDataCleared',false);this.status.set('Lista MAL sincronizzata.');await this.flush();
   }catch(e:any){if(lifecycle===this.lifecycle&&revision===this.dataRevision)this.status.set('Sincronizzazione fallita: '+String(e.message||e));throw e;}finally{this.syncing.set(false);}}
- isSeen(anime:Anime,episode:Episode){const entry=this.entries()[String(anime.mal_id||'')];return !!entry&&Number(episode.number)>0&&Number(episode.number)<=entry.watched;}
+ isSeen(anime:Anime,episode:Episode){const entry=this.entries()[String(anime.mal_id||'')];return !!entry&&Number(episode.malNumber??episode.number)>0&&Number(episode.malNumber??episode.number)<=entry.watched;}
  setAutoUpdate(value:boolean){this.autoUpdate.set(value);this.local.write('malAutoUpdate',value);if(value)void this.flush();}
  private readOutbox():Record<string,number[]>{
   const raw=this.local.read<any>('malOutbox',null),out:Record<string,number[]>={};
@@ -107,8 +107,8 @@ export class MalService {
   else for(const [id,values] of Object.entries(raw))add(id,values);
   return out;
  }
- queue(anime:Anime,episode:Episode){if(!this.connected||!this.autoUpdate()||!Number(anime.mal_id)||!Number.isInteger(Number(episode.number))||Number(episode.number)<=0)return;
-  const out=this.readOutbox(),key=String(anime.mal_id);out[key]=[...new Set([...(out[key]||[]),Number(episode.number)])].sort((a,b)=>a-b);this.local.write('malOutbox',out);void this.flush();}
+ queue(anime:Anime,episode:Episode){if(!this.connected||!this.autoUpdate()||!Number(anime.mal_id)||!Number.isInteger(Number(episode.malNumber??episode.number))||Number(episode.malNumber??episode.number)<=0)return;
+  const out=this.readOutbox(),key=String(anime.mal_id);out[key]=[...new Set([...(out[key]||[]),Number(episode.malNumber??episode.number)])].sort((a,b)=>a-b);this.local.write('malOutbox',out);void this.flush();}
  flush():Promise<void>{if(!this.connected||!this.autoUpdate()||this.manualUpdate)return Promise.resolve();if(this.flushing){this.flushRequested=true;return this.flushing;}this.flushing=(async()=>{do{this.flushRequested=false;await this.flushOutbox();}while(this.flushRequested&&this.connected&&this.autoUpdate()&&!this.manualUpdate);})().finally(()=>{this.flushing=null;});return this.flushing;}
  private cacheProgress(id:number,watched:number,total:number,status:string,score:number,explicit=false){
   if(!explicit&&this.local.read<boolean>('malDataCleared',false))return;
@@ -116,7 +116,7 @@ export class MalService {
   this.entries.set(entries);const saved=this.local.read<any>('malData',null);this.local.write('malData',{accountId:this.session()?.user.id,entries,syncedAt:saved?.syncedAt||0});
  }
  setEpisodeSeen(anime:Anime,episode:Episode,value:boolean):Promise<number>{
-  const id=Number(anime.mal_id),number=Number(episode.number);
+  const id=Number(anime.mal_id),number=Number(episode.malNumber??episode.number);
   if(!this.connected)return Promise.reject(Error('Collega l’account MAL per aggiornare la lista.'));
   if(!Number.isSafeInteger(id)||id<=0||!Number.isInteger(number)||number<=0)return Promise.reject(Error('Questo episodio non ha un numero intero o un ID MAL utilizzabile.'));
   if(this.manualUpdate)return Promise.reject(Error('Attendi il completamento dell’aggiornamento precedente.'));

@@ -22,7 +22,7 @@ export class MalLibraryService {
   const entries=this.source()?this.entries():this.mal.entries();const entry=entries[String(anime.mal_id)];const malWatched=entry?.watched||0;
   const local=new Set<number>();
   for(const row of Object.values(this.storage.watchEvents()||{}))if((Number(anime.mal_id)>0&&Number(row.malId)===Number(anime.mal_id))||String(row.animeId)===String(anime.id)){const n=Number(row.number);if(n>0)local.add(n);}
-  for(const row of Object.values(this.storage.history()||{}))if(row.completed&&((Number(anime.mal_id)>0&&Number(row.anime.mal_id)===Number(anime.mal_id))||String(row.anime.id)===String(anime.id))){const n=Number(row.episode.number);if(n>0)local.add(n);}
+  for(const row of Object.values(this.storage.history()||{}))if(row.completed&&((Number(anime.mal_id)>0&&Number(row.anime.mal_id)===Number(anime.mal_id))||String(row.anime.id)===String(anime.id))){const n=Number(row.episode.malNumber??row.episode.number);if(n>0)local.add(n);}
   const watched=malWatched+[...local].filter(n=>n>malWatched).length;
   const total=Number(anime.episodes_count)||Number(anime.real_episodes_count)||entry?.total||0;
   return {watched,total,remaining:Math.max(0,total-watched)};

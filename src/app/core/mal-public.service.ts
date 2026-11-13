@@ -14,7 +14,7 @@ export class MalPublicService {
  private generation=0;
  constructor(private local:StorageService){}
  get count(){return Object.keys(this.entries()).length;}
- isSeen(anime:Anime,episode:Episode){const watched=this.entries()[String(anime.mal_id)]?.watched||0;return Number(episode.number)>0&&Number(episode.number)<=watched;}
+ isSeen(anime:Anime,episode:Episode){const watched=this.entries()[String(anime.mal_id)]?.watched||0;return Number(episode.malNumber??episode.number)>0&&Number(episode.malNumber??episode.number)<=watched;}
  updateKnownProgress(username:string,id:number,watched:number,total:number,status:string){if(this.username().toLowerCase()!==username.toLowerCase()||!this.entries()[String(id)])return;const entries={...this.entries(),[String(id)]:{...this.entries()[String(id)],watched,total,status}};this.entries.set(entries);this.local.write('malPublicData',{username:this.username(),entries,syncedAt:this.syncedAt()});}
  clearDownloaded(){this.generation++;this.entries.set({});this.syncedAt.set(0);this.loading.set(false);this.error.set('');this.local.write('malPublicData',{username:this.username(),entries:{},syncedAt:0});this.status.set('Dati scaricati eliminati. Username ricordato: premi Allinea i visti per scaricarli di nuovo.');}
  clear(){this.generation++;this.username.set('');this.entries.set({});this.syncedAt.set(0);this.loading.set(false);this.error.set('');this.status.set('Allineamento da username rimosso.');this.local.write('malPublicData',null);}
