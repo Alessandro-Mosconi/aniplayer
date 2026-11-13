@@ -4,6 +4,10 @@ import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {preparePlatform} from '../tools/prepare-platform.mjs';
+test('webOS manifest lets the system foreground the app on relaunch',async()=>{
+ const info=JSON.parse(await readFile(new URL('../platforms/webos/appinfo.json',import.meta.url),'utf8'));
+ assert.equal(info.handlesRelaunch,false);
+});
 test('webOS preparation copies the built app and keeps remote Back under application control',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'aniplayer-platform-test-'));
  try{
