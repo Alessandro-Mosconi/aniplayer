@@ -12,12 +12,16 @@ import {MalService} from './mal.service';
 import {readVideoDuration} from './mp4-duration';
 import {audioPosition} from './audio-position';
 import {SkipAlignment} from './skip-alignment';
+import {NextSeason} from './next-season.service';
 const initial:PlaybackState={playing:false,position:0,duration:0,opened:false,buffering:false,title:'',episode:0,error:''};
 interface SkipUndo {detail:Detail;episode:Episode;position:number;playing:boolean;url:string;versions:Detail[];generation:number;expires:number;}
 @Injectable({providedIn:'root'})
 export class PlaybackService {
  onClosed:(()=>void)|null=null;
  onAudioChanged:((detail:Detail)=>void)|null=null;
+ onSeasonChanged:((detail:Detail)=>void)|null=null;
+ seasonResolver:((detail:Detail,episode:Episode)=>Promise<NextSeason|null>)|null=null;
+ readonly nextSeason=signal<NextSeason|null>(null);
  audioVersionsProvider:(()=>Detail[])|null=null;
  private audioSwitchRequest=0;
  readonly audioOptions=signal<Detail[]>([]);readonly audioLoading=signal(false);readonly audioSwitching=signal(false);readonly audioNotice=signal('');readonly audioLanguage=signal<'sub'|'dub'>('sub');
@@ -39,7 +43,8 @@ export class PlaybackService {
  readonly skipDetails=signal<{recap:SkipAlignment|null;ending:SkipAlignment|null}>({recap:null,ending:null});
  readonly skipUndoAvailable=signal(false);readonly skipNotice=signal('');private skipUndo:SkipUndo|null=null;private skipUndoTimer:ReturnType<typeof setTimeout>|undefined;
  private endingAbort:AbortController|null=null;private endingAudioTried=false;
- readonly selectMenu=signal<'quality'|'subtitles'|'intro'|'language'|'intervals'|null>(null);
+ readonly selectMenu=signal<'quality'|'subtitles'|'intro'|'language'|'intervals'|'season-confirm'|null>(null);
+ private seasonConfirmPlaying=false;private seasonConfirmFocus:HTMLElement|null=null;
  readonly introStatus=signal('');readonly aniSkipDuration=signal<number|null>(null);private introAbort:AbortController|null=null;
  readonly audioSources=signal<{label:string;url:string}[]>([]);
  readonly subtitles=signal<{label:string;index:number}[]>([]);
@@ -54,6 +59,9 @@ export class PlaybackService {
  async open(detail:Detail,episode:Episode,options:{position?:number;paused?:boolean;url?:string;versions?:Detail[]}={}){if(options.position===undefined){++this.audioSwitchRequest;this.audioSwitching.set(false);}this.close(false);const id=++this.generation;this.detail=detail;this.episode=episode;this.audioLanguage.set(Number(detail.anime.dub)?'dub':'sub');this.audioOptions.set(options.versions||[]);this.audioNotice.set('');this.lastTick=0;this.watchedSeconds=0;this.finishedOnce=false;this.playbackSegments=[];this.lastSave=0;this.tracker=new WatchProgress(this.local.watchCoverage()?.[this.local.watchKey(detail.anime,episode)]);this.autoMarked=this.local.isSeen(detail.anime,episode);this.scrub.set(null);this.intro.set(null);this.ending.set(null);this.introStatus.set('');this.aniSkipDuration.set(null);this.selectMenu.set(null);
   this.setTransparentVideoLayer(true);this.patch({...initial,opened:true,title:detail.anime.title_eng||detail.anime.title||'Anime',episode:Number(episode.number),buffering:true});this.showControls();
   this.introService.prefetch?.(detail.anime,episode);
+  if(this.seasonResolver&&!this.currentNextEpisode&&!detail.episodes.some(item=>item.public!==0&&Number(item.number)>Number(episode.number))){
+   void this.seasonResolver(detail,episode).then(season=>{if(this.generation===id&&this.detail===detail&&this.episode===episode&&this.state().opened)this.nextSeason.set(season);}).catch(()=>{});
+  }
   try{const url=options.url||await this.data.source(detail.anime,episode);if(this.generation!==id)return;this.source=url;this.audioSources.set([{label:'AnimeWorld · MP4',url}]);
    const saved=this.local.history()[String(detail.anime.id)];const resume=options.position??(this.local.settings()['resume']!==false&&saved&&String(saved.episode.number)===String(episode.number)&&!saved.completed?saved.position:0);
    await this.prepare(url,resume,id,!!options.paused,options.position!==undefined);if(this.generation!==id)return;
@@ -111,7 +119,9 @@ export class PlaybackService {
   if(playing&&duration>180&&position>=duration-420&&!this.ending()&&!this.endingAudioTried)void this.analyzeEnding();
  }
  get playbackProgress(){return this.state().duration?100*this.state().position/this.state().duration:0;}
- get nextEpisode(){if(!this.detail||!this.episode)return null;const number=Number(this.episode.number)+1;return this.detail.episodes.find(episode=>Number(episode.number)===number&&episode.public!==0)||null;}
+ private get currentNextEpisode(){if(!this.detail||!this.episode)return null;const number=Number(this.episode.number)+1;return this.detail.episodes.find(episode=>Number(episode.number)===number&&episode.public!==0)||null;}
+ get nextEpisode(){return this.currentNextEpisode||this.nextSeason()?.episode||null;}
+ get isNextSeason(){return !this.currentNextEpisode&&!!this.nextSeason();}
  get previousEpisode(){if(!this.detail||!this.episode)return null;const number=Number(this.episode.number)-1;return this.detail.episodes.find(episode=>Number(episode.number)===number&&episode.public!==0)||null;}
  get skipPrompt(){return this.skipQuiet()?null:this.activeSkip;}
  private proposedWindow(kind:keyof SkipProposals):IntroWindow|null{
@@ -133,7 +143,7 @@ export class PlaybackService {
  }
  async skipCurrentSegment(){const action=this.activeSkip;if(!action)return;
   const recovery=this.captureSkip(),generation=this.generation;
-  if(action.kind==='ending'&&this.state().duration-action.window.end<=.5&&this.nextEpisode){await this.next();if(this.generation===generation||this.generation===generation+2){this.finishSkip();this.offerUndo(recovery);}return;}
+  if(action.kind==='ending'&&this.state().duration-action.window.end<=.5&&this.nextEpisode){if(this.isNextSeason){this.requestNext();return;}await this.next();if(this.generation===generation||this.generation===generation+2){this.finishSkip();this.offerUndo(recovery);}return;}
   // Seeking skips coverage credit and preserves everything following the interval.
   this.seekTo(action.window.end);
   this.finishSkip(action.kind==='ending');
@@ -150,6 +160,7 @@ export class PlaybackService {
   await this.open(recovery.detail,recovery.episode,{position:recovery.position,paused:!recovery.playing,url:recovery.url||undefined,versions:recovery.versions});
   if(this.generation!==generation+2)return;
   if(this.state().error&&fallback){await this.open(fallback.detail,fallback.episode,{position:fallback.position,paused:!fallback.playing,url:fallback.url||undefined,versions:fallback.versions});if(this.generation===generation+4)this.skipNotice.set('Non è stato possibile annullare il salto.');return;}
+  if(fallback&&String(fallback.detail.anime.id)!==String(recovery.detail.anime.id))this.onSeasonChanged?.(recovery.detail);
   this.finishSkip();
  }
  private finishSkip(ending=false){
@@ -162,7 +173,7 @@ export class PlaybackService {
  private playedUnique(){const spans=[...this.playbackSegments].sort((a,b)=>a[0]-b[0]);let total=0,end=-1;for(const [from,to]of spans){total+=Math.max(0,to-Math.max(from,end));end=Math.max(end,to);}return total;}
  private finished(){const s=this.state();if(this.finishedOnce||!this.detail||!this.episode||!s.duration)return;this.finishedOnce=true;
   this.save(this.tracker.complete(s.position,this.ending()?.start));this.patch({playing:false});
-  if(this.local.settings()['autonext']!==false){const nextNumber=Number(this.episode.number)+1;if(this.detail.episodes.some(e=>Number(e.number)===nextNumber))void this.next();}
+  if(this.local.settings()['autonext']!==false&&this.nextEpisode){if(this.isNextSeason)this.requestNext();else void this.next();}
  }
  private save(completed=false){if(!this.detail||!this.episode||!this.state().duration)return;const s=this.state();const eligible=completed||this.tracker.complete(s.position,this.ending()?.start);const coverage={...this.local.watchCoverage(),[this.local.watchKey(this.detail.anime,this.episode)]:this.tracker.snapshot()};const bounded=Object.fromEntries(Object.entries(coverage).sort((a,b)=>(b[1].updated||0)-(a[1].updated||0)).slice(0,200));this.local.watchCoverage.set(bounded);this.local.write('watchCoverage',bounded);this.local.progress(this.detail.anime,this.episode,s.position,s.duration,eligible||this.autoMarked);if(eligible&&!this.autoMarked){this.autoMarked=true;this.mal.queue(this.detail.anime,this.episode);}this.lastSave=s.position;}
  toggle(){this.tracker.interrupt();if(!this.state().opened)return;try{if(this.engine==='avplay'){const state=this.av.getState();if(state==='PLAYING'){this.av.pause();this.patch({playing:false});}else{this.av.play();this.patch({playing:true});}}else if(this.video){if(this.video.paused){this.video.play();this.patch({playing:true});}else{this.video.pause();this.patch({playing:false});}}}catch(e){this.fail(e);}this.showControls();}
@@ -278,10 +289,10 @@ export class PlaybackService {
  handleKey(e:KeyboardEvent):boolean{if(!this.state().opened)return false;const key=remoteKey(e);
   if(['MediaPlayPause','MediaPlay','MediaPause'].includes(key)){if(key==='MediaPause')this.pause();else if(key==='MediaPlay'&&!this.state().playing)this.toggle();else if(key==='MediaPlayPause')this.toggle();return true;}
   if(key==='MediaFastForward'){this.seekBy(30);return true;}if(key==='MediaRewind'){this.seekBy(-30);return true;}if(key==='MediaStop'){this.close();return true;}
-  if(['Back','Escape','Backspace','BrowserBack'].includes(key)){if(this.scrub()!==null){this.scrub.set(null);this.showControls();}else if(this.selectMenu()){this.selectMenu.set(null);this.showControls();}else if(this.controls()){this.hideControls();}else this.close();return true;}
+  if(['Back','Escape','Backspace','BrowserBack'].includes(key)){if(this.selectMenu()==='season-confirm')this.cancelNextSeason();else if(this.scrub()!==null){this.scrub.set(null);this.showControls();}else if(this.selectMenu()){this.selectMenu.set(null);this.showControls();}else if(this.controls()){this.hideControls();}else this.close();return true;}
   if(key==='Enter'&&document.activeElement?.getAttribute('data-focus')==='player-skip-intro'&&this.intro()&&this.state().position<this.intro()!.end){this.skipIntro();return true;}
   if(key==='Enter'&&document.activeElement?.getAttribute('data-focus')==='player-skip-segment'&&this.activeSkip){if(!e.repeat)void this.skipCurrentSegment();return true;}
-  if(key==='Enter'&&document.activeElement?.getAttribute('data-focus')==='player-next-episode'&&this.showNextEpisode){if(!e.repeat)void this.next();return true;}
+  if(key==='Enter'&&document.activeElement?.getAttribute('data-focus')==='player-next-episode'&&this.showNextEpisode){if(!e.repeat)this.requestNext();return true;}
   if(!this.controls()){if(['Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)){this.showControls();setTimeout(()=>this.remote.focus(document.getElementById('p-toggle')||undefined),0);return true;}}
   if(key==='Enter'&&document.activeElement?.id==='timeline'){this.commitScrub();this.showControls();return true;}
 
@@ -342,10 +353,13 @@ export class PlaybackService {
   }catch{if(generation===this.generation)this.audioNotice.set('Cambio non riuscito: continui con la versione attuale.');}
   finally{if(request===this.audioSwitchRequest)this.audioSwitching.set(false);}
  }
- async next(){const episode=this.nextEpisode,detail=this.detail;if(!episode||!detail)return;this.save();await this.open(detail,episode,{versions:this.audioOptions()});}
+ requestNext(){if(!this.nextEpisode)return;if(!this.isNextSeason){void this.next();return;}this.seasonConfirmPlaying=this.state().playing;this.seasonConfirmFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;if(this.seasonConfirmPlaying)this.pause();this.selectMenu.set('season-confirm');this.showControls();setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-season-confirm]')));}
+ cancelNextSeason(){if(this.selectMenu()!=='season-confirm')return;this.selectMenu.set(null);if(this.seasonConfirmPlaying&&!this.state().playing)this.toggle();this.seasonConfirmPlaying=false;this.showControls();const focus=this.seasonConfirmFocus;setTimeout(()=>this.remote.focus(focus?.isConnected?focus:document.querySelector<HTMLElement>('[data-focus="p-episode-next"]')));}
+ confirmNextSeason(){if(this.selectMenu()!=='season-confirm')return;this.seasonConfirmPlaying=false;this.selectMenu.set(null);void this.next();}
+ async next(){const episode=this.nextEpisode,detail=this.detail,season=this.isNextSeason?this.nextSeason():null;if(!episode||!detail)return;this.save();await this.open(season?.detail||detail,episode,{versions:season?.versions||this.audioOptions()});if(season&&this.detail===season.detail&&this.state().opened&&!this.state().error)this.onSeasonChanged?.(season.detail);}
  async previous(){const episode=this.previousEpisode,detail=this.detail;if(!episode||!detail)return;this.save();await this.open(detail,episode,{versions:this.audioOptions()});}
  fail(error:unknown){this.patch({buffering:false,playing:false,error:error instanceof Error?error.message:String(error)});}
- close(save=true){this.clearSkipUndo();this.skipNotice.set('');this.skipDetails.set({recap:null,ending:null});this.openingSkipDisabled=false;this.endingSkipped.set(false);this.audioLoading.set(false);if(save){++this.audioSwitchRequest;this.audioSwitching.set(false);}clearTimeout(this.skipQuietTimer);this.skipQuiet.set(false);this.skipProposals.set({opening:null,recap:null,ending:null});this.skipLoading.set(false);this.introAnalyzing.set(false);this.endingAnalyzing.set(false);this.endingAbort?.abort();this.endingAbort=null;this.endingAudioTried=false;this.recap.set(null);this.prologue.set(null);this.endingStatus.set('');const wasOpen=this.state().opened;this.introAbort?.abort();this.introAbort=null;if(save)this.save();++this.generation;clearInterval(this.timer);clearTimeout(this.controlTimer);try{this.av?.stop();}catch{}try{this.av?.close();}catch{}try{this.video?.pause();if(this.video){this.video.removeAttribute('src');this.video.load();}}catch{}
+ close(save=true){this.nextSeason.set(null);this.clearSkipUndo();this.skipNotice.set('');this.skipDetails.set({recap:null,ending:null});this.openingSkipDisabled=false;this.endingSkipped.set(false);this.audioLoading.set(false);if(save){++this.audioSwitchRequest;this.audioSwitching.set(false);}clearTimeout(this.skipQuietTimer);this.skipQuiet.set(false);this.skipProposals.set({opening:null,recap:null,ending:null});this.skipLoading.set(false);this.introAnalyzing.set(false);this.endingAnalyzing.set(false);this.endingAbort?.abort();this.endingAbort=null;this.endingAudioTried=false;this.recap.set(null);this.prologue.set(null);this.endingStatus.set('');const wasOpen=this.state().opened;this.introAbort?.abort();this.introAbort=null;if(save)this.save();++this.generation;clearInterval(this.timer);clearTimeout(this.controlTimer);try{this.av?.stop();}catch{}try{this.av?.close();}catch{}try{this.video?.pause();if(this.video){this.video.removeAttribute('src');this.video.load();}}catch{}
   this.av=null;this.engine=null;this.setTransparentVideoLayer(false);this.html5.set(false);this.scrub.set(null);this.source='';this.detail=null;this.episode=null;this.intro.set(null);this.ending.set(null);this.introStatus.set('');this.aniSkipDuration.set(null);this.selectMenu.set(null);this.state.set({...initial});this.controls.set(true);if(save&&wasOpen&&this.onClosed)setTimeout(()=>this.onClosed?.(),40);
  }
 }
