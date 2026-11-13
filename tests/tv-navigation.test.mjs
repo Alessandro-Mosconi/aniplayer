@@ -106,6 +106,17 @@ test('SUB pages contain only SUB, keep order and exact totals, and reuse scanned
  assert.deepEqual(Array.from(second.records,a=>a.id),expected.slice(30,60).map(a=>a.id));
  const before=requests;await service.catalog({dubbed:0,genres:[51,21]},0);assert.equal(requests,before);
 });
+test('Attack on Titan specials map each AniList entry to its verified combined provider episode',async()=>{
+ const {AnimeWorldService}=load('src/app/core/animeworld.service.ts');const service=new AnimeWorldService();
+ const candidate={id:'aw:test',awSlug:'verified',title:'Attack',dub:0};
+ service.search=async()=>[candidate];service.page=async()=>({mal_id:51535,anilist_id:146984,episodes:[{id:'one',number:'1',token:'first'},{id:'two',number:'2',token:'second'}]});
+ for(const [id,token,malNumber] of [[146984,'first',1],[162314,'second',2]]){const result=await service.match({id,anilist_id:id,title:'Attack'});assert.equal(result.matches.length,1);assert.equal(result.matches[0].count,1);assert.equal(result.matches[0].episodes[0].number,'1');assert.equal(result.matches[0].episodes[0].token,token);assert.equal(result.matches[0].episodes[0].malNumber,malNumber);assert.equal(result.matches[0].anime.mal_id,51535);}
+ service.page=async()=>({mal_id:123,anilist_id:146984,episodes:[{id:'two',number:'2',token:'wrong'}]});assert.equal((await service.match({id:162314,anilist_id:162314,title:'Attack'})).matches.length,0);
+});
+test('A split special uses the combined MAL episode number for progress',()=>{
+ const values=new Map(),localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};const {StorageService}=load('src/app/core/storage.service.ts',{localStorage});const storage=new StorageService(),anime={id:2,mal_id:51535},first={id:'one',number:'1',malNumber:1},second={id:'two',number:'1',malNumber:2};
+ storage.markSeen(anime,first);assert.equal(storage.isSeen(anime,second),false);storage.markSeen(anime,second);assert.equal(storage.isSeen(anime,second),true);assert.equal(storage.watchEvents()['mal:51535:2'].number,'2');
+});
 test('AnimeWorld status reflects startup check, request failure and recovery',async()=>{
  let fail=false;
  const {AnimeWorldService}=load('src/app/core/animeworld.service.ts',{AbortController,fetch:async()=>{

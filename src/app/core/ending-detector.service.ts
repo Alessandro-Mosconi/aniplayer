@@ -13,23 +13,23 @@ interface EndingTemplate extends PackedAudio {version:number;series:string;dub:n
 export class EndingDetectorService {
  constructor(private store:StorageService,private api:AnimeWorldService){}
  supported(){return typeof (globalThis as any).AudioDecoder==='function'&&typeof (globalThis as any).EncodedAudioChunk==='function';}
- private key(anime:Anime,episode:Episode){return [INTRO_AUDIO_VERSION,anime.awSlug||anime.slug,Number(anime.dub),episode.number].join('|');}
+ private key(anime:Anime,episode:Episode){return [INTRO_AUDIO_VERSION,anime.awSlug||anime.slug,Number(anime.dub),(episode.malNumber??episode.number)].join('|');}
  saved(anime:Anime,episode:Episode,duration:number):IntroWindow|null{
   const row=this.store.read<Record<string,any>>('endingDetections',{})[this.key(anime,episode)];
   return row&&Number.isFinite(row.start)&&Number.isFinite(row.end)&&Math.abs(row.duration-duration)<=2&&row.start>=duration*.5&&row.end-row.start>=45&&row.end-row.start<=150&&row.end<=duration?{start:row.start,end:row.end,source:row.source==='fingerprint'?'fingerprint':'audio'}:null;
  }
- private templates(anime:Anime,episode:Episode){return Object.values(this.store.read<Record<string,EndingTemplate>>('endingFingerprints',{})).filter(t=>t.version===INTRO_AUDIO_VERSION&&t.series===(anime.awSlug||anime.slug)&&Number(t.dub)===Number(anime.dub)&&t.episode!==String(episode.number)&&typeof t.data==='string'&&t.length>=45&&t.length<=150&&Number.isFinite(t.remaining)&&t.remaining>=0&&t.remaining<=300).sort((a,b)=>b.updated-a.updated).slice(0,3);}
+ private templates(anime:Anime,episode:Episode){return Object.values(this.store.read<Record<string,EndingTemplate>>('endingFingerprints',{})).filter(t=>t.version===INTRO_AUDIO_VERSION&&t.series===(anime.awSlug||anime.slug)&&Number(t.dub)===Number(anime.dub)&&t.episode!==String(episode.malNumber??episode.number)&&typeof t.data==='string'&&t.length>=45&&t.length<=150&&Number.isFinite(t.remaining)&&t.remaining>=0&&t.remaining<=300).sort((a,b)=>b.updated-a.updated).slice(0,3);}
  private persist(anime:Anime,episode:Episode,duration:number,current:Spectrum,start:number,end:number,source:'audio'|'fingerprint'):IntroWindow{
   const rows=this.store.read<Record<string,any>>('endingDetections',{});rows[this.key(anime,episode)]={start,end,duration,source,updated:Date.now()};
   Object.keys(rows).sort((a,b)=>rows[b].updated-rows[a].updated).slice(100).forEach(k=>delete rows[k]);this.store.write('endingDetections',rows);
   const packed=packAudio(current,start,end);
-  if(packed){const templates=this.store.read<Record<string,EndingTemplate>>('endingFingerprints',{});templates[this.key(anime,episode)]={...packed,series:anime.awSlug||anime.slug||'',dub:Number(anime.dub),episode:String(episode.number),version:INTRO_AUDIO_VERSION,remaining:duration-end,updated:Date.now()};Object.keys(templates).sort((a,b)=>templates[b].updated-templates[a].updated).slice(12).forEach(k=>delete templates[k]);this.store.write('endingFingerprints',templates);}
+  if(packed){const templates=this.store.read<Record<string,EndingTemplate>>('endingFingerprints',{});templates[this.key(anime,episode)]={...packed,series:anime.awSlug||anime.slug||'',dub:Number(anime.dub),episode:String(episode.malNumber??episode.number),version:INTRO_AUDIO_VERSION,remaining:duration-end,updated:Date.now()};Object.keys(templates).sort((a,b)=>templates[b].updated-templates[a].updated).slice(12).forEach(k=>delete templates[k]);this.store.write('endingFingerprints',templates);}
   return {start,end,source};
  }
  async detect(anime:Anime,episode:Episode,duration:number,signal:AbortSignal):Promise<IntroWindow|null>{
   const check=()=>{if(signal.aborted)throw new DOMException('Analisi annullata','AbortError');};
   const page=await this.api.page(anime);check();
-  const refs=[...new Map(page.episodes.filter(e=>e.public!==0&&Number(e.number)!==Number(episode.number)).map(e=>[Number(e.number),e])).values()].sort((a,b)=>Math.abs(Number(a.number)-Number(episode.number))-Math.abs(Number(b.number)-Number(episode.number))).slice(0,4);
+  const refs=[...new Map(page.episodes.filter(e=>e.public!==0&&Number(e.number)!==Number(episode.malNumber??episode.number)).map(e=>[Number(e.number),e])).values()].sort((a,b)=>Math.abs(Number(a.number)-Number(episode.malNumber??episode.number))-Math.abs(Number(b.number)-Number(episode.malNumber??episode.number))).slice(0,4);
   const templates=this.templates(anime,episode);if(refs.length<2&&!templates.length)return null;
   const urls=new Map<string,string>();
   const load=async(ep:Episode,length?:number,window?:{start:number;end:number}):Promise<Spectrum>=>{
