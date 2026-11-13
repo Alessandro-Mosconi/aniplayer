@@ -59,6 +59,12 @@ Dal menu seleziona **Impostazioni**, poi scegli una categoria.
 
 ![Impostazioni del menu laterale con switch e ordinamento](screenshots/settings-tv.png)
 
+### Badge e indicatori
+
+Apri **Impostazioni → Badge** per scegliere quali indicatori mostrare sulle schede e nel menu. AniSkip è disattivato inizialmente.
+
+![Impostazioni dei badge con switch indipendenti](screenshots/settings-badges-tv.png)
+
 ### Collegamento MyAnimeList
 
 Dal menu apri **Impostazioni → MyAnimeList → Collega account MAL**. Per importare una lista pubblica senza collegare l’account scegli **Allinea i visti · Senza login** nella stessa categoria.

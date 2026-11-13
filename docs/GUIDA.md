@@ -460,7 +460,7 @@ Dettagli dell’algoritmo e dei requisiti: [INTRO_AUDIO.md](INTRO_AUDIO.md).
 
 ## Impostazioni e dati locali
 
-Gli interruttori mostrano **Attivo/Disattivo** e si azionano con OK. Puoi cambiare ordine e visibilità del menu; **Impostazioni** resta accessibile. **I miei anime** compare con un account MAL attivo o un allineamento pubblico.
+Gli interruttori mostrano **Attivo/Disattivo** e si azionano con OK. In **Impostazioni → Badge** puoi scegliere singolarmente gli indicatori: nuovi episodi, tutti visti, preferiti, audio italiano, AniSkip, stato MAL e novità nel menu Preferiti. Sono attivi per impostazione predefinita, tranne AniSkip. Puoi cambiare ordine e visibilità del menu; **Impostazioni** resta accessibile. **I miei anime** compare con un account MAL attivo o un allineamento pubblico.
 
 In **Impostazioni → Dati e rete → Gestisci servizi** puoi verificare le connessioni e cambiare gli indirizzi HTTPS di AnimeUnity, AnimeWorld, AniSkip e AniList: il nuovo indirizzo viene salvato dopo la verifica. MyAnimeList usa gli indirizzi ufficiali e la configurazione account dedicata. Nel browser di sviluppo il proxy integrato copre gli indirizzi predefiniti; indirizzi diversi devono consentire le richieste dal browser.
 

@@ -16,7 +16,7 @@ export class SettingsPage extends PageBase {
   readonly layout=inject(LayoutService);
   readonly category=this.vm.settingsCategory;
   readonly categories=[{id:'general',label:'Generali'},{id:'catalog',label:'Catalogo'},{id:'badges',label:'Badge'},{id:'playback',label:'Riproduzione'},{id:'mal',label:'MyAnimeList'},{id:'data',label:'Dati e rete'}] as const;
-  readonly badgeOptions=[{id:'newEpisodes',label:'Nuovi episodi (EP+)'},{id:'allSeen',label:'Tutti gli episodi visti'},{id:'favorites',label:'Preferiti'},{id:'audio',label:'Audio italiano (ITA)'},{id:'aniskip',label:'Disponibilit? AniSkip'},{id:'malStatus',label:'Stato nella lista MAL'},{id:'menuUpdates',label:'Novit? nel menu Preferiti'}] as const;
+  readonly badgeOptions=[{id:'newEpisodes',label:'Nuovi episodi (EP+)'},{id:'allSeen',label:'Tutti gli episodi visti'},{id:'favorites',label:'Preferiti'},{id:'audio',label:'Audio italiano (ITA)'},{id:'aniskip',label:'Disponibilità AniSkip'},{id:'malStatus',label:'Stato nella lista MAL'},{id:'menuUpdates',label:'Novità nel menu Preferiti'}] as const;
   selectCategory(id:'general'|'catalog'|'playback'|'mal'|'data'|'badges'){this.category.set(id);}
   openDiagnostics(focus:string){this.vm.settingsFocusHint=focus;this.nav.open('diagnostics');}
   readonly menuOrderNotice=signal('');

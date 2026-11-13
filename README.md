@@ -68,7 +68,7 @@ Su Android puoi anche installare l’APK sperimentale usato per Android TV. [Ist
 - **Catalogo:** cerca per titolo o scegli filtri, generi e voto minimo, poi premi **Applica filtri**. Puoi ordinare per titolo, uscita dell’anime, popolarità o valutazione, anche in modo casuale. **Ultimi episodi** mostra invece gli anime presenti negli aggiornamenti di AnimeUnity, dal più recente. Nelle impostazioni puoi abilitare l’esclusione dei generi: premi OK su un genere per passare tra incluso, escluso e neutro.
 - **Esplora:** la funzione è sperimentale e disattivata per impostazione predefinita; puoi abilitarla nelle impostazioni. Mostra un anime alla volta: sulla scheda usa sinistra/destra per esprimere una preferenza, su per i preferiti, giù per saltare e OK per i dettagli. Return torna alla schermata precedente. Su telefono puoi fare swipe sulla copertina.
 - **Player:** riprendi gli episodi e, quando disponibili, salta riassunto, sigla iniziale o finale. Dopo un salto hai cinque secondi per annullarlo. I pulsanti `SUB`/`ITA` cambiano versione audio quando disponibili.
-- **Impostazioni:** scegli una categoria per gestire menu, catalogo, riproduzione, MyAnimeList e dati salvati.
+- **Impostazioni:** scegli una categoria per gestire menu, catalogo, badge, riproduzione, MyAnimeList e dati salvati. In **Badge** puoi scegliere gli indicatori da mostrare: sono tutti attivi inizialmente, tranne AniSkip.
 
 [Guida completa all’uso e al telecomando](docs/GUIDA.md#telecomando-e-navigazione) · [Come funzionano i salti](docs/GUIDA.md#salta-riassunti-e-sigle).
 
