@@ -88,3 +88,5 @@ button.skip-indicator{min-height:36px;cursor:pointer;font-weight:normal;transiti
 /* Let each card fill its grid cell; the browser button padding otherwise shrinks the poster. */
 .browser-layout .catalog-grid .anime-card{padding:0}
 @media(min-width:1001px){.browser-layout .catalog-grid{grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),1fr));gap:32px 22px}}
+
+.profile-switch{display:flex;align-items:center;gap:12px;margin-bottom:22px;width:100%;padding:10px;text-align:left}.profile-switch img{width:42px;height:42px;border-radius:10px;object-fit:cover}.profile-switch span{overflow:hidden;text-overflow:ellipsis;font-size:18px}@media(max-width:900px){.profile-switch span{display:none}}

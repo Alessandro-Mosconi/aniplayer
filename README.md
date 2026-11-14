@@ -100,3 +100,32 @@ AniPlayer è un progetto indipendente: non ospita video e non è affiliato ai se
 
 Il progetto non ha ancora una licenza generale; consulta [THIRD_PARTY.md](THIRD_PARTY.md) per le componenti incluse e derivate.
 
+
+
+### Profili locali
+
+All'avvio viene riaperto l'ultimo profilo usato; il pulsante con avatar nel menu permette di creare,
+rinominare o cambiare profilo. I nomi sono univoci (anche ignorando maiuscole e
+spazi ripetuti). Ogni profilo ha preferiti, Continua a guardare, episodi visti,
+impostazioni, scelte Esplora e account/lista MyAnimeList separati. I dati già
+presenti rimangono nel profilo iniziale, senza copie o cancellazioni.
+Per i nuovi profili, TinyTools propone nomi casuali come `CrispyBird`: l'app rimuove i separatori, evita nomi duplicati e usa un generatore locale se il servizio non risponde.
+Il cambio profilo ricarica l'app per reinizializzare servizi e account; le
+operazioni ancora in corso restano legate al profilo di origine.
+
+Preanalisi, fingerprint, rilevamenti e cache delle sigle restano condivisi.
+I profili sono salvati sul dispositivo: non sono account cloud.
+
+Gli avatar usano l'API SVG DiceBear: il selettore carica tutti gli stili da
+`https://api.dicebear.com/10.x` e mostra 12 varianti per volta. Il catalogo viene
+salvato localmente; se non disponibile, viene usata una lista di riserva.
+Le generazioni sono distanziate di almeno 1,2 secondi. Si salvano stile, versione
+e seed, senza legare l'immagine al nome del profilo. Gli avatar DiceBear precedenti
+usano l'API 9.x; gli avatar locali originali restano compatibili. In caso di errore
+immagine viene mostrato un avatar locale, senza cambiare la scelta salvata.
+
+L'API pubblica non richiede chiavi, ammette 50 richieste/secondo per SVG ed e'
+gratuita per uso non commerciale. Per uso commerciale o limiti superiori DiceBear
+richiede un'istanza propria. Disponibilita', limiti e disegni possono cambiare.
+Vedi https://www.dicebear.com/integrations/http-api/ e le licenze dei singoli stili,
+raggiungibili dal selettore. Non sono incluse librerie DiceBear nel bundle.

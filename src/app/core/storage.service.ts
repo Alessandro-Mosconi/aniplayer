@@ -1,12 +1,41 @@
 import {Injectable, signal} from '@angular/core';
 import {Anime,Episode,SavedProgress} from './models';
+import {DEFAULT_PROFILE,DICEBEAR_AVATAR,PROFILE_KEYS,Profile,profileKey,profileName} from './profiles';
 export type BadgeKind='audio'|'newEpisodes'|'allSeen'|'favorites'|'aniskip'|'malStatus'|'menuUpdates';
 const BADGE_DEFAULTS:Record<BadgeKind,boolean>={audio:true,newEpisodes:true,allSeen:true,favorites:true,aniskip:false,malStatus:true,menuUpdates:true};
 @Injectable({providedIn:'root'})
 export class StorageService {
  private prefix='autv.'; // Preserva la compatibilità dei dati originali.
- read<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(this.prefix+key);return raw===null?fallback:JSON.parse(raw) as T;}catch{return fallback;}}
- write<T>(key:string,value:T):boolean{try{localStorage.setItem(this.prefix+key,JSON.stringify(value));return true;}catch{return false;}}
+ private rawRead<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(this.prefix+key);return raw===null?fallback:JSON.parse(raw) as T;}catch{return fallback;}}
+ readonly profiles=signal<Profile[]>(this.rawRead<Profile[]>('profiles',[{...DEFAULT_PROFILE}]));
+ // Keep this instance bound to its original profile until reload: pending async work
+ // must never write into the newly selected profile.
+ readonly profileId=this.profiles().find(p=>p.id===this.rawRead('activeProfile','default'))?.id||this.profiles()[0]?.id||'default';
+ private deletedProfile=false;
+ read<T>(key:string,fallback:T):T{return this.rawRead(profileKey(this.profileId,key),fallback);}
+ write<T>(key:string,value:T):boolean{if(this.deletedProfile&&PROFILE_KEYS.has(key))return false;try{localStorage.setItem(this.prefix+profileKey(this.profileId,key),JSON.stringify(value));return true;}catch{return false;}}
+ currentProfile(){return this.profiles().find(p=>p.id===this.profileId)||DEFAULT_PROFILE;}
+ saveProfile(name:string,avatar:string,id?:string){
+  const profiles=this.profiles(),value=profileName(name,profiles,id);
+  if(id&&!profiles.some(p=>p.id===id))throw Error('Profilo non trovato.');
+  if(!DICEBEAR_AVATAR.test(avatar)&&!/^generated:(?:[0-9]|1[01])$/.test(avatar)&&!/^https:\/\/cdn\.myanimelist\.net\//.test(avatar))throw Error('Immagine profilo non valida.');
+  const profile={id:id||Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join(''),name:value,avatar};
+  const next=id?profiles.map(p=>p.id===id?profile:p):[...profiles,profile];
+  if(!this.write('profiles',next))throw Error('Impossibile salvare il profilo. Spazio locale insufficiente.');
+  this.profiles.set(next);return profile;
+ }
+ selectProfile(id:string){if(!this.profiles().some(p=>p.id===id))throw Error('Profilo non trovato.');if(id===this.profileId)return;if(!this.write('activeProfile',id))throw Error('Impossibile cambiare profilo.');window.location.reload();}
+ deleteProfile(id:string){
+  const profiles=this.profiles();if(!profiles.some(p=>p.id===id))throw Error('Profilo non trovato.');
+  if(profiles.length<=1)throw Error('Deve rimanere almeno un profilo.');
+  const next=profiles.filter(p=>p.id!==id),active=id===this.profileId;
+  if(!this.write('profiles',next))throw Error('Impossibile eliminare il profilo.');
+  this.profiles.set(next);if(active)this.deletedProfile=true;
+  let cleanupFailed=false;
+  for(const key of [...PROFILE_KEYS].map(key=>profileKey(id,key)).concat('avatarStyleFavorites.'+id))try{localStorage.removeItem(this.prefix+key);}catch{cleanupFailed=true;}
+  if(active){this.write('activeProfile',next[0].id);window.location.reload();}
+  return !cleanupFailed;
+ }
  readonly favorites=signal<Record<string,Anime>>(this.read('favorites',{}));
  readonly history=signal<Record<string,SavedProgress>>(this.read('history',{}));
  readonly seen=signal<Record<string,number>>(this.read('seen',{}));

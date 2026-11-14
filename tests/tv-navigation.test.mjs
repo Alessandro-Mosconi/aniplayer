@@ -88,6 +88,22 @@ test('Return closes filter options before navigating away',()=>{
  remote.onKey({keyCode:10009,preventDefault(){},stopPropagation(){}});
  assert.equal(closed,true);assert.equal(back,false);
 });
+test('Return dismisses a dialog text field before cancelling the dialog',()=>{
+ const {remote,document,Input}=remoteFixture();let cancelled=false;
+ const input=new Input(0,0);input.tvInput=true;input.readOnly=false;input.focus();
+ document.querySelector=selector=>selector==='[data-tv-dialog]'?{querySelector:()=>({click(){cancelled=true;}})}:null;
+ const event={keyCode:10009,preventDefault(){},stopPropagation(){}};
+ remote.onKey(event);assert.equal(input.readOnly,true);assert.equal(document.activeElement,input);assert.equal(cancelled,false);
+ remote.onKey(event);assert.equal(cancelled,true);
+});
+test('Profile dialog reveals content above and below its focusable controls',()=>{
+ const {remote,document,Element,setItems}=remoteFixture(),positions=[];
+ const overlay={scrollHeight:3000,scrollTo:options=>positions.push(options.top)};
+ const button=new Element(100,100),closest=button.closest.bind(button);
+ button.closest=selector=>selector==='app-profiles'?{}:selector==='.profiles-overlay'?overlay:closest(selector);
+ setItems([button]);button.focus();remote.move('up');remote.move('down');
+ assert.deepEqual(positions,[0,3000]);assert.equal(document.activeElement,button);
+});
 test('SUB pages contain only SUB, keep order and exact totals, and reuse scanned pages',async()=>{
  const {CatalogService}=load('src/app/core/catalog.service.ts');
  const service=new CatalogService({read:(_key,fallback)=>fallback});

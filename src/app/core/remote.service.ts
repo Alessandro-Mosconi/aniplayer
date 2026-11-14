@@ -37,6 +37,8 @@ export class RemoteService {
     if(this.playerActive()&&this.listener(e)){e.preventDefault();e.stopPropagation();return;}
     if(!this.playerActive()&&this.exploreHandler?.(e)){e.preventDefault();e.stopPropagation();return;}
     const dialog=document.querySelector<HTMLElement>('[data-tv-dialog]');
+    const editingField=document.activeElement;
+    if(dialog&&['Back','BrowserBack','Escape'].includes(key)&&(editingField instanceof HTMLInputElement||editingField instanceof HTMLTextAreaElement)&&editingField.hasAttribute('data-tv-input')&&!editingField.readOnly){e.preventDefault();e.stopPropagation();editingField.readOnly=true;editingField.blur();this.focus(editingField);return;}
     if(dialog&&['Back','BrowserBack','Escape'].includes(key)){e.preventDefault();e.stopPropagation();if(!e.repeat)dialog.querySelector<HTMLElement>('[data-dialog-cancel]')?.click();return;}
     if(!dialog&&['Back','BrowserBack','Escape'].includes(key)&&document.querySelector('app-diagnostics-page')){e.preventDefault();e.stopPropagation();if(!e.repeat)this.backHandler();return;}
     const field=document.activeElement;
@@ -146,6 +148,12 @@ export class RemoteService {
       if(aligned.length)scored.splice(0,scored.length,...aligned);
     }
     if(scored[0]){if((dir==='up'||dir==='down')&&this.verticalX===null)this.verticalX=sx;this.focus(scored[0].el);}
+    else if((dir==='up'||dir==='down')&&active.closest('app-profiles')){
+      // The profile dialog scrolls independently of the document. Reveal text
+      // beyond the first/last focusable without moving focus out of the dialog.
+      const overlay=active.closest<HTMLElement>('.profiles-overlay');
+      if(overlay)overlay.scrollTo({top:dir==='up'?0:overlay.scrollHeight,behavior:'auto'});
+    }
     else if(dir==='down'&&active.closest('app-settings-page,app-diagnostics-page')){
       // Reveal the footer after the last control in long settings pages.
       const scrolling=document.scrollingElement;
