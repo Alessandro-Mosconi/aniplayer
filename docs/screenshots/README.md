@@ -14,6 +14,8 @@ Le immagini sono catture dell’app nel browser con schermo TV simulato webOS a 
 
 4. Controlla le immagini in questa cartella e il README prima di pubblicare. Lo script sostituisce i file esistenti mantenendo gli stessi nomi e collegamenti.
 
+Per aggiornare solo scelta profili, modifica, conferma di eliminazione, catalogo avatar e galleria, imposta `ANIPLAYER_SCREENSHOTS=profiles` prima di lanciare lo script. Le schermate usano tre profili dimostrativi e non accedono ai dati salvati sulla TV.
+
 Serve Google Chrome. Su Windows viene cercato nel percorso standard; per un altro percorso imposta `CHROME_PATH`. Se il server usa una porta diversa da 4200, imposta `ANIPLAYER_SCREENSHOT_URL`.
 
 Esempio PowerShell:
@@ -21,8 +23,8 @@ Esempio PowerShell:
 ```powershell
 $env:ANIPLAYER_SCREENSHOT_URL = 'http://127.0.0.1:4217'
 $env:CHROME_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+$env:ANIPLAYER_SCREENSHOTS = 'profiles' # facoltativo: solo schermate dei profili
 node tools/capture-screenshots.mjs
 ```
 
-Lo script apre un profilo Chrome isolato, naviga nell’app e inserisce dati dimostrativi solo nella sessione di cattura. Non legge il profilo del browser abituale né i backup della TV. Esplora, disattivata per impostazione predefinita, viene attivata solo nel profilo dimostrativo per catturare la schermata. Il catalogo e le immagini richiedono una connessione ai provider; se il caricamento fallisce lo script si interrompe. Ricontrolla sempre la resa visiva, perché contenuti e layout possono cambiare.
-
+Lo script usa un profilo Chrome isolato e dati dimostrativi; non legge il browser abituale né i backup della TV. Esplora viene attivata solo per la cattura. Per le schermate dei profili servono le immagini DiceBear; per le altre schermate servono anche i provider del catalogo. Se una risorsa non risponde, la schermata può mostrare gli avvisi o le immagini di riserva dell'app. Ricontrolla sempre la resa visiva: la simulazione non sostituisce una prova su TV fisica.

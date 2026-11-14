@@ -21,6 +21,17 @@ try{
 
  const until=async(expression,seconds=60)=>{for(let i=0;i<seconds*2;i++){if(await evalJs(expression))return;await wait(500);}throw Error('Timeout '+expression);};
  const shot=async(name)=>{await evalJs(`document.fonts.ready`);await wait(1800);const result=await call('Page.captureScreenshot',{format:'png'});writeFileSync(join(root,'docs/screenshots/'+name+'-tv.png'),Buffer.from(result.data,'base64'));console.log('Captured '+name);};
+ // Profiles use isolated, explicitly fictional data; no credentials are loaded.
+ await until(`!!document.querySelector('app-root')&&!!window.ng?.getComponent`);
+ await evalJs(`(()=>{const app=ng.getComponent(document.querySelector('app-root'));const profiles=[{id:'default',name:'Mochi',avatar:'dicebear10:adventurer:demo-mochi'},{id:'demo-2',name:'LuckyFox',avatar:'dicebear10:bottts:demo-fox'},{id:'demo-3',name:'SkyNinja',avatar:'dicebear10:pixel-art:demo-ninja'}];app.vm.storage.profiles.set(profiles);app.profilesOpen.set(true);})()`);
+ await until(`document.querySelectorAll('app-profiles .profile-card').length===3`);await until(`Array.from(document.querySelectorAll('app-profiles .profile-picture img')).every(img=>img.complete&&img.naturalWidth>0)`);await shot('profiles');
+ await evalJs(`(()=>{const page=ng.getComponent(document.querySelector('app-profiles'));page.edit(page.storage.profiles()[1]);})()`);await until(`!!document.querySelector('app-profiles .identity-card')`);await shot('profiles-edit');
+ await evalJs(`ng.getComponent(document.querySelector('app-profiles')).requestDelete()`);await until(`!!document.querySelector('app-profiles .delete-confirmation')`);await shot('profiles-delete');
+ await evalJs(`ng.getComponent(document.querySelector('app-profiles')).cancelDelete()`);await until(`!!document.querySelector('app-profiles .identity-card')`);
+ await evalJs(`document.querySelector('app-profiles .avatar-catalog').scrollIntoView({block:'start'})`);await until(`document.querySelectorAll('app-profiles .avatar-grid img').length>0`);await shot('profiles-styles');
+ await evalJs(`ng.getComponent(document.querySelector('app-profiles')).openGallery('adventurer')`);await until(`document.querySelectorAll('app-profiles .gallery-grid img').length===50`);await shot('profiles-gallery');
+ await evalJs(`ng.getComponent(document.querySelector('app-root')).profilesOpen.set(false)`);
+ if(process.env.ANIPLAYER_SCREENSHOTS!=='profiles'){
  await until(`!!document.querySelector('.hero-art')&&document.querySelectorAll('app-anime-card').length>0`);
  await shot('home');
  await evalJs(`window.__vm=ng.getComponent(document.querySelector('app-home-page')).vm;window.__anime=__vm.featured()[0]||__vm.recent()[0];window.__demo=[...new Map([...__vm.featured(),...__vm.recent(),...__vm.cards()].filter(a=>a.mal_id).map(a=>[a.mal_id,a])).values()].slice(0,12);`);
@@ -44,6 +55,7 @@ try{
   const sample=()=>evalJs(`({count:__vm.total(),visible:__vm.cards().length,exact:__vm.catalogTotalExact(),scanning:__vm.catalogScanning(),error:__vm.error(),scanError:__vm.catalogScanMessage()})`);
   console.log('Score 9+ initial: '+JSON.stringify(await sample()));await wait(5000);console.log('Score 9+ later: '+JSON.stringify(await sample()));
   await evalJs(`__vm.filters.update(f=>({...f,order:'Valutazione'}));__vm.nav.replace('catalog')`);await until(`!!document.querySelector('app-catalog-page')&&!__vm.loading()`,120);console.log('Score 9+ by rating: '+JSON.stringify(await sample()));
+ }
  }
  if(errors.length)throw Error(JSON.stringify(errors));console.log('Screenshot TV salvati in docs/screenshots/. Nessun account personale utilizzato.');
 }finally{ws?.close();chrome.kill();}

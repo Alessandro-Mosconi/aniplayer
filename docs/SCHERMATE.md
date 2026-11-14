@@ -5,6 +5,28 @@
 
 Acquisizioni dell’interfaccia TV a **1920×1080**, in simulazione webOS. Preferiti, cronologia, lista e statistiche usano dati dimostrativi: non mostrano un account personale. Catalogo e disponibilità dei titoli possono cambiare.
 
+### Profili
+
+Dal menu seleziona l'avatar del profilo attuale per aprire la scelta. L'app ricorda l'ultimo profilo usato all'avvio.
+
+![Scelta di profili dimostrativi con avatar e comando per aggiungerne uno](screenshots/profiles-tv.png)
+
+Con **Modifica** puoi cambiare nome e immagine, generare una nuova combinazione o eliminare il profilo previa conferma.
+
+![Modifica di un profilo con avatar casuale e comandi per il nome](screenshots/profiles-edit-tv.png)
+
+L'eliminazione mostra una conferma e indica quali dati saranno rimossi.
+
+![Richiesta di conferma per eliminare un profilo](screenshots/profiles-delete-tv.png)
+
+Nel catalogo puoi rigenerare le anteprime e segnare gli stili preferiti.
+
+![Catalogo degli stili avatar e filtro dei preferiti](screenshots/profiles-styles-tv.png)
+
+**Esplora** apre le varianti di uno stile, caricandone altre durante lo scorrimento.
+
+![Galleria con varianti di uno stile avatar](screenshots/profiles-gallery-tv.png)
+
 ### Catalogo e ricerca
 
 Dal menu seleziona **Catalogo**.

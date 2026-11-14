@@ -2,6 +2,22 @@
 
 [Torna al README](../README.md)
 
+## Profili
+
+All'avvio AniPlayer riapre l'ultimo profilo usato su quel dispositivo. Per cambiare persona, seleziona l'avatar nel menu e scegli un profilo; il cambio ricarica l'app. Nella stessa schermata puoi creare un profilo o premere **Modifica** per rinominarlo e cambiarne l'immagine. Il nome deve essere univoco, senza distinzione tra maiuscole e minuscole o spazi ripetuti.
+
+Alla creazione vengono proposti un nome e un avatar casuali. **Altro soprannome** usa TinyTools e propone un nome in stile `CrispyBird`; se il servizio non risponde, viene usato un nome generato localmente. **Avatar casuale** cambia solo l'immagine; **Cambia entrambi** propone una nuova combinazione. Puoi usare questi comandi anche modificando un profilo, e le modifiche diventano definitive con **Salva profilo**.
+
+Il catalogo DiceBear mostra quattro anteprime per stile: premi una stellina per aggiungere o togliere lo stile dai preferiti e usa il filtro **Preferiti** per ritrovarli. **Rigenera** cambia le quattro anteprime; **Esplora** apre una galleria con 50 varianti iniziali, ulteriori gruppi durante lo scorrimento e il pulsante **Carica altre varianti**, fino a 240. Scegli un'immagine con OK o con un tocco. Gli avatar e i nomi proposti dai servizi richiedono Internet.
+
+Ogni profilo conserva separatamente preferiti, cronologia, episodi visti, impostazioni, scelte Esplora, stili avatar preferiti e collegamenti o liste MyAnimeList. La preanalisi delle serie e le relative impronte restano condivise. I dati precedenti all'introduzione dei profili restano nel primo profilo. I profili sono locali al dispositivo, non vengono sincronizzati tra TV.
+
+Per eliminare un profilo apri **Modifica**, scegli **Elimina profilo** e conferma. Vengono rimossi dal dispositivo i dati personali e il collegamento MAL di quel profilo; la preanalisi condivisa resta disponibile. Se elimini il profilo attivo, l'app passa a un altro profilo e si ricarica. Deve restare almeno un profilo. Le operazioni non modificano o eliminano l'account MyAnimeList remoto.
+
+Con il telecomando usa le frecce per spostarti, OK per selezionare e Indietro per uscire dalla schermata corrente. Durante la modifica del nome, OK apre o chiude la tastiera; Indietro chiude prima la modifica del campo. Dopo l'ultimo comando, una freccia verso il basso mostra anche il testo in fondo alla schermata.
+
+[Vedi le schermate dei profili](SCHERMATE.md#profili).
+
 ## Salta riassunti e sigle
 
 Il player propone **Salta riassunto**, **Salta sigla iniziale** e **Salta sigla finale** appena dispone di una proposta AniSkip o di un intervallo verificato. I dati AniSkip vengono validati rispetto alla durata del video; se la sigla iniziale viene riconosciuta con audio e corrisponde a quella di riferimento, il suo offset riallinea anche riassunto e finale della stessa versione. Gli intervalli discordanti e le sigle miste a scene narrative non vengono accettati automaticamente.

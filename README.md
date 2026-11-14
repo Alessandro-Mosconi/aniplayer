@@ -16,7 +16,7 @@ Dal menu apri **Catalogo**; per **Esplora** attiva prima la funzione in **Impost
 | --- | --- | --- |
 | ![Ricerca e filtri del catalogo](docs/screenshots/catalog-tv.png) | ![Esplora un anime alla volta](docs/screenshots/explore-tv.png) | ![Dashboard con statistiche dimostrative](docs/screenshots/dashboard-tv.png) |
 
-[Guarda tutte le schermate](docs/SCHERMATE.md), comprese impostazioni, preferiti e cronologia. I dati personali mostrati sono dimostrativi.
+[Guarda tutte le schermate](docs/SCHERMATE.md), comprese quelle di [profili e avatar](docs/SCHERMATE.md#profili), impostazioni, preferiti e cronologia. I dati personali mostrati sono dimostrativi.
 
 ## Installa sulla tua Smart TV
 
@@ -105,11 +105,13 @@ Il progetto non ha ancora una licenza generale; consulta [THIRD_PARTY.md](THIRD_
 ### Profili locali
 
 All'avvio viene riaperto l'ultimo profilo usato; il pulsante con avatar nel menu permette di creare,
-rinominare o cambiare profilo. I nomi sono univoci (anche ignorando maiuscole e
+rinominare, eliminare o cambiare profilo. L'eliminazione richiede conferma e deve
+rimanere almeno un profilo; se elimini quello attivo, l'app passa a un altro.
+I nomi sono univoci (anche ignorando maiuscole e
 spazi ripetuti). Ogni profilo ha preferiti, Continua a guardare, episodi visti,
 impostazioni, scelte Esplora e account/lista MyAnimeList separati. I dati già
 presenti rimangono nel profilo iniziale, senza copie o cancellazioni.
-Per i nuovi profili, TinyTools propone nomi casuali come `CrispyBird`: l'app rimuove i separatori, evita nomi duplicati e usa un generatore locale se il servizio non risponde.
+Per i profili, TinyTools propone nomi casuali come `CrispyBird`: l'app rimuove i separatori, evita nomi duplicati e usa un generatore locale se il servizio non risponde. Puoi cambiare nome e avatar singolarmente oppure usare **Cambia entrambi**.
 Il cambio profilo ricarica l'app per reinizializzare servizi e account; le
 operazioni ancora in corso restano legate al profilo di origine.
 
@@ -117,7 +119,10 @@ Preanalisi, fingerprint, rilevamenti e cache delle sigle restano condivisi.
 I profili sono salvati sul dispositivo: non sono account cloud.
 
 Gli avatar usano l'API SVG DiceBear: il selettore carica tutti gli stili da
-`https://api.dicebear.com/10.x` e mostra 12 varianti per volta. Il catalogo viene
+`https://api.dicebear.com/10.x` e mostra quattro anteprime per stile. **Esplora**
+apre la galleria dello stile, con 50 varianti iniziali e caricamenti progressivi
+fino a 240. La stellina salva gli stili preferiti per profilo; il filtro **Preferiti**
+li raccoglie. Il catalogo viene
 salvato localmente; se non disponibile, viene usata una lista di riserva.
 Le generazioni sono distanziate di almeno 1,2 secondi. Si salvano stile, versione
 e seed, senza legare l'immagine al nome del profilo. Gli avatar DiceBear precedenti
@@ -129,3 +134,5 @@ gratuita per uso non commerciale. Per uso commerciale o limiti superiori DiceBea
 richiede un'istanza propria. Disponibilita', limiti e disegni possono cambiare.
 Vedi https://www.dicebear.com/integrations/http-api/ e le licenze dei singoli stili,
 raggiungibili dal selettore. Non sono incluse librerie DiceBear nel bundle.
+
+[Guida ai profili](docs/GUIDA.md#profili) · [Schermate dei profili](docs/SCHERMATE.md#profili).
