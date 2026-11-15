@@ -58,11 +58,11 @@ export class IntroDetectorService{
   return entry;
  }
  rememberNotFound(anime:Anime,ep:Episode,ctx:IntroContext,hint:AudioHint|null){return this.persist(anime,ep,ctx,{state:'not-found',hint:hint?{start:hint.start,end:hint.end}:null});}
- private async load(anime:Anime,ep:Episode,signal:AbortSignal|undefined,hint:AudioHint|null,onProgress:(s:string)=>void,narrow=false){
+ private async load(anime:Anime,ep:Episode,signal:AbortSignal|undefined,hint:AudioHint|null,onProgress:(s:string)=>void,narrow:boolean|number=false){
   const window=searchWindow(hint,narrow),key=this.key(anime,ep),existing=this.cache.get(key);
   if(existing&&Date.now()-existing.time<1800000&&existing.value.window.start<=window.start&&existing.value.window.end>=window.end)return existing.value;
   onProgress('Analisi audio · episodio '+ep.number);const url=await this.api.source(anime,ep);checkAbort(signal);
-  const value=await readAudio(url,signal,p=>onProgress('Audio ep. '+ep.number+' · '+Math.floor(p.seconds)+' s · '+Math.round(p.bytes/1024)+' KB'),window);
+  const value=await readAudio(url,signal,p=>onProgress('Audio ep. '+ep.number+' · '+Math.floor(p.seconds)+' s analizzati'),window);
   this.cache.set(key,{time:Date.now(),value});while(this.cache.size>5)this.cache.delete(this.cache.keys().next().value!);return value;
  }
  /**
@@ -71,12 +71,15 @@ export class IntroDetectorService{
   * a previously verified fingerprint. Inconclusive analysis does not auto-skip.
   */
  async detect(args:{anime:Anime;episode:Episode;context:IntroContext;length:number|null;hint:AudioHint|null;signal?:AbortSignal;onProgress?:(s:string)=>void}):Promise<Detection>{
-  if(args.hint||this.templates(args.anime).length){
-   try{return await this.detectPass(args,true);}catch{checkAbort(args.signal);args.onProgress?.('Ricerca audio estesa…');}
+  const run=(phase:string,window:boolean|number)=>{args.onProgress?.(phase+' · preparazione');return this.detectPass({...args,onProgress:message=>args.onProgress?.(phase+' · '+message)},window);};
+  const guided=!!args.hint||this.templates(args.anime).length>0;
+  if(guided){
+   try{return await run('Ricerca 1/3',true);}catch{checkAbort(args.signal);}
+   try{return await run('Ricerca 2/3',120);}catch{checkAbort(args.signal);}
   }
-  return this.detectPass(args,false);
+  return run(guided?'Ricerca 3/3':'Ricerca completa',false);
  }
- private async detectPass(args:{anime:Anime;episode:Episode;context:IntroContext;length:number|null;hint:AudioHint|null;signal?:AbortSignal;onProgress?:(s:string)=>void},narrow:boolean):Promise<Detection>{
+ private async detectPass(args:{anime:Anime;episode:Episode;context:IntroContext;length:number|null;hint:AudioHint|null;signal?:AbortSignal;onProgress?:(s:string)=>void},narrow:boolean|number):Promise<Detection>{
   const {anime,episode,context,length,hint,signal}=args,onProgress=args.onProgress||(()=>{}),infer=length===null;
   if(!infer&&(!Number.isFinite(length)||length<20||length>180))throw Error('Durata intro non supportata (20–180 s).');
   checkAbort(signal);const page=await this.api.page(anime),others=page.episodes.filter(e=>Number(e.number)!==Number(episode.malNumber??episode.number)&&e.public!==0);
@@ -85,7 +88,10 @@ export class IntroDetectorService{
   for(let i=0;refs.length<4&&(i<next.length||i<previous.length);i++){if(next[i])refs.push(next[i]);if(previous[i]&&refs.length<4)refs.push(previous[i]);}
   if(refs.length<2&&!this.templates(anime).length)throw Error('Servono due altri episodi o un’impronta audio locale verificata.');
   const latest=this.templates(anime).sort((a,b)=>b.updated-a.updated)[0],seed=hint||(latest?{start:latest.start,end:latest.start+latest.length}:null);
-  const current=await this.load(anime,episode,signal,narrow?seed:hint,onProgress,narrow);const templates:({template:Template}&Match)[]=[];
+  // Early hints may be wrong; search the complete initial window on fallback.
+  // Keep a late hint when its end lies outside that bounded window.
+  const fullEnd=searchWindow(null).end,wideHint=(value:AudioHint|null)=>value&&value.end>fullEnd?value:null;
+  const current=await this.load(anime,episode,signal,narrow?seed:wideHint(hint),onProgress,narrow);const templates:({template:Template}&Match)[]=[];
   for(const t of this.templates(anime)){
    checkAbort(signal);if(t.referenceEpisode===String(episode.malNumber??episode.number))continue;
    onProgress('Confronto con impronta audio locale');try{const match=await matchTemplate(current,this.unpack(t),t.length,length,signal);if(match)templates.push({...match,template:t});}catch(e){checkAbort(signal);}
@@ -97,11 +103,11 @@ export class IntroDetectorService{
   }
   if(refs.length<2)throw Error('Servono almeno due episodi di confronto.');
   const matches:Match[]=[],errors:string[]=[],attempts:any[]=[];let bytes=current.bytes;
-  for(const ref of refs){
+  for(const [index,ref] of refs.entries()){
    try{checkAbort(signal);let anchor:AudioHint|null=null;
     if(context.mal>0)try{anchor=await this.aniskip.reference(context.mal,Number(ref.number),length);}catch(e){checkAbort(signal);}
-    const other=await this.load(anime,ref,signal,narrow?(anchor||seed):anchor,onProgress,narrow);bytes+=other.bytes;
-    onProgress('Confronto episodi '+episode.number+' / '+ref.number);
+    const other=await this.load(anime,ref,signal,narrow?(anchor||seed):wideHint(anchor),onProgress,narrow);bytes+=other.bytes;
+    onProgress('Confronto '+(index+1)+'/'+refs.length+' · ep. '+ref.number);
     const match=infer?await inferRepeated(current,other,signal):await compare(current,other,length!,signal);
     attempts.push({episode:String(ref.number),matched:!!match});if(match)matches.push({...match,episode:String(ref.number)});
     if(consensus(matches,infer))break;

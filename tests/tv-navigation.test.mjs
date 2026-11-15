@@ -617,6 +617,20 @@ test('Next season resolves an unambiguous sequel and prefers the current audio',
  edges=[{relationType:'SEQUEL',node:{id:201,type:'ANIME',format:'MOVIE',status:'FINISHED'}}];assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
 });
 
+test('Player season number follows an unambiguous TV prequel chain',async()=>{
+ const link=(relationType,id,format='TV')=>({relationType,node:{id,type:'ANIME',format}});
+ const entries={1:[link('SEQUEL',2)],2:[link('PREQUEL',1),link('SEQUEL',3)],3:[link('PREQUEL',2)]};
+ const fetch=async(_url,options)=>{const id=JSON.parse(options.body).variables.id;return {ok:true,json:async()=>({data:{Media:{id,format:'TV',relations:{edges:entries[id]||[]}}}})};};
+ const {NextSeasonService}=load('src/app/core/next-season.service.ts',{fetch,AbortController});
+ const service=new NextSeasonService({origin:()=> 'https://graphql.anilist.co'},{},{});
+ assert.equal(await service.seasonNumber({id:1,anilist_id:1}),1);
+ assert.equal(await service.seasonNumber({id:3,anilist_id:3}),3);
+ assert.equal(await service.seasonNumber({id:4,anilist_id:4}),null);
+ entries[3].push(link('PREQUEL',1));assert.equal(await service.seasonNumber({id:3,anilist_id:3}),null);
+ entries[3]=[link('PREQUEL',2,'MOVIE')];assert.equal(await service.seasonNumber({id:3,anilist_id:3}),null);
+ entries[3]=[link('PREQUEL',2)];entries[1]=[link('PREQUEL',3)];assert.equal(await service.seasonNumber({id:3,anilist_id:3}),null);
+});
+
 test('Player advances to the first episode of a verified next season',async()=>{
  const {player,saved}=nextEpisodeFixture();player.episode=player.detail.episodes[1];
  const nextDetail={anime:{id:20,title:'Stagione 2',dub:0},episodes:[{id:21,number:'1',public:1}],related:[],count:1};
@@ -640,11 +654,18 @@ test('Removing a series from continue watching keeps favorites and watched episo
  assert.equal(Object.keys(storage.history()).length,0);assert.equal(storage.isFavorite(anime),true);assert.equal(storage.isSeen(anime,episode),true);
 });
 
+test('paused history does not persist watch coverage while keeping completion and MAL updates',()=>{
+ const {player,saved}=nextEpisodeFixture(),writes=[];let queued=0;
+ player.local.settings=()=>({historyEnabled:false});player.local.write=(key,value)=>writes.push([key,value]);player.mal.queue=()=>queued++;
+ player.state.update(state=>({...state,position:1400}));player.save(true);
+ assert.equal(writes.some(([key])=>key==='watchCoverage'),false);assert.equal(saved.length,1);assert.equal(saved[0][4],true);assert.equal(queued,1);
+});
+
 test('Detail offers resume only for a saved unfinished episode with a position',()=>{
  const source=readFileSync('src/app/pages/anime-detail/anime-detail.page.ts','utf8');const method=source.slice(source.indexOf('  resumeEpisode('),source.indexOf('  async playResume('));
  const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const context={exports:{}};vm.runInNewContext(js,context);
  const fixture=new context.exports.Fixture(),episode={id:2,number:'2',public:1},detail={anime:{id:1},episodes:[episode]};let history={1:{episode,position:40,duration:100,completed:false}},settings={};fixture.storage={history:()=>history,settings:()=>settings};
- assert.equal(fixture.resumeEpisode(detail),episode);history[1].completed=true;assert.equal(fixture.resumeEpisode(detail),null);history[1].completed=false;history[1].position=0;assert.equal(fixture.resumeEpisode(detail),null);history[1].position=98;assert.equal(fixture.resumeEpisode(detail),null);history[1].position=40;settings.resume=false;assert.equal(fixture.resumeEpisode(detail),null);
+ assert.equal(fixture.resumeEpisode(detail),episode);history[1].completed=true;assert.equal(fixture.resumeEpisode(detail),null);history[1].completed=false;history[1].position=0;assert.equal(fixture.resumeEpisode(detail),null);history[1].position=98;assert.equal(fixture.resumeEpisode(detail),null);history[1].position=40;settings.resume=false;assert.equal(fixture.resumeEpisode(detail),null);settings.resume=true;settings.historyEnabled=false;assert.equal(fixture.resumeEpisode(detail),null);
 });
 
 test('AniSkip ending accepts compatible unambiguous ED only and shares the opening request',async()=>{
@@ -749,13 +770,30 @@ test('AniSkip prefetch reuses one request for opening, recap and ending and surv
  assert.equal((await restarted.load({...ctx,duration:1500})).state,'review');
 });
 
-test('An AniSkip opening at time zero is actionable without invoking audio analysis',async()=>{
- const {player}=nextEpisodeFixture();let analyses=0;player.detail.anime.awSlug='test';
- const window={start:0,end:90,source:'aniskip'};
- player.introService={context:()=>({mal:10,number:1,duration:1440,key:'test'}),local:()=>null,localSegment:()=>null,load:async()=>({state:'ready',interval:window,message:'ready'}),skipLength:()=>({seconds:90}),loadEnding:async()=>null,loadRecap:async()=>({start:90,end:150,source:'aniskip'})};
- player.detector={saved:()=>null,supported:()=>true,detect:async()=>{analyses++;throw Error('must not run');}};
- await player.loadIntro(player.generation);await Promise.resolve();assert.equal(analyses,0);assert.equal(player.activeSkip.kind,'opening');assert.equal(player.intro().end,90);
- player.state.update(s=>({...s,position:90}));assert.equal(player.activeSkip.kind,'recap');
+test('An early AniSkip opening remains actionable while audio verifies and corrects it',async()=>{
+ const {player}=nextEpisodeFixture();let analyses=0,finish;player.detail.anime.awSlug='test';
+ const window={start:3,end:93,source:'aniskip'};
+ player.introService={context:()=>({mal:10,number:1,duration:1440,key:'test'}),local:()=>null,localSegment:()=>null,load:async()=>({state:'ready',interval:window,message:'ready'}),skipLength:()=>({seconds:90,exactEpisode:true}),loadEnding:async()=>null,loadRecap:async()=>null};
+ player.detector={saved:()=>null,notFound:()=>true,supported:()=>true,detect:()=>{analyses++;return new Promise(resolve=>finish=resolve);}};
+ const job=player.loadIntro(player.generation);await new Promise(resolve=>setImmediate(resolve));
+ try{assert.equal(analyses,1);assert.equal(player.introAnalyzing(),true);assert.equal(player.introAudioState(),'searching');assert.equal(player.activeSkip.kind,'opening');assert.equal(player.intro().end,93);}
+ finally{finish?.({start:40,end:130,method:'episodes',lengthSource:'AniSkip'});await job;}
+ assert.equal(player.intro().start,40);assert.equal(player.intro().end,130);assert.equal(player.intro().source,'audio');assert.equal(player.intro().basis,'aniskip');assert.equal(player.introAnalyzing(),false);assert.equal(player.introAudioState(),'found');
+});
+
+test('An inconclusive early opening analysis keeps the AniSkip interval available',async()=>{
+ const {player}=nextEpisodeFixture();player.detail.anime.awSlug='test';const window={start:3,end:93,source:'aniskip'};
+ player.introService={context:()=>({mal:10,number:1,duration:1440,key:'test'}),local:()=>null,localSegment:()=>null,load:async()=>({state:'ready',interval:window,message:'ready'}),skipLength:()=>({seconds:90}),loadEnding:async()=>null,loadRecap:async()=>null};
+ player.detector={saved:()=>null,supported:()=>true,detect:async()=>{throw Error('Decoder non disponibile');}};
+ await player.loadIntro(player.generation);assert.equal(player.intro(),window);assert.equal(player.skipPrompt.window.end,93);assert.match(player.introStatus(),/non confermata/i);assert.equal(player.introAudioState(),'unavailable');
+ player.detector.detect=async()=>{throw 'Intro non individuata: nessuna corrispondenza concorde.';};player.detector.rememberNotFound=()=>{};
+ await player.loadIntro(player.generation);assert.equal(player.intro(),window);assert.equal(player.introAudioState(),'not-found');
+});
+
+test('A saved audio opening preserves whether AniSkip supplied its duration',async()=>{
+ const {player}=nextEpisodeFixture();player.detail.anime.awSlug='test';player.introService={context:()=>({mal:10,number:1,duration:1440,key:'test'}),local:()=>null,localSegment:()=>null,loadEnding:async()=>null,loadRecap:async()=>null};
+ player.detector={saved:()=>({start:40,end:130,method:'template',lengthSource:'AniSkip'})};await player.loadIntro(player.generation);
+ assert.equal(player.intro().source,'fingerprint');assert.equal(player.intro().basis,'aniskip');
 });
 
 
@@ -938,8 +976,18 @@ test('Undo terminal ending can return from the next episode and is cleared when 
 test('Intro narrow search falls back to the original complete search rather than declaring a false negative',async()=>{
  const {IntroDetectorService}=load('src/app/core/intro-detector.service.ts');const detector=new IntroDetectorService({read:()=>({})},{},{}),passes=[];
  detector.detectPass=async(args,narrow)=>{passes.push(narrow);if(narrow)throw Error('outside narrow window');return {start:80,end:170};};
- const result=await detector.detect({anime:{},episode:{number:'1'},context:{},hint:{start:0,end:90},length:90});assert.equal(result.start,80);assert.equal(passes.join(','),'true,false');
+ const progress=[];const result=await detector.detect({anime:{},episode:{number:'1'},context:{},hint:{start:0,end:90},length:90,onProgress:message=>progress.push(message)});assert.equal(result.start,80);assert.equal(passes.join(','),'true,120,false');assert.deepEqual(progress,['Ricerca 1/3 · preparazione','Ricerca 2/3 · preparazione','Ricerca 3/3 · preparazione']);
+ passes.length=0;detector.detectPass=async(args,narrow)=>{passes.push(narrow);if(narrow===true)throw Error('outside narrow window');return {start:80,end:170};};await detector.detect({anime:{},episode:{number:'1'},context:{},hint:{start:0,end:90},length:90});assert.equal(passes.join(','),'true,120');
  passes.length=0;detector.detectPass=async(args,narrow)=>{passes.push(narrow);return {start:0,end:90};};await detector.detect({anime:{},episode:{number:'1'},context:{},hint:{start:0,end:90},length:90});assert.equal(passes.join(','),'true');
+});
+test('Audio fallback searches the complete opening window even with an incorrect AniSkip hint',async()=>{
+ const math=load('src/app/core/audio-fingerprint.ts'),mock={...math,compare:async()=>null,consensus:()=>null};
+ const {IntroDetectorService}=load('src/app/core/intro-detector.service.ts',{DOMException},{'./audio-fingerprint':mock});
+ const api={page:async()=>({episodes:[{number:'1'},{number:'2'},{number:'3'}]})},detector=new IntroDetectorService({read:()=>({})},api,{reference:async()=>({start:3,end:93})});
+ const calls=[];detector.templates=()=>[];detector.load=async(_anime,episode,_signal,hint,_progress,narrow)=>{calls.push({number:episode.number,hint,narrow});return {bytes:0};};
+ await assert.rejects(detector.detect({anime:{awSlug:'test'},episode:{number:'1'},context:{mal:10,duration:1440},length:90,hint:{start:3,end:93}}),/Intro non individuata/);
+ const current=calls.filter(call=>call.number==='1');assert.equal(current.length,3);assert.equal(current[0].hint.start,3);assert.equal(current[0].narrow,true);assert.equal(current[1].narrow,120);assert.equal(current[2].hint,null);assert.equal(current[2].narrow,false);
+ assert.ok(calls.filter(call=>call.narrow===false).every(call=>call.hint===null));
 });
 
 test('A verified ending fingerprint needs only the current episode and a narrow audio window',async()=>{
@@ -1186,13 +1234,46 @@ test('Home shuffle updates its seed with the displayed results and preserves the
  const source=readFileSync('src/app/core/app-facade.service.ts','utf8');
  const method=source.slice(source.indexOf(' async shuffleHomeDiscover(){'),source.indexOf(' private async load('));
  const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const context={exports:{},Math};vm.runInNewContext(js,context);
+ const context={exports:{},Math,diverseHomeDiscovery:load('src/app/core/home-discovery.ts').diverseHomeDiscovery};vm.runInNewContext(js,context);
  const signal=value=>Object.assign(()=>value,{set:next=>value=next});
  const fixture=new context.exports.Fixture();let fail=false;
  Object.assign(fixture,{seq:1,homeDiscoverRequest:0,homeDiscoverBusy:signal(false),homeDiscoverMessage:signal(''),homeDiscoverFilters:signal({}),homeDiscover:signal([]),catalogProgress:{page:async()=>{if(fail)throw Error('offline');return {records:[{id:8}]};}}});
  await fixture.shuffleHomeDiscover();const seed=fixture.homeDiscoverFilters().randomSeed;
  assert.equal(fixture.homeDiscoverFilters().order,'random');assert.equal(fixture.homeDiscover()[0].id,8);assert.equal(fixture.homeDiscoverBusy(),false);
  fail=true;await fixture.shuffleHomeDiscover();assert.equal(fixture.homeDiscoverFilters().randomSeed,seed);assert.equal(fixture.homeDiscover()[0].id,8);assert.match(fixture.homeDiscoverMessage(),/Riprova/);
+});
+
+test('Home discovery keeps series and audio editions distinct while favoring fresh titles',()=>{
+ const {diverseHomeDiscovery,sameDiscoverySeries}=load('src/app/core/home-discovery.ts');
+ const naruto={id:1,mal_id:10,title:'Naruto'},narutoDub={id:2,mal_id:10,title:'Naruto (ITA)',dub:1},
+  season={id:3,mal_id:11,title:'Naruto Season 2'},other={id:4,title:'Boruto'},
+  anime={id:5,title:'Shingeki no Kyojin',title_eng:'Attack on Titan'},alias={id:6,title:'Attack on Titan (SUB ITA)'},
+  unrelated={id:7,title:'Naruto SD'};
+ assert.equal(sameDiscoverySeries(naruto,narutoDub),true);assert.equal(sameDiscoverySeries(naruto,season),true);
+ assert.equal(sameDiscoverySeries(anime,alias),true);assert.equal(sameDiscoverySeries(naruto,other),false);assert.equal(sameDiscoverySeries(naruto,unrelated),false);
+ const chosen=diverseHomeDiscovery([naruto,narutoDub,season,other,anime,alias,unrelated],[naruto],20);
+ assert.deepEqual(Array.from(chosen,x=>x.id),[4,5,7,1]);
+});
+
+test('Home shuffle samples distant catalog batches and keeps the same selection seed',async()=>{
+ const source=readFileSync('src/app/core/app-facade.service.ts','utf8');
+ const method=source.slice(source.indexOf(' async shuffleHomeDiscover(){'),source.indexOf(' private async load('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{},Math,diverseHomeDiscovery:load('src/app/core/home-discovery.ts').diverseHomeDiscovery};vm.runInNewContext(js,context);
+ const signal=value=>Object.assign(()=>value,{set:next=>value=next}),fixture=new context.exports.Fixture(),calls=[];
+ const batch=(offset)=>Array.from({length:30},(_,i)=>({id:offset+i+1,title:'Serie '+(offset+i+1)}));
+ Object.assign(fixture,{seq:1,homeDiscoverRequest:0,homeDiscoverBusy:signal(false),homeDiscoverMessage:signal(''),homeDiscoverFilters:signal({}),homeDiscover:signal(batch(0).slice(0,10)),catalogProgress:{page:async(filters,offset)=>{calls.push({offset,seed:filters.randomSeed});return {records:batch(offset),tot:1000,hasMore:true};}}});
+ await fixture.shuffleHomeDiscover();assert.deepEqual(calls.map(x=>x.offset),[0,30,120]);assert.ok(calls.every(x=>x.seed===fixture.homeDiscoverFilters().randomSeed));
+ assert.equal(fixture.homeDiscover().length,20);assert.ok(fixture.homeDiscover().every(x=>x.id>10));assert.ok(fixture.homeDiscover().some(x=>x.id>120));assert.ok(fixture.homeDiscover().some(x=>x.id>30&&x.id<=60));
+});
+
+test('Home shuffle retains successful results when a supplemental batch fails',async()=>{
+ const source=readFileSync('src/app/core/app-facade.service.ts','utf8');const method=source.slice(source.indexOf(' async shuffleHomeDiscover(){'),source.indexOf(' private async load('));
+ const js=ts.transpileModule('class Fixture {'+method+'}\nexports.Fixture=Fixture;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={exports:{},Math,diverseHomeDiscovery:load('src/app/core/home-discovery.ts').diverseHomeDiscovery};vm.runInNewContext(js,context);
+ const signal=value=>Object.assign(()=>value,{set:next=>value=next}),fixture=new context.exports.Fixture();
+ Object.assign(fixture,{seq:1,homeDiscoverRequest:0,homeDiscoverBusy:signal(false),homeDiscoverMessage:signal(''),homeDiscoverFilters:signal({}),homeDiscover:signal([]),catalogProgress:{page:async(_filters,offset)=>{if(offset)throw Error('offline');return {records:Array.from({length:30},(_,i)=>({id:i+1,title:'Serie '+i})),tot:1000,hasMore:true};}}});
+ await fixture.shuffleHomeDiscover();assert.equal(fixture.homeDiscover().length,20);assert.equal(fixture.homeDiscoverMessage(),'');
 });
 
 test('Personal list supports included and excluded genres and minimum personal score',()=>{

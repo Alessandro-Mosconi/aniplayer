@@ -7,6 +7,7 @@ import {RemoteService} from '../core/remote.service';
 import {PipService} from '../core/pip.service';
 import {ExtraSegment} from '../core/intro.service';
 import {PlayerIconComponent} from './player-icon.component';
+import {skipOrigin} from '../core/skip-origin';
 @Component({selector:'app-player',standalone:true,imports:[CommonModule,FormsModule,AnimeLoaderComponent,PlayerIconComponent],templateUrl:'./player.component.html'})
 export class PlayerComponent implements AfterViewInit,OnDestroy {
  readonly p=inject(PlaybackService);readonly remote=inject(RemoteService);
@@ -17,14 +18,16 @@ export class PlayerComponent implements AfterViewInit,OnDestroy {
   const key=this.selectedInterval(),labels={opening:'Sigla iniziale',recap:'Riassunto',ending:'Sigla finale'};
   const actual=key==='opening'?this.p.intro():key==='recap'?this.p.recap():this.p.ending(),proposal=this.p.skipProposals()[key];
   const diagnostic=key==='opening'?null:this.p.skipDetails()[key];
-  const reference=diagnostic?.reference||proposal,interval=actual||proposal;
+  const reference=diagnostic?.reference||proposal||(actual?.source==='aniskip'?actual:null);
   const format=(v:{start:number;end:number}|null|undefined)=>v?this.clock(v.start)+'–'+this.clock(v.end):'--';
   const source=actual?.source;
-  const state=diagnostic?.state==='conflict'?'Intervallo in conflitto':source==='local'?'Correzione manuale':source==='audio'||source==='fingerprint'?'Verificato con audio':actual?(diagnostic?.state==='aligned'?'AniSkip riallineato':'AniSkip compatibile'):proposal?'Proposta AniSkip':'Intervallo non disponibile';
+  const state=diagnostic?.state==='conflict'?'Intervallo in conflitto':skipOrigin(actual||proposal,!actual&&!!proposal,diagnostic?.state==='aligned').label;
   const analyzing=key==='ending'?this.p.endingAnalyzing():this.p.introAnalyzing();
-  const reason=source==='audio'||source==='fingerprint'?'Questo intervallo è stato riconosciuto direttamente con il confronto audio.':source==='local'?'Viene usata la correzione salvata per questa versione.':diagnostic?.reason||(analyzing?'Analisi audio in corso; fino alla conferma viene proposto AniSkip.':proposal?'I tempi AniSkip non sono ancora confermati per questa versione del video.':'Il servizio non ha fornito un intervallo utilizzabile.');
-  const offset=diagnostic?.offset;
-  return {label:labels[key],state,reference:format(reference),current:diagnostic?.state==='conflict'?'Salto sospeso':format(interval),offset:offset===undefined?'--':(offset>=0?'+':'')+offset.toFixed(1)+' s',reason,progress:analyzing};
+  const audioState=key==='opening'?this.p.introAudioState():null;
+  const reason=audioState==='not-found'?'Nessuna corrispondenza audio trovata. AniSkip resta disponibile.':actual?.basis==='aniskip'?'Posizione riconosciuta con audio usando la durata AniSkip.':source==='audio'||source==='fingerprint'?'Questo intervallo è stato riconosciuto direttamente con il confronto audio.':source==='local'?'Viene usata la correzione salvata per questa versione.':diagnostic?.reason||(analyzing?'Analisi audio in corso; fino alla conferma viene proposto AniSkip.':proposal?'I tempi AniSkip non sono ancora confermati per questa versione del video.':'Il servizio non ha fornito un intervallo utilizzabile.');
+  const offset=key==='opening'&&reference&&actual&&(source==='audio'||source==='fingerprint')&&Math.abs((actual.end-actual.start)-(reference.end-reference.start))<=2?actual.start-reference.start:diagnostic?.offset;
+  const current=diagnostic?.state==='conflict'?'Salto sospeso':audioState==='not-found'?'Non trovata':audioState==='searching'?'In verifica':actual&&(source==='audio'||source==='fingerprint'||source==='local'||diagnostic?.state==='aligned')?format(actual):'Non verificata';
+  return {label:labels[key],state,reference:format(reference),current,offsetLabel:key==='opening'?'Differenza rilevata':'Offset applicato',offset:offset===undefined?'--':(offset>=0?'+':'')+offset.toFixed(1)+' s',reason,progress:analyzing?((key==='ending'?this.p.endingStatus():this.p.introStatus())||'Analisi in corso…'):''};
  });
  explainInterval(key:string){if(!['opening','recap','ending'].includes(key))return;this.selectedInterval.set(key as 'opening'|'recap'|'ending');this.p.selectMenu.set('intervals');this.p.showControls();setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-interval-close]')));}
  closeInterval(){const key=this.selectedInterval();this.p.selectMenu.set(null);setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-interval="'+key+'"]')));}
@@ -43,11 +46,11 @@ export class PlayerComponent implements AfterViewInit,OnDestroy {
    {key:'ending',icon:'♫↓',label:'Sigla finale',interval:this.p.ending(),proposal:proposals.ending,analyzing:this.p.skipLoading()||this.p.endingAnalyzing(),detail:this.p.endingStatus()}
   ].map(item=>{
    const interval=item.interval||item.proposal,provisional=!item.interval&&!!item.proposal;
-   const source=interval?.source,mark=source==='audio'||source==='fingerprint'?'✓':source==='local'?'✎':interval?(provisional?'A?':'A'):'';
+   const aligned=item.key!=='opening'&&this.p.skipDetails()[item.key as 'recap'|'ending']?.state==='aligned';
+   const origin=skipOrigin(interval,provisional,aligned),mark=origin.mark;
    const times=interval?this.clock(interval.start)+'–'+this.clock(interval.end):'--';
-   const origin=provisional?'Proposta AniSkip, da allineare':source==='aniskip'?'AniSkip compatibile':source==='local'?'Correzione manuale':interval?'Verificato con audio':'Intervallo non disponibile';
    const conflict=item.key!=='opening'&&this.p.skipDetails()[item.key as 'recap'|'ending']?.state==='conflict';
-   return {...item,interval,provisional,mark:conflict?'!':mark,times,title:item.label+': '+times+'. '+(conflict?'Intervallo in conflitto.':origin)+'. '+item.detail};
+   return {...item,interval,provisional,mark:conflict?'!':mark,times,title:item.label+': '+times+'. '+(conflict?'Intervallo in conflitto.':origin.label)+'. '+item.detail};
   });
  });
  @ViewChild('skipIntroButton')set skipButton(button:ElementRef<HTMLButtonElement>|undefined){if(button)queueMicrotask(()=>{if(button.nativeElement.isConnected&&!this.p.skipQuiet()&&!this.p.selectMenu()&&this.p.scrub()===null)this.remote.focus(button.nativeElement);});}

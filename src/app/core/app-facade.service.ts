@@ -14,6 +14,8 @@ import {CatalogProgressService} from './catalog-progress.service';
 import {MalLibraryService} from './mal-library.service';
 import {NextSeasonService} from './next-season.service';
 import {pictureInPictureActive} from './picture-in-picture';
+import {shouldContinueWatching} from './continue-watching';
+import {diverseHomeDiscovery} from './home-discovery';
 @Injectable({providedIn:'root'})
 export class AppFacadeService {
  readonly nav=inject(NavigationService);readonly catalog=inject(CatalogService);readonly animeworld=inject(AnimeWorldService);
@@ -37,6 +39,7 @@ export class AppFacadeService {
  readonly newFavoriteEpisodeCount=computed(()=>this.allFavorites().filter(anime=>this.hasNewEpisode(anime)).length);
  readonly selectLanguage=signal<'auto'|'dub'|'sub'>('auto');readonly allFavorites=computed(()=>Object.values(this.storage.favorites()));
  readonly allHistory=computed(()=>Object.values(this.storage.history()).sort((a,b)=>b.updated-a.updated));
+ readonly continueWatching=computed(()=>this.storage.settings()['historyEnabled']===false?[]:this.allHistory().filter(row=>!this.storage.hiddenFromContinue()[String(row.anime.id)]&&shouldContinueWatching(row,Number(this.latestUpdateFor(row.anime)?.lastEpisode)||0,episode=>this.lib.isSeen(row.anime,episode))));
  readonly viewTitle=animeTitle;
  genreText(anime:Anime){const g=anime.genres as any;return Array.isArray(g)?g.map(x=>typeof x==='string'?x:x.name||'').filter(Boolean).join(' / '):typeof g==='string'?g:'';}
  private seq=0;private episodeUpdateRequest=0; catalogFocusHint:'search'|'results'|'filters'|null=null; catalogPreviousOrder:string|false=false;
@@ -46,6 +49,7 @@ export class AppFacadeService {
   this.playback.onClosed=()=>this.remote.restore();
   this.playback.audioVersionsProvider=()=>this.audioMatches();
   this.playback.seasonResolver=(detail,episode)=>this.nextSeasonService.resolve(detail,episode);
+  this.playback.seasonNumberResolver=anime=>this.nextSeasonService.seasonNumber(anime);
   this.playback.onSeasonChanged=detail=>this.nav.replace('detail',{anime:detail.anime});
   this.playback.onAudioChanged=detail=>{if(String(this.details()?.anime.id)===String(detail.anime.id))this.details.set({...detail,related:this.details()?.related||detail.related});};
   effect(()=>{const route=this.nav.route();untracked(()=>void this.load(route));});
@@ -74,7 +78,21 @@ export class AppFacadeService {
   if(this.homeDiscoverBusy())return;
   const seq=this.seq,request=++this.homeDiscoverRequest,discoverFilters:CatalogFilters={order:'random',randomSeed:Math.floor(Math.random()*4294967296)};
   this.homeDiscoverBusy.set(true);this.homeDiscoverMessage.set('');
-  try{const result=await this.catalogProgress.page({...discoverFilters,title:false as any},0);if(seq===this.seq&&result.records.length){this.homeDiscoverFilters.set(discoverFilters);this.homeDiscover.set(result.records);}else if(seq===this.seq)this.homeDiscoverMessage.set('Nessun anime trovato.');}
+  try{
+   const query={...discoverFilters,title:false as any},result=await this.catalogProgress.page(query,0);
+   if(seq!==this.seq)return;
+   const batches=[result.records];
+   if(result.hasMore&&result.records.length){
+    // Draw from two independently shuffled groups of alphabetical catalog pages.
+    // The catalog service limits each network batch to four concurrent requests.
+    const offsets=result.tot>120?[30,120]:[30];
+    const extra=await Promise.allSettled(offsets.map(offset=>this.catalogProgress.page(query,offset)));
+    for(const page of extra)if(page.status==='fulfilled'&&page.value.records.length)batches.push(page.value.records);
+   }
+   const candidates:Anime[]=[];for(let index=0;index<30;index++)for(const batch of batches)if(batch[index])candidates.push(batch[index]);
+   const records=diverseHomeDiscovery(candidates,this.homeDiscover());
+   if(seq===this.seq&&records.length){this.homeDiscoverFilters.set(discoverFilters);this.homeDiscover.set(records);}else if(seq===this.seq)this.homeDiscoverMessage.set('Nessun anime trovato.');
+  }
   catch{if(seq===this.seq)this.homeDiscoverMessage.set('Impossibile mescolare. Riprova.');}
   finally{if(request===this.homeDiscoverRequest)this.homeDiscoverBusy.set(false);}
  }
@@ -93,7 +111,7 @@ export class AppFacadeService {
    if(route.name==='home'){
     const [h,c]=await Promise.allSettled([this.catalog.home(),this.catalog.catalog({},0)]);
     if(seq!==this.seq)return;
-    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.mergeEpisodeUpdates(h.value.recent);void this.refreshEpisodeUpdates();}this.homeDiscoverFilters.set({});if(c.status==='fulfilled'){this.cards.set(c.value.records);this.homeDiscover.set(c.value.records);this.total.set(c.value.tot);}else this.homeDiscover.set([]);
+    if(h.status==='fulfilled'){this.featured.set(h.value.featured);this.recent.set(h.value.recent);this.mergeEpisodeUpdates(h.value.recent);void this.refreshEpisodeUpdates();}if(c.status==='fulfilled'){this.cards.set(c.value.records);this.total.set(c.value.tot);}
     this.homeDiscoverBusy.set(false);void this.shuffleHomeDiscover();
     if(h.status==='rejected'&&c.status==='rejected')throw h.reason;
    }else {this.cards.set([]);this.total.set(0);this.catalogHasMore.set(false);this.catalogTotalExact.set(true);const query={...this.filters(),title:this.searchText()||false as any},offset=this.page()*30;const result=await this.catalogProgress.page(query,offset);if(seq!==this.seq)return;this.cards.set(result.records);this.total.set(result.tot);this.catalogTotalExact.set(result.exact);this.catalogHasMore.set(result.hasMore);if(query.minScore&&!result.exact&&result.hasMore&&result.records.length<30)void this.continueScoreScan(seq,query,offset);}

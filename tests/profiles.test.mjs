@@ -112,3 +112,34 @@ test('TinyTools suggestions are transformed and checked against existing profile
  assert.equal(p.tinyToolsProfileName({data:['bad123','<script>-tag','a'.repeat(33)+'-bird']},existing),null);
  assert.equal(p.tinyToolsProfileName({data:null},existing),null);
 });
+test('disabling history preserves previous data while watched episodes remain tracked',()=>{
+ const env=setup(),s=new env.Storage(),anime={id:10,mal_id:100},first={id:1,number:'1'},last={id:2,number:'2'};
+ s.progress(anime,first,500,1000,false,[first,last]);assert.equal(s.history()['10'].availableThrough,2);assert.equal(s.history()['10'].availableEpisodes.length,2);
+ s.setSetting('historyEnabled',false);const before=env.rows.get('autv.history');
+ s.progress(anime,last,900,1000,true,[first,last]);assert.equal(env.rows.get('autv.history'),before);assert.equal(s.history()['10'].episode.id,1);assert.equal(s.isSeen(anime,last),true);
+ s.setSetting('historyEnabled',true);s.progress(anime,last,900,1000,true,[first,last]);assert.equal(s.history()['10'].episode.id,2);assert.equal(s.history()['10'].availableThrough,2);
+});
+test('history preference is isolated per profile',()=>{
+ const env=setup(),first=new env.Storage();first.setSetting('historyEnabled',false);
+ const profile=first.saveProfile('Altro','generated:0');first.selectProfile(profile.id);
+ const second=new env.Storage();assert.equal(second.settings().historyEnabled,true);second.setSetting('historyEnabled',false);
+ second.selectProfile('default');assert.equal(new env.Storage().settings().historyEnabled,false);
+});
+test('removing from continue keeps history and resumes when playback is recorded again',()=>{
+ const env=setup(),s=new env.Storage(),anime={id:10,mal_id:100},ep={id:3,number:'3'};
+ s.progress(anime,ep,300,1000);s.hideFromContinue(anime);
+ assert.equal(s.hiddenFromContinue()['10'],true);assert.equal(s.history()['10'].position,300);
+ assert.equal(new env.Storage().hiddenFromContinue()['10'],true);
+ s.setSetting('historyEnabled',false);s.progress(anime,ep,450,1000);assert.equal(s.hiddenFromContinue()['10'],true);assert.equal(s.history()['10'].position,300);
+ s.setSetting('historyEnabled',true);s.progress(anime,ep,500,1000);assert.equal(s.hiddenFromContinue()['10'],undefined);assert.equal(s.history()['10'].position,500);
+});
+test('hiding continue entries is profile-specific and history deletion clears the flag',()=>{
+ const env=setup(),first=new env.Storage(),anime={id:10},ep={id:3,number:'3'};first.progress(anime,ep,300,1000);first.hideFromContinue(anime);
+ const other=first.saveProfile('Secondo','generated:0');first.selectProfile(other.id);const second=new env.Storage();second.progress(anime,ep,200,1000);
+ assert.equal(second.hiddenFromContinue()['10'],undefined);second.hideFromContinue(anime);second.removeFromHistory(anime);assert.equal(second.hiddenFromContinue()['10'],undefined);
+ second.selectProfile('default');assert.equal(new env.Storage().hiddenFromContinue()['10'],true);
+});
+test('failed continue removal does not change the in-memory state or history',()=>{
+ const env=setup(),s=new env.Storage(),anime={id:10};s.progress(anime,{id:1,number:'1'},100,1000);env.fail();
+ assert.throws(()=>s.hideFromContinue(anime),/Impossibile/);assert.equal(s.hiddenFromContinue()['10'],undefined);assert.equal(s.history()['10'].position,100);
+});

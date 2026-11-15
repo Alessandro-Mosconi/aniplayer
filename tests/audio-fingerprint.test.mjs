@@ -16,6 +16,11 @@ test('full diagonal match finds a shifted 50s repeated audio region',async()=>{
  assert.ok(match, 'expected repeated opening');assert.ok(Math.abs(match.start-10)<1.5);assert.ok(Math.abs(match.otherStart-17.5)<1.5);
  assert.ok(match.score>.75);assert.ok(match.temporalContrast>.12);
 });
+test('a 90-second opening starting at 5:30 can be matched in the extended window',async()=>{
+ const song=randomFrames(360,501),left=spectrum([...randomFrames(1320,502),...song,...randomFrames(240,503)]),right=spectrum([...randomFrames(1280,504),...song,...randomFrames(280,505)]);
+ const match=await compare(left,right,90);
+ assert.ok(match);assert.ok(Math.abs(match.start-330)<1.5);assert.ok(Math.abs(match.otherStart-320)<1.5);
+});
 test('unrelated audio cannot establish consensus or a match',async()=>{
  const left=spectrum(randomFrames(220,71)),right=spectrum(randomFrames(220,303));
  assert.equal(await compare(left,right,40),null);
@@ -36,7 +41,8 @@ test('repeated segments can be inferred without AniSkip, but short jingles canno
 });
 test('fingerprint window validates hint length without trusting AniSkip offset',()=>{
  assert.deepEqual(searchWindow({start:180,end:270}),{start:90,end:360});
- assert.deepEqual(searchWindow({start:50,end:360}),{start:0,end:360});
+ assert.deepEqual(searchWindow({start:50,end:360}),{start:0,end:480});
+ assert.ok(searchWindow(null).end>=330+90,'a 90-second opening starting at 5:30 fits in the search window');
 });
 
 test('Ending matches retain absolute tail timestamps and stop before post-credit audio',async()=>{

@@ -10,10 +10,13 @@ import {FormsModule} from '@angular/forms';
 import {MalPublicService} from '../../core/mal-public.service';
 import {ExplorationService} from '../../core/exploration.service';
 import {MalLibraryService} from '../../core/mal-library.service';
-@Component({selector:'app-settings-page',standalone:true,imports:[TvSwitchComponent,CommonModule,FormsModule],templateUrl:'./settings.page.html',styleUrl:'./settings.page.scss'})
+import {OpticalExportComponent} from '../../components/optical-export.component';
+@Component({selector:'app-settings-page',standalone:true,imports:[TvSwitchComponent,CommonModule,FormsModule,OpticalExportComponent],templateUrl:'./settings.page.html',styleUrl:'./settings.page.scss'})
 export class SettingsPage extends PageBase {
   readonly sidebar=inject(SidebarService);
   readonly layout=inject(LayoutService);
+  readonly opticalExport=signal(false);
+  closeOpticalExport(){this.opticalExport.set(false);setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-optical-open]')));}
   readonly category=this.vm.settingsCategory;
   readonly categories=[{id:'general',label:'Generali'},{id:'catalog',label:'Catalogo'},{id:'badges',label:'Badge'},{id:'playback',label:'Riproduzione'},{id:'mal',label:'MyAnimeList'},{id:'data',label:'Dati e rete'}] as const;
   readonly badgeOptions=[{id:'newEpisodes',label:'Nuovi episodi (EP+)'},{id:'allSeen',label:'Tutti gli episodi visti'},{id:'favorites',label:'Preferiti'},{id:'audio',label:'Audio italiano (ITA)'},{id:'aniskip',label:'Disponibilità AniSkip'},{id:'malStatus',label:'Stato nella lista MAL'},{id:'menuUpdates',label:'Novità nel menu Preferiti'}] as const;
@@ -31,7 +34,7 @@ export class SettingsPage extends PageBase {
   openMal(mode:'public'|'account'){this.nav.open('mal',{filters:{malMode:mode}});}
   clearHistory(){
     if(!confirm('Cancellare cronologia, episodi visti e copertura locale?'))return;
-    for(const key of ['history','seen','watchEvents','watchCoverage','seenResets'])this.storage.write(key,{});
-    this.storage.history.set({});this.storage.seen.set({});this.storage.watchEvents.set({});this.storage.watchCoverage.set({});this.storage.seenResets.set({});
+    for(const key of ['history','hiddenFromContinue','seen','watchEvents','watchCoverage','seenResets'])this.storage.write(key,{});
+    this.storage.history.set({});this.storage.hiddenFromContinue.set({});this.storage.seen.set({});this.storage.watchEvents.set({});this.storage.watchCoverage.set({});this.storage.seenResets.set({});
   }
 }

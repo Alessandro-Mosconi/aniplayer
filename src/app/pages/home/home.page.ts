@@ -4,10 +4,12 @@ import {PageBase} from '../../core/page-base';
 import {AnimeCardComponent} from '../../components/anime-card.component';
 import {Anime} from '../../core/models';
 import {ExplorationService} from '../../core/exploration.service';
-@Component({selector:'app-home-page',standalone:true,imports:[CommonModule,AnimeCardComponent],templateUrl:'./home.page.html',styleUrl:'./home.page.scss'})
+import {AnimeLoaderComponent} from '../../components/anime-loader.component';
+@Component({selector:'app-home-page',standalone:true,imports:[CommonModule,AnimeCardComponent,AnimeLoaderComponent],templateUrl:'./home.page.html',styleUrl:'./home.page.scss'})
 export class HomePage extends PageBase {
  readonly exploration=inject(ExplorationService);
  readonly discover=this.vm.homeDiscover;
+ readonly continueWatching=this.vm.continueWatching;
  readonly discoverBusy=this.vm.homeDiscoverBusy;readonly discoverMessage=this.vm.homeDiscoverMessage;
  shuffleDiscover(){void this.vm.shuffleHomeDiscover();}
  openDiscover(){this.vm.catalogPreviousOrder=false;this.filters.set({...this.vm.homeDiscoverFilters()});this.searchText.set('');this.page.set(0);this.vm.catalogFocusHint='results';this.nav.open('catalog');}

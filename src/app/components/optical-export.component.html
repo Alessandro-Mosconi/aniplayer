@@ -1,0 +1,23 @@
+<div class="optical-overlay">
+ <section class="optical-dialog" data-tv-dialog role="dialog" aria-modal="true" aria-labelledby="optical-title">
+  <div class="optical-copy"><p class="eyebrow">ESPORTA METADATI</p><h2 id="optical-title">Trasferisci al telefono</h2>
+   @if(!streaming()){
+    <p>Apri il ricevitore sul telefono, premi “Start camera” e consenti l’accesso alla fotocamera.</p>
+    <p class="optical-url">decimen.app/receive/</p>
+    <p>Il file contiene i metadati dei salti e le impronte condivisi tra i profili.</p>
+   }@else{
+    <p>Inquadra il codice animato con il ricevitore e tieni fermo il telefono fino al completamento.</p>
+    <p class="optical-status">Prima sequenza inviata: {{frames()>totalFrames()?totalFrames():frames()}} / {{totalFrames()}}@if(paused()){ · In pausa}</p>
+    <progress [value]="frames()>totalFrames()?totalFrames():frames()" [max]="totalFrames()" aria-label="Avanzamento della prima sequenza trasmessa"></progress>
+    <p>La barra indica i codici mostrati dalla TV, non quelli letti dal telefono. La trasmissione continua per recuperare eventuali codici persi.</p>
+    <p>Quando il telefono conferma la ricezione, premi <strong>Ho ricevuto il file</strong>.</p>
+   }
+   @if(error()){<p class="optical-error" role="alert">{{error()}}</p>}
+   <div class="optical-actions" data-focus-row>
+    @if(!streaming()){<button class="primary" data-optical-start (click)="start()">Mostra metadati</button>}@else{<button data-optical-pause (click)="toggle()">{{paused()?'Riprendi':'Pausa'}}</button>}
+    <button data-dialog-cancel (click)="close()">{{streaming()?'Ho ricevuto il file':'Chiudi'}}</button>
+   </div>
+  </div>
+  <div class="optical-visual">@if(streaming()){<canvas #canvas class="optical-code" role="img" aria-label="Codice animato del backup"></canvas>}@else{<app-qr-code [value]="receiver" label="Apri il ricevitore sul telefono" />}</div>
+ </section>
+</div>

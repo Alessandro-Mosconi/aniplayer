@@ -21,6 +21,8 @@ export class PlaybackService {
  onAudioChanged:((detail:Detail)=>void)|null=null;
  onSeasonChanged:((detail:Detail)=>void)|null=null;
  seasonResolver:((detail:Detail,episode:Episode)=>Promise<NextSeason|null>)|null=null;
+ seasonNumberResolver:((anime:Anime)=>Promise<number|null>)|null=null;
+ readonly seasonNumber=signal<number|null>(null);
  readonly nextSeason=signal<NextSeason|null>(null);
  audioVersionsProvider:(()=>Detail[])|null=null;
  private audioSwitchRequest=0;
@@ -40,6 +42,7 @@ export class PlaybackService {
  readonly skipQuiet=signal(false);private skipQuietTimer:ReturnType<typeof setTimeout>|undefined;
  readonly endingSkipped=signal(false);private openingSkipDisabled=false;
  readonly introAnalyzing=signal(false);readonly endingAnalyzing=signal(false);readonly skipLoading=signal(false);
+ readonly introAudioState=signal<'unavailable'|'searching'|'found'|'not-found'>('unavailable');
  readonly skipDetails=signal<{recap:SkipAlignment|null;ending:SkipAlignment|null}>({recap:null,ending:null});
  readonly skipUndoAvailable=signal(false);readonly skipNotice=signal('');private skipUndo:SkipUndo|null=null;private skipUndoTimer:ReturnType<typeof setTimeout>|undefined;
  private endingAbort:AbortController|null=null;private endingAudioTried=false;
@@ -56,14 +59,16 @@ export class PlaybackService {
  constructor(private data:AnimeWorldService,private local:StorageService,private tv:TizenService,private introService:IntroService,private remote:RemoteService,private mal:MalService,private detector:IntroDetectorService,private endingDetector:EndingDetectorService){}
  attach(video:HTMLVideoElement|null,object:HTMLElement|null){if(video)this.video=video;if(object)this.object=object;}
  private patch(partial:Partial<PlaybackState>){this.state.update(s=>({...s,...partial}));}
- async open(detail:Detail,episode:Episode,options:{position?:number;paused?:boolean;url?:string;versions?:Detail[]}={}){if(options.position===undefined){++this.audioSwitchRequest;this.audioSwitching.set(false);}this.close(false);const id=++this.generation;this.detail=detail;this.episode=episode;this.audioLanguage.set(Number(detail.anime.dub)?'dub':'sub');this.audioOptions.set(options.versions||[]);this.audioNotice.set('');this.lastTick=0;this.watchedSeconds=0;this.finishedOnce=false;this.playbackSegments=[];this.lastSave=0;this.tracker=new WatchProgress(this.local.watchCoverage()?.[this.local.watchKey(detail.anime,episode)]);this.autoMarked=this.local.isSeen(detail.anime,episode);this.scrub.set(null);this.intro.set(null);this.ending.set(null);this.introStatus.set('');this.aniSkipDuration.set(null);this.selectMenu.set(null);
+ async open(detail:Detail,episode:Episode,options:{position?:number;paused?:boolean;url?:string;versions?:Detail[]}={}){if(options.position===undefined){++this.audioSwitchRequest;this.audioSwitching.set(false);}this.close(false);const id=++this.generation;this.detail=detail;this.episode=episode;this.audioLanguage.set(Number(detail.anime.dub)?'dub':'sub');this.audioOptions.set(options.versions||[]);this.audioNotice.set('');this.lastTick=0;this.watchedSeconds=0;this.finishedOnce=false;this.playbackSegments=[];this.lastSave=0;this.tracker=new WatchProgress(this.local.settings()['historyEnabled']!==false?this.local.watchCoverage()?.[this.local.watchKey(detail.anime,episode)]:undefined);this.autoMarked=this.local.isSeen(detail.anime,episode);this.scrub.set(null);this.intro.set(null);this.ending.set(null);this.introStatus.set('');this.aniSkipDuration.set(null);this.selectMenu.set(null);
   this.setTransparentVideoLayer(true);this.patch({...initial,opened:true,title:detail.anime.title_eng||detail.anime.title||'Anime',episode:Number(episode.number),buffering:true});this.showControls();
+  this.seasonNumber.set(null);
+  if(this.seasonNumberResolver)void this.seasonNumberResolver(detail.anime).then(number=>{if(this.generation===id&&this.detail===detail&&this.state().opened)this.seasonNumber.set(number);}).catch(()=>{});
   this.introService.prefetch?.(detail.anime,episode);
   if(this.seasonResolver&&!this.currentNextEpisode&&!detail.episodes.some(item=>item.public!==0&&Number(item.number)>Number(episode.number))){
    void this.seasonResolver(detail,episode).then(season=>{if(this.generation===id&&this.detail===detail&&this.episode===episode&&this.state().opened)this.nextSeason.set(season);}).catch(()=>{});
   }
   try{const url=options.url||await this.data.source(detail.anime,episode);if(this.generation!==id)return;this.source=url;this.audioSources.set([{label:'AnimeWorld · MP4',url}]);
-   const saved=this.local.history()[String(detail.anime.id)];const resume=options.position??(this.local.settings()['resume']!==false&&saved&&String(saved.episode.number)===String(episode.number)&&!saved.completed?saved.position:0);
+   const saved=this.local.history()[String(detail.anime.id)];const resume=options.position??(this.local.settings()['historyEnabled']!==false&&this.local.settings()['resume']!==false&&saved&&String(saved.episode.number)===String(episode.number)&&!saved.completed?saved.position:0);
    await this.prepareWithConnectionRetry(url,resume,id,!!options.paused,options.position!==undefined);if(this.generation!==id)return;
    this.timer=setInterval(()=>this.save(),10000);
   }catch(e){if(id===this.generation)this.fail(e);}
@@ -183,7 +188,7 @@ export class PlaybackService {
   this.save(this.tracker.complete(s.position,this.ending()?.start));this.patch({playing:false});
   if(this.local.settings()['autonext']!==false&&this.nextEpisode){if(this.isNextSeason)this.requestNext();else void this.next();}
  }
- private save(completed=false){if(!this.detail||!this.episode||!this.state().duration)return;const s=this.state();const eligible=completed||this.tracker.complete(s.position,this.ending()?.start);const coverage={...this.local.watchCoverage(),[this.local.watchKey(this.detail.anime,this.episode)]:this.tracker.snapshot()};const bounded=Object.fromEntries(Object.entries(coverage).sort((a,b)=>(b[1].updated||0)-(a[1].updated||0)).slice(0,200));this.local.watchCoverage.set(bounded);this.local.write('watchCoverage',bounded);this.local.progress(this.detail.anime,this.episode,s.position,s.duration,eligible||this.autoMarked);if(eligible&&!this.autoMarked){this.autoMarked=true;this.mal.queue(this.detail.anime,this.episode);}this.lastSave=s.position;}
+ private save(completed=false){if(!this.detail||!this.episode||!this.state().duration)return;const s=this.state();const eligible=completed||this.tracker.complete(s.position,this.ending()?.start);if(this.local.settings()['historyEnabled']!==false){const coverage={...this.local.watchCoverage(),[this.local.watchKey(this.detail.anime,this.episode)]:this.tracker.snapshot()};const bounded=Object.fromEntries(Object.entries(coverage).sort((a,b)=>(b[1].updated||0)-(a[1].updated||0)).slice(0,200));this.local.watchCoverage.set(bounded);this.local.write('watchCoverage',bounded);}this.local.progress(this.detail.anime,this.episode,s.position,s.duration,eligible||this.autoMarked,this.detail.episodes);if(eligible&&!this.autoMarked){this.autoMarked=true;this.mal.queue(this.detail.anime,this.episode);}this.lastSave=s.position;}
  toggle(){this.tracker.interrupt();if(!this.state().opened)return;try{if(this.engine==='avplay'){const state=this.av.getState();if(state==='PLAYING'){this.av.pause();this.patch({playing:false});}else{this.av.play();this.patch({playing:true});}}else if(this.video){if(this.video.paused){this.video.play();this.patch({playing:true});}else{this.video.pause();this.patch({playing:false});}}}catch(e){this.fail(e);}this.showControls();}
  pause(){this.tracker.interrupt();try{if(this.engine==='avplay'&&this.av?.getState?.()==='PLAYING')this.av.pause();if(this.engine==='html5')this.video?.pause();}catch{}this.patch({playing:false});this.save();}
  seekBy(delta:number){this.seekTo(this.state().position+delta);}
@@ -193,6 +198,7 @@ export class PlaybackService {
  /** Original priority: per-episode manual correction > verified audio cache > new analysis. */
  private async loadIntro(generation:number){
   this.introAbort?.abort();this.introAbort=null;this.introAnalyzing.set(false);
+  this.introAudioState.set('unavailable');
   const detail=this.detail,episode=this.episode,duration=this.state().duration;
   if(!detail||!episode||!Number.isFinite(duration)||duration<=0)return;
   const ctx=this.introService.context(detail.anime,episode,duration);
@@ -205,7 +211,7 @@ export class PlaybackService {
   if(local){this.intro.set(local.state==='ready'?local.interval||null:null);this.introStatus.set(local.message);return;}
   if(this.local.settings()['introDetection']!==false){
    const cached=this.detector.saved(ctx,detail.anime,episode);
-   if(cached){this.intro.set({start:cached.start,end:cached.end,source:cached.method==='template'?'fingerprint':'audio'});this.introStatus.set('Sigla già verificata con confronto audio.');this.loadEnding(ctx,generation,this.intro()!);return;}
+   if(cached){this.introAudioState.set('found');this.intro.set({start:cached.start,end:cached.end,source:cached.method==='template'?'fingerprint':'audio',...(cached.lengthSource==='AniSkip'?{basis:'aniskip' as const}:{})});this.introStatus.set('Sigla già verificata con confronto audio.');this.loadEnding(ctx,generation,this.intro()!);return;}
   }
   this.introStatus.set('Verifica AniSkip…');
   const info=await this.introService.load(ctx);if(!same())return;
@@ -217,28 +223,28 @@ export class PlaybackService {
    this.introStatus.set(this.detector.supported()?info.message:'Decoder WebCodecs non disponibile: '+info.message);return;
   }
   const quick=info.state==='ready'?info.interval||null:null;
-  if(quick&&quick.start<=5){this.intro.set(quick);this.introStatus.set('Salto pronto da AniSkip.');return;}
   const reference=info.candidate||info.interval||null;
-  if(this.detector.notFound(ctx,detail.anime,episode)){this.intro.set(quick);this.introStatus.set('Nessuna intro confermata nella precedente analisi.');return;}
   const seconds=this.introService.skipLength(ctx,info),length=reference?reference.end-reference.start:seconds?.exactEpisode?seconds.seconds:null;
   const controller=new AbortController();this.introAbort=controller;
   this.introAnalyzing.set(true);
+  this.introAudioState.set('searching');
   const timer=setTimeout(()=>controller.abort(),120000);
   this.intro.set(quick);this.introStatus.set('Confronto audio tra episodi in corso…');
   try{
    const result=await this.detector.detect({anime:detail.anime,episode,context:ctx,length,hint:reference,signal:controller.signal,onProgress:message=>{if(same())this.introStatus.set(message);}});
    if(!same()||this.introService.local(ctx)||controller.signal.aborted)return;
-   this.intro.set({start:result.start,end:result.end,source:result.method==='template'?'fingerprint':'audio'});
+   this.introAudioState.set('found');this.intro.set({start:result.start,end:result.end,source:result.method==='template'?'fingerprint':'audio',...(result.lengthSource==='AniSkip'?{basis:'aniskip' as const}:{})});
    this.loadEnding(ctx,generation,this.intro()!);
    this.introStatus.set(result.method==='template'?'Intro verificata con impronta locale.':'Intro verificata confrontando due episodi.');
   }catch(e){if(!same()||this.introService.local(ctx))return;
    const message=e instanceof Error?e.message:String(e);
+   this.introAudioState.set(!controller.signal.aborted&&message.startsWith('Intro non individuata')?'not-found':'unavailable');
    // Do not mark a failure or transient CORS error as a negative result.
    if(message.startsWith('Intro non individuata')&&!controller.signal.aborted){
     try{this.detector.rememberNotFound(detail.anime,episode,ctx,reference);}catch{}
    }
    this.intro.set(quick);this.introStatus.set(controller.signal.aborted?'Analisi audio annullata.':'Intro non confermata: '+message);
-  }finally{clearTimeout(timer);if(this.introAbort===controller){this.introAbort=null;this.introAnalyzing.set(false);}}
+  }finally{clearTimeout(timer);if(this.introAbort===controller){this.introAbort=null;this.introAnalyzing.set(false);if(this.introAudioState()==='searching')this.introAudioState.set('unavailable');}}
  }
  private loadEnding(ctx:IntroContext,generation:number,detected?:IntroWindow){
   const request=++this.endingRequest;
@@ -283,11 +289,13 @@ export class PlaybackService {
  }
  disableIntro(){if(!this.detail||!this.episode)return;
   this.openingSkipDisabled=true;
+  this.introAudioState.set('unavailable');
   this.introAbort?.abort();this.introService.save(this.detail.anime,this.episode,this.state().duration,0,0,true);
   this.intro.set(null);this.introStatus.set('Salto intro disattivato per questo episodio.');
  }
  saveIntro(start:number,end:number){if(this.detail&&this.episode){
    this.openingSkipDisabled=false;
+   this.introAudioState.set('unavailable');
    this.introAbort?.abort();this.introService.save(this.detail.anime,this.episode,this.state().duration,start,end);
    this.intro.set({start,end,source:'local'});this.introStatus.set('Correzione locale salvata.');
  }}

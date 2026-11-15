@@ -64,7 +64,7 @@ Su Android puoi anche installare l’APK sperimentale usato per Android TV. [Ist
 ## Come si usa
 
 - **Telecomando:** usa le frecce per spostarti, **OK** per scegliere e **Return** per tornare indietro. Premi OK su un campo per scrivere.
-- **Home:** «Scopri gli anime» propone una selezione casuale. Usa **Mescola** per cambiarla o **Vedi tutti** per aprire la stessa sequenza nel catalogo.
+- **Home:** «Scopri gli anime» propone una selezione casuale da più parti del catalogo, privilegiando serie diverse e riducendo le ripetizioni tra un mescolamento e l'altro. Usa **Mescola** per cambiarla o **Vedi tutti** per aprire il catalogo con lo stesso ordinamento casuale: la striscia mostra una selezione diversificata di quel catalogo.
 - **Catalogo:** cerca per titolo o scegli filtri, generi e voto minimo, poi premi **Applica filtri**. Puoi ordinare per titolo, uscita dell’anime, popolarità o valutazione, anche in modo casuale. **Ultimi episodi** mostra invece gli anime presenti negli aggiornamenti di AnimeUnity, dal più recente. Nelle impostazioni puoi abilitare l’esclusione dei generi: premi OK su un genere per passare tra incluso, escluso e neutro.
 - **Esplora:** la funzione è sperimentale e disattivata per impostazione predefinita; puoi abilitarla nelle impostazioni. Mostra un anime alla volta: sulla scheda usa sinistra/destra per esprimere una preferenza, su per i preferiti, giù per saltare e OK per i dettagli. Return torna alla schermata precedente. Su telefono puoi fare swipe sulla copertina.
 - **Player:** riprendi gli episodi e, quando disponibili, salta riassunto, sigla iniziale o finale. Dopo un salto hai cinque secondi per annullarlo. I pulsanti `SUB`/`ITA` cambiano versione audio quando disponibili.
@@ -90,7 +90,7 @@ Per il collegamento tramite telefono e PC, avvia `npm run mal:relay` sul PC e se
 | `npm run dist` | Installa sulla Samsung configurata, con backup e ripristino dei dati. |
 | `npm run mal:relay` | Avvia temporaneamente il collegamento MAL tramite telefono. |
 
-Guide: [installazione, backup e risoluzione problemi](docs/GUIDA.md) · [piattaforme](docs/MULTIPLATFORM.md) · [login MAL](docs/MAL_LOGIN.md) · [riconoscimento audio](docs/INTRO_AUDIO.md) · [aggiornare gli screenshot](docs/screenshots/README.md).
+Guide: [installazione, backup e risoluzione problemi](docs/GUIDA.md) · [piattaforme](docs/MULTIPLATFORM.md) · [login MAL](docs/MAL_LOGIN.md) · [algoritmo dei salti e metadati](docs/ALGORITMO_SALTI.md) · [riconoscimento audio](docs/INTRO_AUDIO.md) · [aggiornare gli screenshot](docs/screenshots/README.md).
 
 ## Crediti e utilizzo
 
@@ -117,6 +117,8 @@ operazioni ancora in corso restano legate al profilo di origine.
 
 Preanalisi, fingerprint, rilevamenti e cache delle sigle restano condivisi.
 I profili sono salvati sul dispositivo: non sono account cloud.
+
+In Home, **Continua a guardare** esclude gli anime di cui è stato completato l'ultimo episodio disponibile; la cronologia li conserva. Dal dettaglio puoi rimuovere un titolo solo dalla striscia oppure dalla cronologia. In **Impostazioni → Dati e rete** puoi sospendere il salvataggio della cronologia per il profilo attivo. [Come funziona la cronologia](docs/GUIDA.md#cronologia-e-continua-a-guardare).
 
 Gli avatar usano l'API SVG DiceBear: il selettore carica tutti gli stili da
 `https://api.dicebear.com/10.x` e mostra quattro anteprime per stile. **Esplora**

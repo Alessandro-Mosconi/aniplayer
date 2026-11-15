@@ -4,7 +4,7 @@ import {Anime,Episode} from './models';
 import {StorageService} from './storage.service';
 import {ServiceEndpointsService,PUBLIC_SERVICE_DEFAULTS} from './service-endpoints.service';
 export type IntroSource='local'|'aniskip'|'audio'|'fingerprint';
-export interface IntroWindow{start:number;end:number;source:IntroSource;}
+export interface IntroWindow{start:number;end:number;source:IntroSource;basis?:'aniskip';}
 export type ExtraSegment='recap'|'prologue'|'ending';
 export interface SkipProposals{opening:IntroWindow|null;recap:IntroWindow|null;ending:IntroWindow|null;}
 export interface IntroContext{mal:number;number:number;duration:number;key:string;}

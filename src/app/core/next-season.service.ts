@@ -6,7 +6,7 @@ import {ServiceEndpointsService} from './service-endpoints.service';
 
 export interface NextSeason {detail:Detail;episode:Episode;versions:Detail[];}
 export interface AdjacentSeasons {previous:Anime|null;next:Anime|null;}
-const FIELDS='id idMal status episodes relations{edges{relationType node{id idMal type format status title{romaji english}}}}';
+const FIELDS='id idMal format status episodes relations{edges{relationType node{id idMal type format status title{romaji english}}}}';
 
 /** Only use a single, explicitly related sequel with a verified catalog identity. */
 @Injectable({providedIn:'root'})
@@ -28,6 +28,20 @@ export class NextSeasonService {
  private matchesIdentity(item:Anime,node:any){
   const comparable=[Number(item.anilist_id)>0?[Number(item.anilist_id),Number(node.id)]:null,Number(item.mal_id)>0&&Number(node.idMal)>0?[Number(item.mal_id),Number(node.idMal)]:null].filter((pair):pair is number[]=>!!pair);
   return comparable.length>0&&comparable.every(pair=>pair[0]===pair[1]);
+ }
+ async seasonNumber(anime:Anime):Promise<number|null>{
+  let media=await this.media(anime),number=1;const seen=new Set<number>();let hasSequel=false;
+  while(media&&number<=20){
+   const id=Number(media.id);if(!id||seen.has(id)||!['TV','TV_SHORT'].includes(media.format))return null;seen.add(id);
+   const edges=Array.isArray(media.relations?.edges)?media.relations.edges:[];
+   const related=(type:string)=>edges.filter((edge:any)=>edge?.relationType===type&&edge.node?.type==='ANIME');
+   const previous=related('PREQUEL');
+   if(number===1){const next=related('SEQUEL');hasSequel=next.length===1&&['TV','TV_SHORT'].includes(next[0].node?.format);}
+   if(!previous.length)return number>1||hasSequel?number:null;
+   if(previous.length!==1||!['TV','TV_SHORT'].includes(previous[0].node?.format)||!Number(previous[0].node?.id))return null;
+   media=await this.media({id:previous[0].node.id,anilist_id:Number(previous[0].node.id)});number++;
+  }
+  return null;
  }
  private async catalogRecord(current:Detail,node:any):Promise<Anime|null>{
   let record=current.related.find(item=>this.matchesIdentity(item,node));

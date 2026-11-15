@@ -18,13 +18,21 @@ Con il telecomando usa le frecce per spostarti, OK per selezionare e Indietro pe
 
 [Vedi le schermate dei profili](SCHERMATE.md#profili).
 
+## Cronologia e Continua a guardare
+
+La Home mostra in **Continua a guardare** gli anime con episodi ancora da riprendere. Quando termini l'ultimo episodio disponibile, il titolo esce dalla striscia ma rimane nella **Cronologia**; se arriva un nuovo episodio, può ricomparire. Per le visioni più vecchie senza informazioni sul numero di episodi, l'app conserva la voce finché non può stabilire che è terminata.
+
+Nel dettaglio di un anime, **Rimuovi da Continua** nasconde la voce dalla striscia senza cancellare la cronologia. Una nuova riproduzione registrata può farla ricomparire. **Rimuovi dalla cronologia** elimina invece il progresso salvato di quel titolo e lo toglie anche dalla striscia. Entrambe le azioni conservano i preferiti e gli episodi segnati come visti.
+
+In **Impostazioni → Dati e rete → Salva cronologia** puoi sospendere la registrazione per il profilo attivo. Durante la pausa non vengono salvati nuovi titoli, posizioni di ripresa o copertura di visione; la ripresa automatica è sospesa. Le voci precedenti restano consultabili e tornano utilizzabili riattivando l'opzione. Gli episodi segnati come visti e l'eventuale aggiornamento MyAnimeList restano gestiti separatamente. Per cancellare i dati già presenti usa **Cancella cronologia**, che chiede conferma ed elimina anche i visti e la copertura locali.
+
 ## Salta riassunti e sigle
 
 Il player propone **Salta riassunto**, **Salta sigla iniziale** e **Salta sigla finale** appena dispone di una proposta AniSkip o di un intervallo verificato. I dati AniSkip vengono validati rispetto alla durata del video; se la sigla iniziale viene riconosciuta con audio e corrisponde a quella di riferimento, il suo offset riallinea anche riassunto e finale della stessa versione. Gli intervalli discordanti e le sigle miste a scene narrative non vengono accettati automaticamente.
 
-Gli intervalli AniSkip vengono richiesti mentre il video si prepara e conservati in cache: il pulsante non aspetta l'analisi audio. Per una sigla compatibile che inizia entro cinque secondi, il confronto audio aggiuntivo viene evitato. La prima richiesta dipende comunque dalla disponibilità del servizio; le durate discordanti restano indicate come proposte da verificare.
+Gli intervalli AniSkip vengono richiesti mentre il video si prepara e conservati in cache: il pulsante non aspetta l'analisi audio. Anche se la sigla proposta inizia nei primi secondi, il confronto audio parte in sottofondo quando è abilitato e disponibile; se individua la sigla, aggiorna l'intervallo. Un risultato audio già verificato viene riutilizzato. La prima richiesta dipende dalla disponibilità del servizio; le durate discordanti restano indicate come proposte da verificare.
 
-Nei comandi del player gli indicatori compatti mostrano riassunto, sigla iniziale e finale: `--` se manca un intervallo, `A?` per una proposta AniSkip ancora da allineare, `A` per AniSkip compatibile o riallineato, `✓` per il riconoscimento audio, `✎` per una correzione manuale e `!` per un conflitto. Seleziona un indicatore con OK o un tocco per vedere i tempi di riferimento, quelli del video, l'offset applicato e il motivo dello stato. Il pulsante Salta usa subito una proposta AniSkip utilizzabile, poi si aggiorna dopo l'analisi; un conflitto sospende il salto interessato. Le correzioni manuali e la disattivazione della sigla mantengono la priorità.
+Nei comandi del player gli indicatori compatti mostrano riassunto, sigla iniziale e finale: `--` se manca un intervallo, `A?` per una proposta AniSkip ancora da verificare, `A` per AniSkip, `AUD` per il riconoscimento audio, `A+AUD` per AniSkip verificato con audio, `✎` per una correzione manuale e `!` per un conflitto. Durante l'analisi compare un indicatore in movimento. Seleziona un indicatore con OK o un tocco per vedere i dettagli. Il pulsante usa subito una proposta AniSkip utilizzabile, poi si aggiorna dopo l'analisi; un conflitto sospende il salto interessato. Le correzioni manuali e la disattivazione della sigla mantengono la priorità.
 
 L'analisi prova prima una finestra ridotta attorno ai tempi AniSkip o alle impronte locali; se non trova riscontri sufficienti, allarga la ricerca. Le impronte verificate della finale vengono riutilizzate negli episodi successivi della stessa serie e lingua: quando corrispondono basta analizzare il video corrente. Il primo riconoscimento resta più oneroso. Il riallineamento confronta riferimenti della stessa edizione e può usare la finale riconosciuta come secondo riscontro; un riassunto che si sovrappone alla sigla viene segnalato come conflitto.
 

@@ -1,7 +1,7 @@
 export interface Profile {id:string;name:string;avatar:string;}
 export const DICEBEAR_AVATAR=/^(?:dicebear:(adventurer|bottts)|dicebear10:([a-z][a-z0-9-]{0,63})):([a-zA-Z0-9_-]{1,64})$/;
 export function normalizeAvatarStyles(value:unknown):string[]{return Array.isArray(value)?[...new Set(value.filter((s):s is string=>typeof s==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(s)))].sort():[];}
-export const PROFILE_KEYS=new Set(['favorites','history','seen','settings','watchEvents','watchCoverage','seenResets','explored','episodeUpdates','malSession','malDisconnected','malData','malAutoUpdate','malClient','malOAuth','malOutbox','malDataCleared','malPublicData']);
+export const PROFILE_KEYS=new Set(['favorites','history','hiddenFromContinue','seen','settings','watchEvents','watchCoverage','seenResets','explored','episodeUpdates','malSession','malDisconnected','malData','malAutoUpdate','malClient','malOAuth','malOutbox','malDataCleared','malPublicData']);
 export const DEFAULT_PROFILE:Profile={id:'default',name:'Il mio profilo',avatar:'generated:0'};
 export function profileKey(id:string,key:string){return PROFILE_KEYS.has(key)&&id!=='default'?'profile.'+id+'.'+key:key;}
 export function profileName(name:string,profiles:Profile[],id?:string){

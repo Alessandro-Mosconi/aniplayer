@@ -4,14 +4,14 @@
  * WebCodecs AAC, HTTP 206 and CORS; the TV remains functional without them.
  */
 export const INTRO_AUDIO_VERSION=3;
-const STEP=.25,MAX_BYTES=32*1024*1024,MAX_SECONDS=360;
+const STEP=.25,MAX_BYTES=32*1024*1024,MAX_SECONDS=480;
 const tick=()=>new Promise<void>(r=>setTimeout(r,0));
 const check=(signal?:AbortSignal)=>{if(signal?.aborted)throw new DOMException('Analisi interrotta','AbortError');};
 export type Frame=number[]|null;
 export interface Spectrum{frames:Frame[];origin:number;step:number;seconds:number;bytes:number;window:{start:number;end:number};}
 export interface AudioHint{start:number;end:number;}
 export interface Match{start:number;end?:number;otherStart:number;score:number;coverage:number;temporalContrast:number;templateMatch?:string;episode?:string;}
-export function searchWindow(hint?:AudioHint|null,narrow=false){if(hint&&Number.isFinite(hint.start)&&Number.isFinite(hint.end)&&hint.start>=0&&hint.end>hint.start&&hint.end-hint.start<=180){const margin=narrow?30:90,start=Math.max(0,hint.start-margin);return {start,end:Math.min(start+MAX_SECONDS,hint.end+margin)};}return {start:0,end:MAX_SECONDS};}
+export function searchWindow(hint?:AudioHint|null,narrow:boolean|number=false){if(hint&&Number.isFinite(hint.start)&&Number.isFinite(hint.end)&&hint.start>=0&&hint.end>hint.start&&hint.end-hint.start<=180){const margin=typeof narrow==='number'?narrow:narrow?30:90,start=Math.max(0,hint.start-margin);return {start,end:Math.min(start+MAX_SECONDS,hint.end+margin)};}return {start:0,end:MAX_SECONDS};}
 export class SpectralFrames{
  private stride:number;private rate:number;private phase=0;private bin=-1;private samples:number[]=[];private frames:Frame[]=[];
  private readonly size=2048;private readonly window:number[];private readonly bands:number[];
