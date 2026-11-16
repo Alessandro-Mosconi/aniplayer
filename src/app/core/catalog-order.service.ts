@@ -26,11 +26,11 @@ export class CatalogOrderService {
    return {records:page.records.slice(0,Math.min(30,first.tot-offset)).reverse(),tot:first.tot};
   }
   if(!['random','release_desc','release_asc'].includes(String(filters.order)))return this.catalog.catalog(filters,offset);
-  const key=this.catalog.domain()+JSON.stringify(filters);let state=this.scans.get(key);
-  if(!state||Date.now()-state.at>120000){state={at:Date.now(),records:[],total:0,initialized:false,year:Number(filters.year)||(filters.order==='release_asc'?1900:new Date().getFullYear()+1),indices:[],cursor:0,done:false,pending:Promise.resolve(),raw:{...filters,order:'Lista A-Z',dubbed:filters.order==='random'&&filters.dubbed===0?false:filters.dubbed}};this.scans.set(key,state);while(this.scans.size>3)this.scans.delete(this.scans.keys().next().value!);}
+  const key=this.catalog.domain()+JSON.stringify(filters),nativeAudio=this.catalog.supportsAudioFiltering?.()===true;let state=this.scans.get(key);
+  if(!state||Date.now()-state.at>120000){state={at:Date.now(),records:[],total:0,initialized:false,year:Number(filters.year)||(filters.order==='release_asc'?1900:new Date().getFullYear()+1),indices:[],cursor:0,done:false,pending:Promise.resolve(),raw:{...filters,order:'Lista A-Z',dubbed:filters.order==='random'&&filters.dubbed===0&&!nativeAudio?false:filters.dubbed}};this.scans.set(key,state);while(this.scans.size>3)this.scans.delete(this.scans.keys().next().value!);}
   const scan=state;
   const work=scan.pending.then(async()=>{
-   if(!scan.initialized){const first=await this.catalog.catalog(scan.raw,0);scan.total=first.tot;if(filters.order==='release_asc'&&!filters.year)scan.year=this.catalog.oldestYear?.()||1900;if(filters.order==='random'){scan.indices=seededShuffle(Array.from({length:Math.ceil(first.tot/30)},(_,i)=>i),filters.randomSeed??1);if(filters.dubbed===0){const dubbed=await this.catalog.catalog({...scan.raw,dubbed:1},0);scan.total=Math.max(0,first.tot-dubbed.tot);}}scan.initialized=true;scan.done=scan.total===0;}
+   if(!scan.initialized){const first=await this.catalog.catalog(scan.raw,0);scan.total=first.tot;if(filters.order==='release_asc'&&!filters.year)scan.year=this.catalog.oldestYear?.()||1900;if(filters.order==='random'){scan.indices=seededShuffle(Array.from({length:Math.ceil(first.tot/30)},(_,i)=>i),filters.randomSeed??1);if(filters.dubbed===0&&!nativeAudio){const dubbed=await this.catalog.catalog({...scan.raw,dubbed:1},0);scan.total=Math.max(0,first.tot-dubbed.tot);}}scan.initialized=true;scan.done=scan.total===0;}
    while(!scan.done&&scan.records.length<offset+30){
     if(filters.order==='random'){
      const indices=scan.indices.slice(scan.cursor,scan.cursor+4);

@@ -7,6 +7,7 @@ export interface Anime {
  lastEpisode?:string; lastEpisodeId?:string|number; lastEpisodeDate?:string;
  score?: number|string; dub?: boolean|number; episodes_count?: number; real_episodes_count?: number;
  plot?: string; genres?: string|string[]; mal_id?: number; anilist_id?: number;
+ unityId?:number; unityLanguages?:string[]; visite?:number;
 }
 export interface Episode {id:string|number; number:string; malNumber?:number; token?:string; public?:number; title?:string;}
 export interface Detail {anime:Anime; episodes:Episode[]; related:Anime[]; count:number;}

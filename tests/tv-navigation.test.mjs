@@ -107,6 +107,7 @@ test('Profile dialog reveals content above and below its focusable controls',()=
 test('SUB pages contain only SUB, keep order and exact totals, and reuse scanned pages',async()=>{
  const {CatalogService}=load('src/app/core/catalog.service.ts');
  const service=new CatalogService({read:(_key,fallback)=>fallback});
+ service.domain.set('https://legacy.example');
  const records=Array.from({length:100},(_,id)=>({id:id+1,slug:'anime',dub:id%3===0?1:0}));
  const original=service.catalog.bind(service);let requests=0;
  service.catalog=async(filters={},offset=0,force=false)=>{
@@ -128,6 +129,11 @@ test('Attack on Titan specials map each AniList entry to its verified combined p
  service.search=async()=>[candidate];service.page=async()=>({mal_id:51535,anilist_id:146984,episodes:[{id:'one',number:'1',token:'first'},{id:'two',number:'2',token:'second'}]});
  for(const [id,token,malNumber] of [[146984,'first',1],[162314,'second',2]]){const result=await service.match({id,anilist_id:id,title:'Attack'});assert.equal(result.matches.length,1);assert.equal(result.matches[0].count,1);assert.equal(result.matches[0].episodes[0].number,'1');assert.equal(result.matches[0].episodes[0].token,token);assert.equal(result.matches[0].episodes[0].malNumber,malNumber);assert.equal(result.matches[0].anime.mal_id,51535);}
  service.page=async()=>({mal_id:123,anilist_id:146984,episodes:[{id:'two',number:'2',token:'wrong'}]});assert.equal((await service.match({id:162314,anilist_id:162314,title:'Attack'})).matches.length,0);
+});
+test('AnimeWorld title match retains the verified external IDs exposed by its page',async()=>{
+ const {AnimeWorldService}=load('src/app/core/animeworld.service.ts');const service=new AnimeWorldService();
+ service.search=async()=>[{id:'aw:test',awSlug:'test',title:'Anime Test',dub:0}];service.page=async()=>({mal_id:25,anilist_id:42,episodes:[{id:'one',number:'1'}]});
+ const result=await service.match({id:12,title:'Anime Test'});assert.equal(result.matches[0].anime.mal_id,25);assert.equal(result.matches[0].anime.anilist_id,42);
 });
 test('A split special uses the combined MAL episode number for progress',()=>{
  const values=new Map(),localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};const {StorageService}=load('src/app/core/storage.service.ts',{localStorage});const storage=new StorageService(),anime={id:2,mal_id:51535},first={id:'one',number:'1',malNumber:1},second={id:'two',number:'1',malNumber:2};
@@ -171,7 +177,7 @@ test('Focusing an already visible control does not scroll away the top spacing',
 });
 test('Catalog sends genre objects and provider values, including multiple genres',async()=>{
  const {CatalogService}=load('src/app/core/catalog.service.ts');
- const service=new CatalogService({read:(_key,fallback)=>fallback});service.csrf='test';
+ const service=new CatalogService({read:(_key,fallback)=>fallback});service.domain.set('https://legacy.example');service.csrf='test';
  service.genres.set([{id:51,name:'Action'},{id:21,name:'Adventure'}]);let sent;
  service.request=async(_path,_method,payload)=>{sent=payload;return JSON.stringify({records:[],tot:0});};
  await service.catalog({genres:[51,21],type:'TV',status:'Terminato',order:'Popolarità'},0);
@@ -179,10 +185,38 @@ test('Catalog sends genre objects and provider values, including multiple genres
  assert.equal(sent.type,'TV');assert.equal(sent.status,'Terminato');assert.equal(sent.order,'Popolarità');
  await service.catalog({genres:[]},0);assert.equal(sent.genres,false);
 });
+test('AnimeUnity migrates old official domains and normalizes the new catalog and audio versions',async()=>{
+ const {CatalogService}=load('src/app/core/catalog.service.ts');const writes=[];
+ const service=new CatalogService({read:()=> 'https://www.animeunity.co',write:(key,value)=>{writes.push([key,value]);return true;}});
+ assert.equal(service.domain(),'https://animeunity.cx');assert.deepEqual(writes,[['domain','https://animeunity.cx']]);
+ const row={id:12,slug:'one-piece',title:'One Piece',year:1999,season:'fall',type:'tv',default_status:'ongoing',score:'9.19',images:{poster:'https://img.example/poster',banner:'https://img.example/banner'},variants:[{language:'ita',episodes_count:946,status:'ongoing'},{language:'jpn',episodes_count:1180,status:'ongoing'}],genres:[{id:1,name:'Action'}]};
+ const paths=[];service.request=async path=>{paths.push(path);return JSON.stringify({total:1,last_page:1,data:[row]});};
+ const sub=await service.catalog({title:'One Piece',dubbed:0,year:1999,genres:[1]},0),dub=await service.catalog({dubbed:1},0);
+ assert.equal(sub.records[0].id,12);assert.equal(sub.records[0].unityId,12);assert.equal(sub.records[0].dub,0);assert.equal(sub.records[0].season,'Autunno');assert.equal(sub.records[0].episodes_count,1180);
+ assert.equal(dub.records[0].id,'12-dub');assert.equal(dub.records[0].dub,1);assert.equal(dub.records[0].episodes_count,946);
+ assert.match(paths[0],/query=One\+Piece/);assert.match(paths[0],/language=jpn/);assert.match(paths[0],/year_from=1999/);assert.match(paths[0],/genres%5B%5D=1/);
+ const alternate=await service.version(sub.records[0],1);assert.equal(alternate.id,'12-dub');
+});
+test('AnimeUnity new episode updates and detail use API when HTML cannot be read',async()=>{
+ const {CatalogService}=load('src/app/core/catalog.service.ts');const service=new CatalogService({read:(_key,fallback)=>fallback});
+ const row={id:12,slug:'one-piece',title:'One Piece',variants:[{language:'jpn',episodes_count:2},{language:'ita',episodes_count:1}],images:{}};
+ service.request=async path=>{if(path.startsWith('/api/home/'))return JSON.stringify({last_page:2,data:[{id:101,language:'ita',is_hidden:false,episode:{number:'2',anime:row}},{id:102,language:'jpn',is_hidden:true,episode:{number:'2',anime:row}}]});if(path.startsWith('/anime/'))throw Error('CORS');if(path.startsWith('/api/anime/'))return JSON.stringify({total:2,episodes:[{id:1,number:'1',videos:[{language:'jpn'},{language:'ita'}]},{id:2,number:'2',videos:[{language:'jpn'}]}]});throw Error(path);};
+ const recent=await service.recentPage(2);assert.equal(recent.lastPage,2);assert.equal(recent.records.length,1);assert.equal(recent.records[0].id,'12-dub');assert.equal(recent.records[0].lastEpisode,'2');assert.equal(recent.records[0].lastEpisodeDate,undefined);
+ const details=await service.detail(recent.records[0]);assert.equal(details.anime.unityId,12);assert.equal(details.episodes[0].public,1);assert.equal(details.episodes[1].public,0);
+});
+test('Saved AnimeUnity entries resolve the new series safely without changing the profile ID',async()=>{
+ const {CatalogService}=load('src/app/core/catalog.service.ts');const service=new CatalogService({read:(_key,fallback)=>fallback});
+ service.catalog=async()=>({records:[{id:12,unityId:12,slug:'new-one-piece',title:'One Piece',dub:0,unityLanguages:['ita','jpn']}],tot:1});
+ service.request=async path=>{if(path.startsWith('/anime/'))throw Error('CORS');return JSON.stringify({total:1,episodes:[{id:1,number:'1',videos:[{language:'jpn'}]}]});};
+ const detail=await service.detail({id:777,slug:'old-one-piece',title:'One Piece',dub:0});
+ assert.equal(detail.anime.id,777);assert.equal(detail.anime.unityId,12);assert.equal(detail.anime.slug,'new-one-piece');
+ service.catalog=async()=>({records:[{id:12,unityId:12,slug:'a',title:'One Piece'},{id:13,unityId:13,slug:'b',title:'One Piece'}],tot:2});
+ await assert.rejects(service.detail({id:778,slug:'old',title:'One Piece'}),/non identificata/);
+});
 test('Catalog request failure clears health and subsequent success restores it',async()=>{
  let status=500;
  const {CatalogService}=load('src/app/core/catalog.service.ts',{AbortController,fetch:async()=>({ok:status===200,status,url:'https://www.animeunity.co/archivio',headers:{get:()=>null},text:async()=>'<html></html>'})});
- const service=new CatalogService({read:(_key,fallback)=>fallback});service.online.set(true);
+ const service=new CatalogService({read:(_key,fallback)=>fallback});service.domain.set('https://www.animeunity.co');service.online.set(true);
  await assert.rejects(service.request('/archivio'),/500/);assert.equal(service.online(),false);
  status=200;await service.request('/archivio');assert.equal(service.online(),true);assert.equal(service.connectionError(),'');
 });
@@ -482,6 +516,13 @@ function orderCatalogFixture(){
  const records=Array.from({length:90},(_,i)=>({id:i+1,title:'Anime '+String(i+1).padStart(3,'0'),date:i<45?'2026':'2025',season:i%2?'Autunno':'Inverno',dub:i%3===0?1:0}));
  return {records,catalog:{domain:()=> 'test',oldestYear:()=>2025,catalog:async(filters,offset=0)=>{const filtered=records.filter(a=>(!filters.year||Number(a.date)===Number(filters.year))&&(filters.dubbed!==1||a.dub===1));return {records:filtered.slice(offset,offset+30),tot:filtered.length};}}};
 }
+test('Random SUB catalog uses the new provider language filter without subtracting overlapping DUB titles',async()=>{
+ const {CatalogOrderService}=load('src/app/core/catalog-order.service.ts');const calls=[];
+ const rows=Array.from({length:35},(_,i)=>({id:i+1,title:'Anime '+i,dub:0}));
+ const catalog={domain:()=> 'https://animeunity.cx',supportsAudioFiltering:()=>true,catalog:async(filters,offset)=>{calls.push({...filters});return {records:rows.slice(offset,offset+30),tot:rows.length};}};
+ const result=await new CatalogOrderService(catalog).page({order:'random',dubbed:0,randomSeed:3},0);
+ assert.equal(result.records.length,30);assert.equal(result.tot,35);assert.ok(calls.every(call=>call.dubbed===0));
+});
 test('Random catalog ordering is stable across pages, reproducible and reshuffles with a new seed',async()=>{
  const {CatalogOrderService}=load('src/app/core/catalog-order.service.ts');const {catalog}=orderCatalogFixture();const service=new CatalogOrderService(catalog),filters={order:'random',randomSeed:42};
  const first=await service.page(filters,0),second=await service.page(filters,30);const ids=[...Array.from(first.records,a=>a.id),...Array.from(second.records,a=>a.id)];assert.equal(new Set(ids).size,60);
@@ -615,6 +656,15 @@ test('Next season resolves an unambiguous sequel and prefers the current audio',
  versions=[sub];world.page=async()=>({mal_id:999,anilist_id:200});assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
  edges=[...edges,...edges];assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
  edges=[{relationType:'SEQUEL',node:{id:201,type:'ANIME',format:'MOVIE',status:'FINISHED'}}];assert.equal(await service.resolve(current,{id:12,number:'12'}),null);
+});
+
+test('New catalog sequel identity is accepted only after AnimeWorld confirms it',async()=>{
+ const {NextSeasonService}=load('src/app/core/next-season.service.ts');const node={id:200,idMal:300,title:{romaji:'Sequel Season 2'}},candidate={id:55,unityId:55,slug:'sequel',title:'Sequel Season 2'};
+ const catalog={supportsAudioFiltering:()=>true,catalog:async()=>({records:[candidate],tot:1})};let verified={mal_id:300,anilist_id:200};
+ const world={match:async()=>({matches:[{anime:{awSlug:'verified'}}]}),page:async()=>verified};
+ const service=new NextSeasonService({},catalog,world),current={anime:{id:1,title:'Prequel'},related:[]};
+ const found=await service.catalogRecord(current,node);assert.equal(found.id,55);assert.equal(found.mal_id,300);
+ verified={mal_id:999,anilist_id:201};assert.equal(await service.catalogRecord(current,node),null);
 });
 
 test('Player season number follows an unambiguous TV prequel chain',async()=>{

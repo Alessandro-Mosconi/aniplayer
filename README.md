@@ -94,7 +94,7 @@ Guide: [installazione, backup e risoluzione problemi](docs/GUIDA.md) · [piattaf
 
 ## Crediti e utilizzo
 
-AniPlayer usa [AnimeUnity](https://www.animeunity.co/) per il catalogo, [AnimeWorld](https://www.animeworld.ac/) per gli episodi, [AniSkip](https://aniskip.com/) per gli intervalli di salto, [MyAnimeList](https://myanimelist.net/) per liste e progressi e [AniList](https://anilist.co/) per date e copertine. Grazie anche ad [ani-cli-it](https://github.com/nicolagalassi/ani-cli-it), [Angular](https://angular.dev/) e [QRCode.js](https://github.com/davidshimjs/qrcodejs). [Crediti e licenze delle componenti](THIRD_PARTY.md).
+AniPlayer usa [AnimeUnity](https://animeunity.cx/) per il catalogo, [AnimeWorld](https://www.animeworld.ac/) per gli episodi, [AniSkip](https://aniskip.com/) per gli intervalli di salto, [MyAnimeList](https://myanimelist.net/) per liste e progressi e [AniList](https://anilist.co/) per date e copertine. Grazie anche ad [ani-cli-it](https://github.com/nicolagalassi/ani-cli-it), [Angular](https://angular.dev/) e [QRCode.js](https://github.com/davidshimjs/qrcodejs). [Crediti e licenze delle componenti](THIRD_PARTY.md).
 
 AniPlayer è un progetto indipendente: non ospita video e non è affiliato ai servizi elencati. Usa l’app solo per contenuti e servizi ai quali hai diritto di accedere. Nomi, immagini e opere appartengono ai rispettivi titolari. [Disclaimer completo](docs/GUIDA.md#disclaimer-copyright-e-uso-consentito).
 

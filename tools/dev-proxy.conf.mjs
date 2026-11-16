@@ -1,6 +1,6 @@
 // Angular/Vite development server only. No open proxy or TLS bypass.
 export const devTargets={
- animeunity:'https://www.animeunity.co',
+ animeunity:'https://animeunity.cx',
  animeworld:'https://www.animeworld.ac',
  malapi:'https://api.myanimelist.net',
  maloauth:'https://myanimelist.net',
@@ -21,7 +21,7 @@ export function createDevProxy(targets=devTargets){
    configure(proxy){
     proxy.on('proxyReq',request=>{
      request.setHeader('Origin',target);
-     request.setHeader('Referer',target+(name==='animeunity'?'/archivio':'/'));
+     request.setHeader('Referer',target+(name==='animeunity'?'/archive':'/'));
     });
     proxy.on('proxyRes',response=>{
      response.headers['x-aniplayer-upstream-url']=new URL(response.req?.path||'/',target).href;

@@ -48,7 +48,17 @@ export class NextSeasonService {
   if(!record){
    const anime=current.anime,names=[node.title?.romaji,node.title?.english,anime.title,anime.title_eng,anime.title_it].filter((title:unknown):title is string=>typeof title==='string'&&!!title.trim());
    const titles=[...new Set(names.flatMap(title=>[title,title.replace(/\s+(?:season|part)\s+\d+.*$/i,'').trim()]).filter(title=>title.length>=3))];
-   for(const title of titles){for(let offset=0;offset<90;offset+=30){const page=await this.catalog.catalog({title},offset);record=page.records.find(item=>this.matchesIdentity(item,node));if(record||!page.records.length||offset+page.records.length>=page.tot)break;}if(record)break;}
+   for(const title of titles){for(let offset=0;offset<90;offset+=30){const page=await this.catalog.catalog({title},offset);record=page.records.find(item=>this.matchesIdentity(item,node));
+    // The new archive omits MAL/AniList IDs. Only attach them after AnimeWorld
+    // independently confirms the exact candidate against the related media.
+    if(!record&&this.catalog.supportsAudioFiltering?.()){
+     const normalize=(value:unknown)=>String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+     const names=[node.title?.romaji,node.title?.english].map(normalize).filter(Boolean),candidates=page.records.filter(item=>[item.title,item.title_it,item.title_original].some(value=>names.includes(normalize(value))));
+     if(candidates.length===1)try{const candidate=candidates[0],match=await this.animeworld.match({...candidate,mal_id:Number(node.idMal)||undefined,anilist_id:Number(node.id)||undefined});
+      for(const version of match.matches){const verified=await this.animeworld.page(version.anime);if(this.matchesIdentity({id:candidate.id,mal_id:verified.mal_id,anilist_id:verified.anilist_id},node)){record={...candidate,mal_id:verified.mal_id,anilist_id:verified.anilist_id};break;}}
+     }catch{/* Leave ambiguous or unavailable identities unmatched. */}
+    }
+    if(record||!page.records.length||offset+page.records.length>=page.tot)break;}if(record)break;}
   }
   return record&&String(record.id)!==String(current.anime.id)?record:null;
  }

@@ -1,7 +1,7 @@
 /* Included by index.dev.html only; production TV packages use index.html. */
 (function(){
  if(window.AniPlayerNative)return;
- var targets={'https://www.animeunity.co':'animeunity','https://www.animeworld.ac':'animeworld','https://api.myanimelist.net':'malapi','https://myanimelist.net':'maloauth','https://api.aniskip.com':'aniskip','https://graphql.anilist.co':'anilist'};
+ var targets={'https://animeunity.cx':'animeunity','https://www.animeworld.ac':'animeworld','https://api.myanimelist.net':'malapi','https://myanimelist.net':'maloauth','https://api.aniskip.com':'aniskip','https://graphql.anilist.co':'anilist'};
  var direct=window.fetch.bind(window);
  window.fetch=async function(input,init){
   var request=new Request(input,init),url=new URL(request.url),target=targets[url.origin];

@@ -488,6 +488,8 @@ Gli interruttori mostrano **Attivo/Disattivo** e si azionano con OK. In **Impost
 
 In **Impostazioni → Dati e rete → Gestisci servizi** puoi verificare le connessioni e cambiare gli indirizzi HTTPS di AnimeUnity, AnimeWorld, AniSkip e AniList: il nuovo indirizzo viene salvato dopo la verifica. MyAnimeList usa gli indirizzi ufficiali e la configurazione account dedicata. Nel browser di sviluppo il proxy integrato copre gli indirizzi predefiniti; indirizzi diversi devono consentire le richieste dal browser.
 
+AnimeUnity usa ora `https://animeunity.cx` e il nuovo archivio `/archive`. I vecchi indirizzi ufficiali `.co` e `www.animeunity.cx` vengono aggiornati al dominio funzionante senza `www`. Il catalogo usa le nuove API pubbliche; se la pagina di dettaglio non consente richieste dal dispositivo, l'app usa i dati disponibili nelle API e cerca gli episodi su AnimeWorld. In quel caso alcuni dettagli o titoli correlati possono non essere disponibili.
+
 Preferiti, cronologia, copertura video, scelte, impostazioni e accesso MAL sono nel LocalStorage della TV, con prefisso `autv.`. Non esiste un account AniPlayer che sincronizzi questi dati tra dispositivi.
 
 **I backup possono contenere token MAL.** Non pubblicare `tools/local-private/`, callback OAuth, certificati `.p12`/`.pfx`, password o copie del profilo utente. I backup, i pacchetti WGT e le principali directory generate sono già esclusi da Git. Una build firmata può essere distribuita separatamente tramite GitHub Releases, se appropriato alla propria distribuzione.
@@ -553,7 +555,7 @@ Grazie ai progetti e ai servizi su cui si appoggia AniPlayer:
 
 | Servizio | Utilizzo in AniPlayer |
 | --- | --- |
-| [AnimeUnity](https://www.animeunity.co/) | Catalogo, ricerca, copertine, informazioni sugli anime e ultimi episodi. |
+| [AnimeUnity](https://animeunity.cx/) | Catalogo, ricerca, copertine, informazioni sugli anime e ultimi episodi. |
 | [AnimeWorld](https://www.animeworld.ac/) | Ricerca delle corrispondenze, elenco episodi e sorgenti per la riproduzione. |
 | [AniSkip](https://aniskip.com/) | Intervalli delle sigle iniziali e finali, usati insieme alle verifiche di durata e al riconoscimento locale. |
 | [MyAnimeList](https://myanimelist.net/) | Lista personale, progressi, statistiche e aggiornamento dei visti tramite API e autorizzazione OAuth. |
