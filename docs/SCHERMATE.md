@@ -19,11 +19,13 @@ L'eliminazione mostra una conferma e indica quali dati saranno rimossi.
 
 ![Richiesta di conferma per eliminare un profilo](screenshots/profiles-delete-tv.png)
 
-Nel catalogo puoi rigenerare le anteprime e segnare gli stili preferiti.
+Nel catalogo puoi rigenerare le anteprime e segnare gli stili preferiti. La scheda **Personaggi anime** permette di cercare le serie e scegliere le immagini dei personaggi.
 
 ![Catalogo degli stili avatar e filtro dei preferiti](screenshots/profiles-styles-tv.png)
 
-**Esplora** apre le varianti di uno stile, caricandone altre durante lo scorrimento.
+**Esplora** apre le varianti di uno stile, caricandone altre durante lo scorrimento. Per una serie anime, apre i personaggi disponibili e permette di caricarne altri.
+
+![Personaggi di una serie nella galleria del profilo](screenshots/profiles-anime-gallery-tv.png)
 
 ![Galleria con varianti di uno stile avatar](screenshots/profiles-gallery-tv.png)
 

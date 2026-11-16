@@ -1,6 +1,6 @@
 import {Injectable, signal} from '@angular/core';
 import {Anime,Episode,SavedProgress} from './models';
-import {DEFAULT_PROFILE,DICEBEAR_AVATAR,PROFILE_KEYS,Profile,profileKey,profileName} from './profiles';
+import {DEFAULT_PROFILE,DICEBEAR_AVATAR,PROFILE_KEYS,Profile,AvatarInfo,profileKey,profileName} from './profiles';
 export type BadgeKind='audio'|'newEpisodes'|'allSeen'|'favorites'|'aniskip'|'malStatus'|'menuUpdates';
 const BADGE_DEFAULTS:Record<BadgeKind,boolean>={audio:true,newEpisodes:true,allSeen:true,favorites:true,aniskip:false,malStatus:true,menuUpdates:true};
 @Injectable({providedIn:'root'})
@@ -15,11 +15,12 @@ export class StorageService {
  read<T>(key:string,fallback:T):T{return this.rawRead(profileKey(this.profileId,key),fallback);}
  write<T>(key:string,value:T):boolean{if(this.deletedProfile&&PROFILE_KEYS.has(key))return false;try{localStorage.setItem(this.prefix+profileKey(this.profileId,key),JSON.stringify(value));return true;}catch{return false;}}
  currentProfile(){return this.profiles().find(p=>p.id===this.profileId)||DEFAULT_PROFILE;}
- saveProfile(name:string,avatar:string,id?:string){
+ saveProfile(name:string,avatar:string,id?:string,avatarInfo?:AvatarInfo){
   const profiles=this.profiles(),value=profileName(name,profiles,id);
   if(id&&!profiles.some(p=>p.id===id))throw Error('Profilo non trovato.');
-  if(!DICEBEAR_AVATAR.test(avatar)&&!/^generated:(?:[0-9]|1[01])$/.test(avatar)&&!/^https:\/\/cdn\.myanimelist\.net\//.test(avatar))throw Error('Immagine profilo non valida.');
-  const profile={id:id||Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join(''),name:value,avatar};
+  if(!DICEBEAR_AVATAR.test(avatar)&&!/^generated:(?:[0-9]|1[01])$/.test(avatar)&&!/^https:\/\/cdn\.myanimelist\.net\//.test(avatar)&&!/^https:\/\/s4\.anilist\.co\/file\/anilistcdn\/character\/[^?#\s]+$/.test(avatar))throw Error('Immagine profilo non valida.');
+  const old=profiles.find(p=>p.id===id);const info=avatarInfo||(old?.avatar===avatar?old.avatarInfo:undefined);
+  const profile:Profile={id:id||Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join(''),name:value,avatar,...(info?{avatarInfo:info}:{})};
   const next=id?profiles.map(p=>p.id===id?profile:p):[...profiles,profile];
   if(!this.write('profiles',next))throw Error('Impossibile salvare il profilo. Spazio locale insufficiente.');
   this.profiles.set(next);return profile;
@@ -32,7 +33,7 @@ export class StorageService {
   if(!this.write('profiles',next))throw Error('Impossibile eliminare il profilo.');
   this.profiles.set(next);if(active)this.deletedProfile=true;
   let cleanupFailed=false;
-  for(const key of [...PROFILE_KEYS].map(key=>profileKey(id,key)).concat('avatarStyleFavorites.'+id))try{localStorage.removeItem(this.prefix+key);}catch{cleanupFailed=true;}
+  for(const key of [...PROFILE_KEYS].map(key=>profileKey(id,key)).concat('avatarStyleFavorites.'+id,'avatarAnimeFavorites.'+id))try{localStorage.removeItem(this.prefix+key);}catch{cleanupFailed=true;}
   if(active){this.write('activeProfile',next[0].id);window.location.reload();}
   return !cleanupFailed;
  }
@@ -69,4 +70,5 @@ export class StorageService {
  }
  progress(anime:Anime,episode:Episode,position:number,duration:number,completed=false,availableEpisodes?:Episode[]){if(!Number.isFinite(position)||position<0)return;if(this.settings()['historyEnabled']!==false){const old=this.history(),playable=availableEpisodes?.filter(item=>item.public!==0).map(item=>({id:item.id,number:item.number,...(item.malNumber!=null?{malNumber:item.malNumber}:{})})),availableThrough=playable?.reduce((max,item)=>Math.max(max,Number(item.number)||0),0)||old[String(anime.id)]?.availableThrough,knownEpisodes=playable?.length?playable:old[String(anime.id)]?.availableEpisodes;const next={...old,[String(anime.id)]:{anime,episode,position:Math.floor(position),duration,completed:completed||this.isSeen(anime,episode),updated:Date.now(),...(availableThrough?{availableThrough}:{}),...(knownEpisodes?.length?{availableEpisodes:knownEpisodes}:{})}};const keys=Object.keys(next).sort((a,b)=>next[b].updated-next[a].updated);for(const key of keys.slice(100))delete next[key];this.history.set(next);this.write('history',next);if(this.hiddenFromContinue()[String(anime.id)]){const hidden={...this.hiddenFromContinue()};delete hidden[String(anime.id)];if(this.write('hiddenFromContinue',hidden))this.hiddenFromContinue.set(hidden);}}if(completed)this.markSeen(anime,episode);}
 }
+
 

@@ -14,7 +14,7 @@ Le immagini sono catture dell’app nel browser con schermo TV simulato webOS a 
 
 4. Controlla le immagini in questa cartella e il README prima di pubblicare. Lo script sostituisce i file esistenti mantenendo gli stessi nomi e collegamenti.
 
-Per aggiornare solo scelta profili, modifica, conferma di eliminazione, catalogo avatar e galleria, imposta `ANIPLAYER_SCREENSHOTS=profiles` prima di lanciare lo script. Le schermate usano tre profili dimostrativi e non accedono ai dati salvati sulla TV.
+Per aggiornare solo scelta profili, modifica, conferma di eliminazione, catalogo avatar, personaggi anime e relative gallerie, imposta `ANIPLAYER_SCREENSHOTS=profiles` prima di lanciare lo script. Le schermate usano tre profili dimostrativi e non accedono ai dati salvati sulla TV.
 
 Serve Google Chrome. Su Windows viene cercato nel percorso standard; per un altro percorso imposta `CHROME_PATH`. Se il server usa una porta diversa da 4200, imposta `ANIPLAYER_SCREENSHOT_URL`.
 
@@ -27,4 +27,4 @@ $env:ANIPLAYER_SCREENSHOTS = 'profiles' # facoltativo: solo schermate dei profil
 node tools/capture-screenshots.mjs
 ```
 
-Lo script usa un profilo Chrome isolato e dati dimostrativi; non legge il browser abituale né i backup della TV. Esplora viene attivata solo per la cattura. Per le schermate dei profili servono le immagini DiceBear; per le altre schermate servono anche i provider del catalogo. Se una risorsa non risponde, la schermata può mostrare gli avvisi o le immagini di riserva dell'app. Ricontrolla sempre la resa visiva: la simulazione non sostituisce una prova su TV fisica.
+Lo script usa un profilo Chrome isolato e dati dimostrativi; non legge il browser abituale né i backup della TV. Esplora viene attivata solo per la cattura. Per le schermate dei profili servono le immagini DiceBear; per i personaggi anime serve AniList e per le altre schermate servono anche i provider del catalogo. Se una risorsa non risponde, la schermata può mostrare gli avvisi o le immagini di riserva dell'app. Ricontrolla sempre la resa visiva: la simulazione non sostituisce una prova su TV fisica.

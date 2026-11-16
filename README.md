@@ -111,7 +111,7 @@ I nomi sono univoci (anche ignorando maiuscole e
 spazi ripetuti). Ogni profilo ha preferiti, Continua a guardare, episodi visti,
 impostazioni, scelte Esplora e account/lista MyAnimeList separati. I dati già
 presenti rimangono nel profilo iniziale, senza copie o cancellazioni.
-Per i profili, TinyTools propone nomi casuali come `CrispyBird`: l'app rimuove i separatori, evita nomi duplicati e usa un generatore locale se il servizio non risponde. Puoi cambiare nome e avatar singolarmente oppure usare **Cambia entrambi**.
+Per i profili, TinyTools propone nomi casuali come `CrispyBird`: l'app rimuove i separatori, evita nomi duplicati e usa un generatore locale se il servizio non risponde. Puoi generare il nome con il pulsante nel campo, scegliere **Avatar casuale** o **Personaggio casuale**, oppure usare **Nome e avatar casuali**.
 Il cambio profilo ricarica l'app per reinizializzare servizi e account; le
 operazioni ancora in corso restano legate al profilo di origine.
 
@@ -130,6 +130,8 @@ Le generazioni sono distanziate di almeno 1,2 secondi. Si salvano stile, version
 e seed, senza legare l'immagine al nome del profilo. Gli avatar DiceBear precedenti
 usano l'API 9.x; gli avatar locali originali restano compatibili. In caso di errore
 immagine viene mostrato un avatar locale, senza cambiare la scelta salvata.
+
+La scheda **Personaggi anime** usa AniList per cercare serie e scegliere i personaggi come immagini profilo. Le serie sono raggruppate per franchise, ordinabili e salvabili tra le preferite; **Esplora** mostra fino a 25 personaggi iniziali e consente di caricarne altri. Dal dettaglio di un anime, **Avatar** apre i personaggi disponibili per il profilo attivo. Le immagini sono ritagliate in formato quadrato; la ricerca e le immagini richiedono Internet e i risultati sono conservati temporaneamente nella cache locale.
 
 L'API pubblica non richiede chiavi, ammette 50 richieste/secondo per SVG ed e'
 gratuita per uso non commerciale. Per uso commerciale o limiti superiori DiceBear

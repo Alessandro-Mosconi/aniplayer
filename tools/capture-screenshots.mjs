@@ -29,6 +29,9 @@ try{
  await evalJs(`ng.getComponent(document.querySelector('app-profiles')).requestDelete()`);await until(`!!document.querySelector('app-profiles .delete-confirmation')`);await shot('profiles-delete');
  await evalJs(`ng.getComponent(document.querySelector('app-profiles')).cancelDelete()`);await until(`!!document.querySelector('app-profiles .identity-card')`);
  await evalJs(`document.querySelector('app-profiles .avatar-catalog').scrollIntoView({block:'start'})`);await until(`document.querySelectorAll('app-profiles .avatar-grid img').length>0`);await shot('profiles-styles');
+ await evalJs(`ng.getComponent(document.querySelector('app-profiles')).setAvatarTab('anime')`);await until(`document.querySelectorAll('app-profiles .anime-series-card').length>0`,90);await until(`Array.from(document.querySelectorAll('app-profiles .anime-series-card img')).every(img=>img.complete)`);await shot('profiles-anime');
+ await evalJs(`document.querySelector('app-profiles [data-anime-series]').click()`);await until(`!!document.querySelector('app-profiles .gallery-grid img')`);await shot('profiles-anime-gallery');
+ await evalJs(`(()=>{const page=ng.getComponent(document.querySelector('app-profiles'));page.closeAniSeries();page.setAvatarTab('styles');})()`);
  await evalJs(`ng.getComponent(document.querySelector('app-profiles')).openGallery('adventurer')`);await until(`document.querySelectorAll('app-profiles .gallery-grid img').length===50`);await shot('profiles-gallery');
  await evalJs(`ng.getComponent(document.querySelector('app-root')).profilesOpen.set(false)`);
  if(process.env.ANIPLAYER_SCREENSHOTS!=='profiles'){

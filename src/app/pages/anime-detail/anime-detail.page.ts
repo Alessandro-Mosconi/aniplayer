@@ -1,15 +1,22 @@
-import {Component,inject,signal,effect,OnDestroy} from '@angular/core';
+import {DetailCharacters,fetchDetailCharacters} from '../../core/anilist-avatars';
+import {ProfileAvatarDirective} from '../../components/profile-avatar.directive';
+import {Component,inject,signal,effect,untracked,OnDestroy} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {PageBase} from '../../core/page-base';
 import {Anime,Detail,Episode,cleanError} from '../../core/models';
 import {AnimeCardComponent} from '../../components/anime-card.component';
 import {ExplorationService} from '../../core/exploration.service';
-@Component({selector:'app-anime-detail-page',standalone:true,imports:[CommonModule,AnimeCardComponent],templateUrl:'./anime-detail.page.html',styleUrl:'./anime-detail.page.scss'})
+@Component({selector:'app-anime-detail-page',standalone:true,imports:[CommonModule,AnimeCardComponent,ProfileAvatarDirective],templateUrl:'./anime-detail.page.html',styleUrl:'./anime-detail.page.scss'})
 export class AnimeDetailPage extends PageBase implements OnDestroy {
   readonly exploration=inject(ExplorationService);
   readonly adjacent=signal<{previous:Anime|null;next:Anime|null}>({previous:null,next:null});private adjacentRequest=0;private destroyed=false;
-  constructor(){super();effect(()=>{const detail=this.details(),request=++this.adjacentRequest;this.historyStatus.set('');this.adjacent.set({previous:null,next:null});if(detail)void this.vm.nextSeasonService.adjacent(detail).then(result=>{if(!this.destroyed&&request===this.adjacentRequest)this.adjacent.set(result);}).catch(()=>{});});}
-  ngOnDestroy(){this.destroyed=true;this.adjacentRequest++;}
+  constructor(){super();effect(()=>{const detail=this.details(),request=++this.adjacentRequest;untracked(()=>this.closeCharacterAvatars(false));this.historyStatus.set('');this.adjacent.set({previous:null,next:null});if(detail)void this.vm.nextSeasonService.adjacent(detail).then(result=>{if(!this.destroyed&&request===this.adjacentRequest)this.adjacent.set(result);}).catch(()=>{});});}
+  ngOnDestroy(){this.closeCharacterAvatars(false);this.destroyed=true;this.adjacentRequest++;}
+  readonly characterDialog=signal(false);readonly characterLoading=signal(false);readonly characterError=signal('');readonly characterData=signal<DetailCharacters|null>(null);readonly characterStatus=signal('');private characterRequest:AbortController|null=null;
+  openCharacterAvatars(){this.characterData.set(null);this.characterError.set('');this.characterStatus.set('');this.characterDialog.set(true);setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-character-close]')));void this.loadCharacterAvatars();}
+  closeCharacterAvatars(restore=true){this.characterRequest?.abort();this.characterRequest=null;this.characterLoading.set(false);const wasOpen=this.characterDialog();this.characterDialog.set(false);if(restore&&wasOpen)setTimeout(()=>this.remote.focus(document.querySelector<HTMLElement>('[data-focus="detail-avatars"]')));}
+  async loadCharacterAvatars(){const detail=this.details();if(!detail||this.characterLoading())return;const previous=this.characterData();if(previous&&!previous.hasNext)return;const controller=new AbortController();this.characterRequest=controller;this.characterLoading.set(true);this.characterError.set('');const timer=setTimeout(()=>controller.abort(),15000);try{const anime=detail.anime;const result=await fetchDetailCharacters({id:Number(anime.anilist_id)||undefined,malId:Number(anime.mal_id)||undefined,title:anime.title_original||anime.title_eng||anime.title||anime.title_it||''},previous,controller.signal);if(this.characterRequest===controller)this.characterData.set(result);}catch(error){if(this.characterRequest===controller)this.characterError.set(error instanceof Error&&error.name!=='AbortError'?error.message:'Richiesta scaduta. Riprova.');}finally{clearTimeout(timer);if(this.characterRequest===controller){this.characterRequest=null;this.characterLoading.set(false);}}}
+  chooseCharacterAvatar(item:{image:string;name:string;anime:string}){try{const profile=this.storage.currentProfile();this.storage.saveProfile(profile.name,item.image,profile.id,{name:item.name,anime:item.anime});this.characterStatus.set('Immagine del profilo aggiornata.');this.closeCharacterAvatars();}catch(error){this.characterError.set(cleanError(error));}}
   readonly discoveryStatus=signal('');
   readonly historyStatus=signal('');
   readonly actionHint=signal('');
