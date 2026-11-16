@@ -352,7 +352,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\deploy-tizen.ps1
 
 Il deploy ferma l’app, salva le chiavi `autv.*`, installa, ripristina i dati e riapre AniPlayer. Se il backup fallisce, interrompe l’installazione. Non usare `-SkipBackup` per aggirare un errore quando hai dati da conservare.
 
-Il backup è in `tools/local-private/tv-userdata.json`. Prima di aggiornare, conserva separatamente una copia del backup precedente: il nuovo backup usa lo stesso nome di file.
+Il backup è in `tools/local-private/tv-userdata.json`. Prima di sostituirlo, lo script conserva la copia precedente con un nome contenente data e ora nella stessa cartella. Il backup attende che l'archivio della TV sia leggibile e rifiuta una lettura vuota; se non riesce, l'installazione si ferma.
 
 Identità corrente, condivisa da manifest e script:
 

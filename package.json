@@ -14,7 +14,7 @@
     "dist": "powershell -ExecutionPolicy Bypass -File ./tools/deploy-tizen.ps1",
     "build:dev": "ng build --configuration development",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test": "node --test tests/optical-backup.test.mjs tests/skip-origin.test.mjs tests/continue-watching.test.mjs tests/profile-names.test.mjs tests/profile-gallery.test.mjs tests/profiles.test.mjs tests/integration.test.mjs tests/tv-navigation.test.mjs tests/mal-relay.test.mjs tests/platform-runtime.test.mjs tests/platform-packaging.test.mjs tests/dev-proxy.test.mjs && node --experimental-strip-types --test tests/audio-fingerprint.test.mjs",
+    "test": "node --test tests/tv-storage.test.mjs tests/optical-backup.test.mjs tests/skip-origin.test.mjs tests/continue-watching.test.mjs tests/profile-names.test.mjs tests/profile-gallery.test.mjs tests/profiles.test.mjs tests/integration.test.mjs tests/tv-navigation.test.mjs tests/mal-relay.test.mjs tests/platform-runtime.test.mjs tests/platform-packaging.test.mjs tests/dev-proxy.test.mjs && node --experimental-strip-types --test tests/audio-fingerprint.test.mjs",
     "test:all": "npm run typecheck && npm run test && npm run build",
     "tizen:pack": "powershell -ExecutionPolicy Bypass -File ./tools/build-tizen.ps1",
     "tizen:deploy": "powershell -ExecutionPolicy Bypass -File ./tools/deploy-tizen.ps1",
