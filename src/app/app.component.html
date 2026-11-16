@@ -37,6 +37,7 @@
   </main>
  </div>
 </div>
+<span class="app-version" [hidden]="playback.state().opened" aria-label="Versione dell'app">v{{appVersion}}</span>
 <app-player />
 @if(vm.exitPrompt()){
  <div class="exit-overlay"><section class="exit-dialog" data-tv-dialog role="dialog" aria-modal="true" aria-labelledby="exit-title">

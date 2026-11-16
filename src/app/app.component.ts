@@ -1,3 +1,4 @@
+import {version} from '../../package.json';
 import {ProfileAvatarDirective} from './components/profile-avatar.directive';
 import {ProfilesComponent} from './components/profiles.component';
 import {avatarUrl} from './core/profiles';
@@ -21,6 +22,7 @@ import {MalLibraryService} from './core/mal-library.service';
 import {ExplorePage} from './pages/explore/explore.page';
 @Component({selector:'app-root',standalone:true,imports:[ProfileAvatarDirective,ProfilesComponent,PlayerComponent,LoadingSkeletonComponent,HomePage,CatalogPage,AnimeDetailPage,RelatedPage,FavoritesPage,HistoryPage,SettingsPage,MalPage,DiagnosticsPage,MyAnimePage,ExplorePage],templateUrl:'./app.component.html'})
 export class AppComponent {
+  readonly appVersion=version;
   readonly profilesOpen=signal(false);
   readonly avatarUrl=avatarUrl;
   closeProfiles(){this.profilesOpen.set(false);setTimeout(()=>document.querySelector<HTMLElement>('[data-profile-open]')?.focus());}
