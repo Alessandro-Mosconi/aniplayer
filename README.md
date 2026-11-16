@@ -140,3 +140,21 @@ Vedi https://www.dicebear.com/integrations/http-api/ e le licenze dei singoli st
 raggiungibili dal selettore. Non sono incluse librerie DiceBear nel bundle.
 
 [Guida ai profili](docs/GUIDA.md#profili) · [Schermate dei profili](docs/SCHERMATE.md#profili).
+
+## Pubblicare una release su GitHub
+
+La versione dell'app è quella di `package.json` ed è visibile in fondo alle impostazioni. Per preparare una release, dalla cartella del progetto:
+
+```bash
+npm version patch --no-git-tag-version
+# In alternativa: npm version minor --no-git-tag-version o npm version major --no-git-tag-version
+git add package.json package-lock.json
+git commit -m "chore: release vX.Y.Z"
+git tag vX.Y.Z
+git push origin HEAD
+git push origin vX.Y.Z
+```
+
+Sostituisci `X.Y.Z` con la versione effettivamente scritta da npm. La versione attuale è una prerelease: `npm version patch` la porta alla versione stabile corrispondente; per incrementare una prerelease usa `npm version prerelease --no-git-tag-version`. Il tag deve corrispondere esattamente alla versione, incluso l'eventuale suffisso.
+
+Il tag avvia GitHub Actions: esegue verifiche e build e crea una **bozza** nella pagina Releases con `AniPlayer-web.zip` e note generate automaticamente. Controlla il risultato e le note, allega eventualmente i pacchetti TV prodotti e verificati seguendo le guide, quindi pubblica la bozza. La build web è un insieme di file statici e può richiedere una configurazione server/proxy per accedere ai servizi; non è un pacchetto TV. I pacchetti Tizen richiedono SDK e firma Samsung; l'APK generato dagli script attuali è una build debug e webOS richiede la CLI LG. Le versioni nei manifest nativi sono separate e vanno aggiornate prima di compilare quei pacchetti; per Android incrementa anche `versionCode` a ogni aggiornamento.

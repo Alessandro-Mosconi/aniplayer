@@ -1,3 +1,4 @@
+import {version} from '../../../../package.json';
 import {TvSwitchComponent} from '../../components/tv-switch.component';
 import {SidebarService} from '../../core/sidebar.service';
 import {LayoutService} from '../../core/layout.service';
@@ -13,6 +14,7 @@ import {MalLibraryService} from '../../core/mal-library.service';
 import {OpticalExportComponent} from '../../components/optical-export.component';
 @Component({selector:'app-settings-page',standalone:true,imports:[TvSwitchComponent,CommonModule,FormsModule,OpticalExportComponent],templateUrl:'./settings.page.html',styleUrl:'./settings.page.scss'})
 export class SettingsPage extends PageBase {
+  readonly appVersion=version;
   readonly sidebar=inject(SidebarService);
   readonly layout=inject(LayoutService);
   readonly opticalExport=signal(false);

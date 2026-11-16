@@ -1,0 +1,33 @@
+name: Prepara release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: npm
+      - run: npm ci
+      - name: Verifica versione del tag
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          test "$GITHUB_REF_NAME" = "v$version" || { echo "Il tag deve corrispondere alla versione $version"; exit 1; }
+      - run: npm run test:all
+      - run: node tools/prepare-platform.mjs web --skip-build
+      - name: Comprimi la build web
+        run: cd dist/platforms/web && zip -qr ../../../AniPlayer-web.zip .
+      - name: Crea bozza della release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" AniPlayer-web.zip --draft --generate-notes --verify-tag

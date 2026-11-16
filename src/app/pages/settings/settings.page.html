@@ -18,7 +18,7 @@
      @if(category()==='playback'){<section class="setting-card"><h2>Ripresa automatica</h2><p>Riprendi l'episodio dall'ultima posizione.</p><app-tv-switch label="Ripresa automatica" [checked]="storage.settings()['resume']!==false" (changed)="storage.setSetting('resume',$event)" /></section>}
      @if(category()==='playback'){<section class="setting-card"><h2>Motore video</h2><p>{{storage.settings()['engine']}}</p><div class="toolbar" data-focus-row><button [attr.aria-pressed]="storage.settings()['engine']==='auto'" (click)="storage.setSetting('engine','auto')">Automatico</button>@if(tv.platform==='tizen'){<button [attr.aria-pressed]="storage.settings()['engine']==='avplay'" (click)="storage.setSetting('engine','avplay')">Samsung AVPlay</button>}<button [attr.aria-pressed]="storage.settings()['engine']==='html5'" (click)="storage.setSetting('engine','html5')">HTML5</button></div></section>}
      @if(category()==='data'){<section class="setting-card"><h2>Esporta metadati</h2><p>Trasferisci sul telefono i dati dei salti e le impronte salvati su questa TV.</p><button data-optical-open (click)="opticalExport.set(true)">Esporta metadati</button></section><section class="setting-card"><h2>Dati locali</h2><p>{{allFavorites().length}} preferiti · {{allHistory().length}} titoli in cronologia</p><button (click)="clearHistory()">Cancella cronologia</button></section>}
-    </div></div><p class="version">AniPlayer Angular 22.2.5 · {{tv.label}} · Nessun backend richiesto</p>
+    </div></div><p class="version">AniPlayer v{{appVersion}} · {{tv.label}} · Nessun backend richiesto</p>
 @if(opticalExport()){<app-optical-export (closed)="closeOpticalExport()" />}
 
 

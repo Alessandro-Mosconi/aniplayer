@@ -6,8 +6,8 @@ android {
   applicationId 'org.aniplayer.tv'
   minSdk 26
   targetSdk 35
-  versionCode 220
-  versionName '2.2.0'
+  versionCode 221
+  versionName '1.0.0'
  }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
  buildTypes { release { minifyEnabled false } }
