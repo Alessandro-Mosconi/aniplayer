@@ -25,7 +25,10 @@ export class StorageService {
   if(!this.write('profiles',next))throw Error('Impossibile salvare il profilo. Spazio locale insufficiente.');
   this.profiles.set(next);return profile;
  }
- selectProfile(id:string){if(!this.profiles().some(p=>p.id===id))throw Error('Profilo non trovato.');if(id===this.profileId)return;if(!this.write('activeProfile',id))throw Error('Impossibile cambiare profilo.');window.location.reload();}
+ // Angular can normalize the packaged entry URL to a directory. TV engines
+ // cannot reload that directory: always reopen the actual application document.
+ private restartApp(){window.location.replace(new URL('index.html',document.baseURI).href);}
+ selectProfile(id:string){if(!this.profiles().some(p=>p.id===id))throw Error('Profilo non trovato.');if(id===this.profileId)return;if(!this.write('activeProfile',id))throw Error('Impossibile cambiare profilo.');this.restartApp();}
  deleteProfile(id:string){
   const profiles=this.profiles();if(!profiles.some(p=>p.id===id))throw Error('Profilo non trovato.');
   if(profiles.length<=1)throw Error('Deve rimanere almeno un profilo.');
@@ -34,7 +37,7 @@ export class StorageService {
   this.profiles.set(next);if(active)this.deletedProfile=true;
   let cleanupFailed=false;
   for(const key of [...PROFILE_KEYS].map(key=>profileKey(id,key)).concat('avatarStyleFavorites.'+id,'avatarAnimeFavorites.'+id))try{localStorage.removeItem(this.prefix+key);}catch{cleanupFailed=true;}
-  if(active){this.write('activeProfile',next[0].id);window.location.reload();}
+  if(active){this.write('activeProfile',next[0].id);this.restartApp();}
   return !cleanupFailed;
  }
  readonly favorites=signal<Record<string,Anime>>(this.read('favorites',{}));

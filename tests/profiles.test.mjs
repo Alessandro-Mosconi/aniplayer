@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
-function setup(initial={}){
- const rows=new Map(Object.entries(initial).map(([k,v])=>['autv.'+k,JSON.stringify(v)]));let fail=false,reloads=0;
+function setup(initial={},baseURI='file:///opt/usr/apps/aniplayer/res/wgt/'){ 
+ const rows=new Map(Object.entries(initial).map(([k,v])=>['autv.'+k,JSON.stringify(v)]));let fail=false,reloads=0;const destinations=[];
  const localStorage={getItem:k=>rows.get(k)??null,setItem:(k,v)=>{if(fail)throw Error('Quota');rows.set(k,v);},removeItem:k=>{if(fail)throw Error('Storage');rows.delete(k);}};
  const angular={Injectable:()=>target=>target,signal:value=>{const s=()=>value;s.set=v=>{value=v;};return s;}};
  const modules={};
  for(const name of ['profiles','storage.service']){
   const source=readFileSync('src/app/core/'+name+'.ts','utf8');const exports={};
-  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,experimentalDecorators:true}}).outputText,{exports,require:key=>key==='@angular/core'?angular:modules[key.slice(2)],localStorage,crypto:{getRandomValues:array=>array.fill(1)},window:{location:{reload:()=>reloads++}},URL,encodeURIComponent});modules[name]=exports;
+  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,experimentalDecorators:true}}).outputText,{exports,require:key=>key==='@angular/core'?angular:modules[key.slice(2)],localStorage,crypto:{getRandomValues:array=>array.fill(1)},document:{baseURI},window:{location:{replace:url=>{reloads++;destinations.push(url);}}},URL,encodeURIComponent});modules[name]=exports;
  }
- return {Storage:modules['storage.service'].StorageService,profiles:modules.profiles,rows,fail:()=>{fail=true;},reloads:()=>reloads};
+ return {Storage:modules['storage.service'].StorageService,profiles:modules.profiles,rows,destinations,fail:()=>{fail=true;},reloads:()=>reloads};
 }
 test('existing user data remains in the default profile; new profiles start empty',()=>{
  const env=setup({favorites:{one:{id:1}},settings:{resume:false},introPrepared:{shared:true},malSession:{accessToken:'old'}}),old=new env.Storage();
@@ -142,4 +142,16 @@ test('hiding continue entries is profile-specific and history deletion clears th
 test('failed continue removal does not change the in-memory state or history',()=>{
  const env=setup(),s=new env.Storage(),anime={id:10};s.progress(anime,{id:1,number:'1'},100,1000);env.fail();
  assert.throws(()=>s.hideFromContinue(anime),/Impossibile/);assert.equal(s.hiddenFromContinue()['10'],undefined);assert.equal(s.history()['10'].position,100);
+});
+
+
+test('profile changes reopen index.html after Angular normalizes packaged URLs',()=>{
+ for(const base of ['file:///opt/usr/apps/aniplayer/res/wgt/','file:///media/developer/apps/aniplayer/','https://appassets.androidplatform.net/assets/','https://example.com/aniplayer/']){
+  const env=setup({},base),first=new env.Storage(),other=first.saveProfile('Secondo','generated:1');
+  first.selectProfile(other.id);
+  assert.equal(env.destinations[0],base+'index.html');
+  const second=new env.Storage();second.deleteProfile(other.id);
+  assert.equal(env.destinations[1],base+'index.html');
+  assert.equal(new env.Storage().profileId,'default');
+ }
 });
