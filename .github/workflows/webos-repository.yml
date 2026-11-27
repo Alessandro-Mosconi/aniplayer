@@ -1,0 +1,46 @@
+name: Pubblica repository webOS
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: webos-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+      - name: Scarica l'IPK dell'ultima release stabile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > release.json
+          node tools/webos-repository.mjs select release.json > asset-name.txt
+          gh release download "$(node -p "require('./release.json').tag_name")" --pattern "$(cat asset-name.txt)" --dir webos-package
+      - name: Genera il repository
+        env:
+          GITHUB_PAGES_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: node tools/webos-repository.mjs generate release.json webos-package site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

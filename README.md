@@ -36,6 +36,8 @@ Per la TV già configurata in questo progetto, `npm run dist` installa il pacche
 
 Installa l’app **Developer Mode** sulla TV, attivala e configura la CLI LG sul PC. Poi installa il pacchetto `.ipk` e avvia AniPlayer. [Guida LG passo per passo](docs/GUIDA.md#lg-webos).
 
+Per un gestore di repository webOS compatibile, aggiungi `https://alessandro-mosconi.github.io/aniplayer/repo.json`: il repository offre l'ultima release stabile e il relativo IPK. La disponibilità degli aggiornamenti dipende dal gestore installato sulla TV.
+
 Se dopo l’installazione l’icona non apre l’app, riavvia la TV e riprova.
 
 ### Android TV e Google TV
@@ -91,6 +93,8 @@ Per il collegamento tramite telefono e PC, avvia `npm run mal:relay` sul PC e se
 | `npm run mal:relay` | Avvia temporaneamente il collegamento MAL tramite telefono. |
 
 Guide: [installazione, backup e risoluzione problemi](docs/GUIDA.md) · [piattaforme](docs/MULTIPLATFORM.md) · [login MAL](docs/MAL_LOGIN.md) · [algoritmo dei salti e metadati](docs/ALGORITMO_SALTI.md) · [riconoscimento audio](docs/INTRO_AUDIO.md) · [aggiornare gli screenshot](docs/screenshots/README.md).
+
+Il repository webOS viene pubblicato su GitHub Pages dal workflow `Pubblica repository webOS`. Nelle impostazioni del repository, configura Pages con sorgente **GitHub Actions**, quindi avvia il workflow manualmente per la prima pubblicazione. Prima di pubblicare ogni release stabile `vX.Y.Z`, allega l'IPK `org.aniplayer.tv_X.Y.Z_all.ipk` alla bozza: il workflow calcola il suo SHA-256 e collega il download della release. Se manca il pacchetto, la pubblicazione fallisce lasciando online la versione precedente; dopo averlo aggiunto, riesegui il workflow manualmente. Le prerelease non vengono offerte.
 
 ## Crediti e utilizzo
 
