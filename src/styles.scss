@@ -51,6 +51,7 @@ body.tv-video-active #av-player{background:transparent!important}
 .detail-plot[tabindex="0"]:focus{outline:3px solid #aeb5ff;outline-offset:3px;background:#20304b66;border-radius:6px}
 .audio-versions button[aria-pressed="true"]{border:3px solid #aab6ff;box-shadow:0 0 0 3px #6682f244}
 .intro-badge{position:absolute;right:9px;top:54px;padding:4px 8px;border:1px solid #89e3d0;border-radius:7px;background:#103c3ce8;color:#a5f3de;font-size:15px;font-weight:bold;pointer-events:none}
+.timeline .timeline-segment{display:block;position:absolute;z-index:2;top:10px;height:8px;background:#e7c86b;border-radius:2px;box-shadow:0 0 4px rgba(231,200,107,.4);pointer-events:none}.timeline .timeline-segment-provisional{background:#bda65e}
 
 .intro-fallback{font-size:18px;color:#bccae5}.intro-fallback button{font-size:17px;min-height:41px;padding:10px 14px}.intro-status{white-space:normal}
 .provider-status{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px}.topbar .provider-status span{display:inline}.topbar .disconnected{color:var(--danger,#f39caa)}

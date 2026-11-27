@@ -53,6 +53,16 @@ export class PlayerComponent implements AfterViewInit,OnDestroy {
    return {...item,interval,provisional,mark:conflict?'!':mark,times,title:item.label+': '+times+'. '+(conflict?'Intervallo in conflitto.':origin.label)+'. '+item.detail};
   });
  });
+ readonly timelineSegments=computed(()=>{
+  const duration=this.p.state().duration;
+  if(!Number.isFinite(duration)||duration<=0)return [];
+  const segments=[...this.skipIndicators().map(item=>({interval:item.interval,provisional:item.provisional})),{interval:this.p.prologue(),provisional:false}];
+  return segments.flatMap(({interval,provisional})=>{
+   if(!interval||!Number.isFinite(interval.start)||!Number.isFinite(interval.end)||interval.end<=interval.start||interval.end<=0||interval.start>=duration)return [];
+   const start=Math.max(0,interval.start),end=Math.min(duration,interval.end);
+   return [{left:100*start/duration,width:100*(end-start)/duration,provisional}];
+  });
+ });
  @ViewChild('skipIntroButton')set skipButton(button:ElementRef<HTMLButtonElement>|undefined){if(button)queueMicrotask(()=>{if(button.nativeElement.isConnected&&!this.p.skipQuiet()&&!this.p.selectMenu()&&this.p.scrub()===null)this.remote.focus(button.nativeElement);});}
  private readonly skipActionFocus=computed(()=>{
   if(!this.p.skipUndoAvailable()||this.p.selectMenu()||this.p.scrub()!==null||this.p.state().buffering||this.p.state().error)return null;

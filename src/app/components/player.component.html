@@ -22,6 +22,7 @@
   @if(p.scrub()!==null){<div class="seek-preview">Vai a {{clock(p.scrub()!)}} · OK conferma · Return annulla</div>}
   <div class="timeline" id="timeline" role="slider" tabindex="0" data-focus="p-timeline" aria-label="Timeline video: frecce per anteprima, OK conferma, Return annulla" [attr.aria-valuemax]="p.state().duration" [attr.aria-valuenow]="p.state().position" (click)="timeline($event)" (keydown)="onKey($event)">
     <span class="timeline-progress" [style.width.%]="p.state().duration?100*(p.scrub()??p.state().position)/p.state().duration:0"></span>
+    @for(segment of timelineSegments();track $index){<span class="timeline-segment" [class.timeline-segment-provisional]="segment.provisional" aria-hidden="true" [style.left.%]="segment.left" [style.width.%]="segment.width"></span>}
   </div>
   <div class="player-controls-row">
    <span class="player-clock">{{clock(p.state().position)}} / {{clock(p.state().duration)}}</span>
