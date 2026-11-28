@@ -1,6 +1,6 @@
 <section id="player" [hidden]="!p.state().opened" aria-label="Riproduzione video">
  <object #avObject id="av-player" type="application/avplayer" [hidden]="p.html5()"></object>
- <video #htmlVideo id="html-player" playsinline [hidden]="!p.html5()" (click)="p.showControls()" (timeupdate)="p.onHtmlTime()" (waiting)="p.onHtmlWaiting()" (playing)="p.onHtmlPlaying()" (ended)="p.onHtmlEnded()"></video>
+ <video #htmlVideo id="html-player" playsinline [hidden]="!p.html5()" (click)="p.showControls()" (timeupdate)="p.onHtmlTime()" (ratechange)="p.onHtmlRateChange()" (waiting)="p.onHtmlWaiting()" (playing)="p.onHtmlPlaying()" (ended)="p.onHtmlEnded()"></video>
  @if(p.controls() || p.state().error){
   <div class="player-heading">
    <div><p class="eyebrow">@if(p.seasonNumber();as season){STAGIONE {{season}} · }EPISODIO {{p.state().episode}}</p><h1>{{p.state().title}}</h1></div>
@@ -16,6 +16,7 @@
  <div #playerControls id="p-controls" class="player-controls">
   @if(p.skipNotice()){<p class="pip-notice" role="status">{{p.skipNotice()}}</p>}
   @if(pip.notice()){<p class="pip-notice" role="status">{{pip.notice()}}</p>}
+  @if(p.speedNotice()){<p class="pip-notice" role="status">{{p.speedNotice()}}</p>}
   <div class="skip-indicators" aria-label="Intervalli dei salti: A AniSkip, A? proposta, AUD riconoscimento audio, A più AUD AniSkip verificato con audio, matita manuale">
    @for(item of skipIndicators();track item.key){<button type="button" data-tv-click class="skip-indicator" [attr.data-interval]="item.key" (click)="explainInterval(item.key)" [class.skip-provisional]="item.provisional" [attr.title]="item.title" [attr.aria-label]="item.title"><b aria-hidden="true">{{item.icon}}</b><span aria-hidden="true">{{item.times}}</span><small aria-hidden="true">{{item.mark}}</small>@if(item.analyzing){<i class="skip-checking" aria-hidden="true">&#8635;</i>}</button>}
   </div>
@@ -34,6 +35,7 @@
     <button class="player-icon-button" [class.season-next-control]="p.isNextSeason" data-focus="p-episode-next" [disabled]="!p.nextEpisode" [attr.aria-label]="p.isNextSeason?'Prossima stagione':'Episodio successivo'" [attr.title]="p.nextEpisode?(p.isNextSeason?'Prossima stagione':'Episodio successivo'):'Nessun episodio successivo disponibile'" (click)="p.requestNext()"><app-player-icon name="next" /></button>
     @if(p.html5()&&pip.supported()){<button class="player-icon-button" data-focus="p-pip" (click)="pip.enter()" aria-label="Picture-in-Picture" title="Picture-in-Picture"><app-player-icon name="pip" /></button>}
     <button class="player-short-button" data-focus="p-intro" aria-label="Gestisci salti" title="Gestisci salti" (click)="editIntro()">Salti</button>
+    <button data-tv-click class="player-short-button" data-focus="p-speed" [disabled]="p.state().buffering||p.audioSwitching()" [attr.aria-label]="'Velocità di riproduzione '+p.playbackSpeed()+'×. Cambia velocità'" title="Cambia velocità di riproduzione" (click)="p.cyclePlaybackSpeed()">{{p.playbackSpeed()}}×</button>
     <button data-tv-click class="player-short-button" data-focus="p-subtitles" aria-label="Cambia versione SUB ITA o DUB ITA" title="Cambia versione SUB ITA o DUB ITA" [disabled]="p.audioSwitching()||p.state().buffering" (click)="audioMenu()">{{p.audioLanguage()==='dub'?'ITA':'SUB'}}</button>
    </div>
   </div>

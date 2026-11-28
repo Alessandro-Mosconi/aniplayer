@@ -35,6 +35,7 @@ export class PlaybackService {
  }
 
  readonly state=signal<PlaybackState>({...initial});
+ readonly playbackSpeed=signal(1);readonly speedNotice=signal('');
  readonly controls=signal(true);readonly html5=signal(false);readonly scrub=signal<number|null>(null);readonly intro=signal<IntroWindow|null>(null);
  readonly ending=signal<IntroWindow|null>(null);private endingRequest=0;
  readonly recap=signal<IntroWindow|null>(null);readonly prologue=signal<IntroWindow|null>(null);readonly endingStatus=signal('');
@@ -59,7 +60,7 @@ export class PlaybackService {
  constructor(private data:AnimeWorldService,private local:StorageService,private tv:TizenService,private introService:IntroService,private remote:RemoteService,private mal:MalService,private detector:IntroDetectorService,private endingDetector:EndingDetectorService){}
  attach(video:HTMLVideoElement|null,object:HTMLElement|null){if(video)this.video=video;if(object)this.object=object;}
  private patch(partial:Partial<PlaybackState>){this.state.update(s=>({...s,...partial}));}
- async open(detail:Detail,episode:Episode,options:{position?:number;paused?:boolean;url?:string;versions?:Detail[]}={}){if(options.position===undefined){++this.audioSwitchRequest;this.audioSwitching.set(false);}this.close(false);const id=++this.generation;this.detail=detail;this.episode=episode;this.audioLanguage.set(Number(detail.anime.dub)?'dub':'sub');this.audioOptions.set(options.versions||[]);this.audioNotice.set('');this.lastTick=0;this.watchedSeconds=0;this.finishedOnce=false;this.playbackSegments=[];this.lastSave=0;this.tracker=new WatchProgress(this.local.settings()['historyEnabled']!==false?this.local.watchCoverage()?.[this.local.watchKey(detail.anime,episode)]:undefined);this.autoMarked=this.local.isSeen(detail.anime,episode);this.scrub.set(null);this.intro.set(null);this.ending.set(null);this.introStatus.set('');this.aniSkipDuration.set(null);this.selectMenu.set(null);
+ async open(detail:Detail,episode:Episode,options:{position?:number;paused?:boolean;url?:string;versions?:Detail[]}={}){if(options.position===undefined){++this.audioSwitchRequest;this.audioSwitching.set(false);}this.close(false);this.playbackSpeed.set(1);this.speedNotice.set('');const id=++this.generation;this.detail=detail;this.episode=episode;this.audioLanguage.set(Number(detail.anime.dub)?'dub':'sub');this.audioOptions.set(options.versions||[]);this.audioNotice.set('');this.lastTick=0;this.watchedSeconds=0;this.finishedOnce=false;this.playbackSegments=[];this.lastSave=0;this.tracker=new WatchProgress(this.local.settings()['historyEnabled']!==false?this.local.watchCoverage()?.[this.local.watchKey(detail.anime,episode)]:undefined);this.autoMarked=this.local.isSeen(detail.anime,episode);this.scrub.set(null);this.intro.set(null);this.ending.set(null);this.introStatus.set('');this.aniSkipDuration.set(null);this.selectMenu.set(null);
   this.setTransparentVideoLayer(true);this.patch({...initial,opened:true,title:detail.anime.title_eng||detail.anime.title||'Anime',episode:Number(episode.number),buffering:true});this.showControls();
   this.seasonNumber.set(null);
   if(this.seasonNumberResolver)void this.seasonNumberResolver(detail.anime).then(number=>{if(this.generation===id&&this.detail===detail&&this.state().opened)this.seasonNumber.set(number);}).catch(()=>{});
@@ -107,7 +108,7 @@ export class PlaybackService {
    try{const tracks=av.getTotalTrackInfo()||[];this.subtitles.set(tracks.map((t:any,i:number)=>({...t,index:i})).filter((t:any)=>t.type==='TEXT').map((t:any)=>({label:String(t.extra_info||'Sottotitoli '+(t.index+1)),index:t.index})));}catch{}
    if(!paused)av.play();this.patch({playing:!paused,buffering:false});
   }else{
-   const video=this.video;if(!video)throw Error('Elemento video non ancora disponibile');
+   const video=this.video;if(!video)throw Error('Elemento video non ancora disponibile');video.defaultPlaybackRate=1;video.playbackRate=1;
    await new Promise<void>((resolve,reject)=>{const timeout=setTimeout(()=>{cleanup();reject(Error('Timeout caricamento HTML5'));},20000);const ok=()=>{cleanup();resolve();},err=()=>{cleanup();reject(Error('Formato video non compatibile'));};const cleanup=()=>{clearTimeout(timeout);video.removeEventListener('loadedmetadata',ok);video.removeEventListener('error',err);};video.addEventListener('loadedmetadata',ok);video.addEventListener('error',err);video.src=url;video.load();});
    if(id!==this.generation)return;
    if(exact&&(!Number.isFinite(resume)||resume<0||resume>=video.duration))throw Error('La nuova versione termina prima della posizione corrente.');
@@ -123,6 +124,28 @@ export class PlaybackService {
  onHtmlEnded(){if(this.engine==='html5')this.finished();}
  onHtmlWaiting(){if(this.engine==='html5')this.patch({buffering:true});}
  onHtmlPlaying(){if(this.engine==='html5')this.patch({buffering:false,playing:true});}
+ onHtmlRateChange(){if(this.engine==='html5'&&this.video&&Number.isFinite(this.video.playbackRate))this.playbackSpeed.set(this.video.playbackRate);}
+ async cyclePlaybackSpeed(){
+  if(!this.engine||this.state().buffering)return;
+  const speeds=this.engine==='avplay'?[1,2]:[1,1.5,2];
+  const next=speeds[(speeds.indexOf(this.playbackSpeed())+1)%speeds.length];
+  try{
+   if(this.engine==='avplay'){
+    if(!this.av||typeof this.av.setSpeed!=='function')throw Error('Velocità non supportata');
+    if(next===1){
+     // AVPlay can remain in trick-play after setSpeed(1). Reopening resets it.
+     const id=this.generation,playing=this.state().playing,position=Number(this.av.getCurrentTime())/1000;
+     if(!this.source||!Number.isFinite(position)||position<0)throw Error('Posizione non disponibile');
+     this.tracker.interrupt();this.patch({buffering:true});
+     try{await this.prepareWithConnectionRetry(this.source,position,id,!playing,true);}catch(error){if(id===this.generation)this.fail(error);return;}
+     if(id!==this.generation)return;
+    }else this.av.setSpeed(next);
+   }
+   else{if(!this.video)throw Error('Video non disponibile');this.video.defaultPlaybackRate=next;this.video.playbackRate=next;if(this.video.playbackRate!==next)throw Error('Velocità non supportata');}
+   this.playbackSpeed.set(next);this.speedNotice.set(this.engine==='avplay'&&next!==1?'La velocità 2× può non riprodurre audio su questa TV.':'');
+  }catch{this.speedNotice.set('Questa velocità non è disponibile per il video.');}
+  this.showControls();
+ }
  private tick(position:number,duration:number){if(!Number.isFinite(position))return;const playing=this.state().playing;
   this.tracker.sample(position,duration,playing&&!this.state().buffering);const complete=this.tracker.complete(position,this.ending()?.start);this.playbackSegments=this.tracker.ranges as [number,number][];
   this.lastTick=position;this.patch({position,duration:Number.isFinite(duration)?duration:this.state().duration});

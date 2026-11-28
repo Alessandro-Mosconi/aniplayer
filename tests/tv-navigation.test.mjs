@@ -978,6 +978,19 @@ test('HTML5 source preparation waits for seeking and preserves exact timestamp w
  await assert.rejects(player.prepare('https://example.com/video.mp4',1501,player.generation,false,true),/termina prima/);
 });
 
+test('Playback speed cycles through supported rates and keeps the current rate on failure',async()=>{
+ const {player}=nextEpisodeFixture();player.showControls=()=>{};player.engine='html5';player.video={playbackRate:1};
+ await player.cyclePlaybackSpeed();assert.equal(player.video.playbackRate,1.5);assert.equal(player.playbackSpeed(),1.5);
+ await player.cyclePlaybackSpeed();assert.equal(player.video.playbackRate,2);await player.cyclePlaybackSpeed();assert.equal(player.playbackSpeed(),1);
+ assert.equal(player.video.defaultPlaybackRate,1);player.video.playbackRate=1.5;player.onHtmlRateChange();assert.equal(player.playbackSpeed(),1.5);player.video.playbackRate=1;player.onHtmlRateChange();
+ let speed=1;player.engine='avplay';player.av={setSpeed:value=>{if(value===2)throw Error('unsupported');speed=value;}};
+ await player.cyclePlaybackSpeed();assert.equal(player.playbackSpeed(),1);assert.match(player.speedNotice(),/non è disponibile/);
+ player.av.setSpeed=value=>{speed=value;};await player.cyclePlaybackSpeed();assert.equal(speed,2);assert.equal(player.playbackSpeed(),2);
+ player.source='https://example.com/video.mp4';player.av.getCurrentTime=()=>420000;let prepared;
+ player.prepareWithConnectionRetry=async(...args)=>{prepared=args;player.patch({buffering:false});};
+ await player.cyclePlaybackSpeed();assert.equal(prepared[1],420);assert.equal(prepared[3],!player.state().playing);assert.equal(prepared[4],true);assert.equal(player.playbackSpeed(),1);assert.equal(player.speedNotice(),'');
+});
+
 
 test('The immediate AniSkip button updates after analysis while explicit manual disabling remains respected',()=>{
  const {player}=nextEpisodeFixture();player.skipProposals.set({opening:{start:0,end:90,source:'aniskip'},recap:null,ending:null});
